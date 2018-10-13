@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
+#include <vector>
 
 #include "vec3.h"
 #include "ray.h"
@@ -9,6 +10,29 @@
 */
 //"screen" resolution
 int nx = 1920, ny = 1080;
+
+struct winDIBFormat {
+	//BMP Header
+	const char idField[2] = { 0x42, 0x4d };
+	int bmpSize = 0;
+	const char reserved0[2] = { 0x00, 0x00 };
+	const char reserved1[2] = { 0x00, 0x00 };
+	int pixelArrayOffset = 0;
+
+	//DIB Header
+	int dibHeaderSize = 0;
+	int bmpWidth = 0;
+	int bmpHeight = 0;
+	const uint16_t colorPlanes = 1;
+	uint16_t bitsPerPixel = 0;
+	const int pixelArrayCompression = 0;
+	int rawBmpDataSize = 0;
+	int horizontalRes = 2835;
+	int verticalRes = 2835;
+	int colorsInPalette = 0;
+	int importantColors = 0;
+	int *pixelArrayPointer = 0;
+};
 
 bool hit_sphere(const vec3& center, float radius, const ray& r) {
 	vec3 oc = r.origin() - center;
@@ -29,8 +53,83 @@ vec3 color(const ray& r) {
 	return (1.0 - t)*vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
 }
 
+int writeBMPHeader() {
+
+	std::ofstream outputStream;
+
+	outputStream.open("test.bmp", std::ios::out | std::ios::binary);
+
+	if (outputStream.fail()) {
+		std::cout << "Failed to open test.bmp\n";
+
+		return 1;
+	}
+
+	char pixels[] = { 0x00, 0x00, 0xde,
+					0xad, 0xbe, 0xef,
+					0x00, 0x00,
+					0xba, 0x00, 0x00,
+					0x00, 0xbe, 0x00,
+					0x00, 0x00 
+	};
+
+	winDIBFormat bmpHeader;
+
+	winDIBFormat* pointerToBmpHeader = &bmpHeader;
+
+	bmpHeader.bmpSize = 70;
+	bmpHeader.pixelArrayOffset = 54;
+	bmpHeader.dibHeaderSize = 40;
+	bmpHeader.bmpWidth = 2;
+	bmpHeader.bmpHeight = 2;
+	bmpHeader.bitsPerPixel = 24;
+	bmpHeader.rawBmpDataSize = 16;
+
+	std::unique_ptr<char[]> combinedHeader(new char[sizeof(bmpHeader)]());
+
+	int headerIndex = 0;
+
+	for (int i = 0; i < sizeof(bmpHeader.idField); i++, headerIndex++) {
+		combinedHeader[headerIndex + i] = bmpHeader.idField[i];
+	}
+
+	for (int i = 0; i < sizeof(bmpHeader.bmpSize); i++, headerIndex++) {
+		combinedHeader[headerIndex + i] = bmpHeader.bmpSize;
+		//NOT IMPLEMENTED
+	}
+
+	for (int i = 0; i < sizeof(bmpHeader.reserved0); i++) {
+		v.push_back(bmpHeader.reserved0[i]);
+	}
+
+	for (int i = 0; i < sizeof(bmpHeader.reserved1); i++) {
+		v.push_back(bmpHeader.reserved1[i]);
+	}
+
+	v.push_back(bmpHeader.pixelArrayOffset);
+	v.push_back(bmpHeader.dibHeaderSize);
+	v.push_back(bmpHeader.bmpWidth);
+	v.push_back(bmpHeader.bmpHeight);
+	//	//<< bmp.colorPlanes
+	//	//<< bmp.bitsPerPixel
+	//	//<< bmp.pixelArrayCompression
+	//	//<< bmp.rawBmpDataSize
+	//	//<< bmp.horizontalRes
+	//	//<< bmp.verticalRes
+	//	//<< bmp.colorsInPalette
+	//	//<< bmp.importantColors
+	//	<< pixel0 << pixel1 << padding0 << pixel2 << pixel3 << padding1;
+
+	outputStream.write(v.data(), v.size());
+	
+	outputStream.close();
+
+	return 0;
+}
+
 int main() {	
 
+#if 0
 	std::ofstream outFile;
 	
 	outFile.open("output.ppm");
@@ -62,10 +161,14 @@ int main() {
 			outFile << ir << " " << ig << " " << ib << "\n";
 		}
 	}
-
-	std::cout << "Image generation complete, pres any key to continue...\n";
+#endif
+	/*std::cout << "Image generation complete, pres any key to continue...\n";
 		
 	std::cin.get();
+
+	std::cout << "Writing debug bmp file...\n";*/
+
+	writeBMPHeader();
 
 	return 0;
 }
