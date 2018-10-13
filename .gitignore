@@ -1,5 +1,5 @@
-.bmp
-.ppm
+*.bmp
+*.ppm
 
 # Prerequisites
 *.d
