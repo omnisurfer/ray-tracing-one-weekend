@@ -6,10 +6,16 @@
 #include "vec3.h"
 #include "ray.h"
 
+#define DIB_HEADER_SIZE 40
+#define BMP_HEADER_SIZE 14
+#define BYTE_ROW_ALIGNMENT_MULTIPLES 4
+#define DWORD_BIT_SIZE 32
+#define BITS_PER_BYTE 8
+
 /* https://github.com/petershirley/raytracinginoneweekend
 */
 //"screen" resolution
-int nx = 1920, ny = 1080;
+int nx = 3840, ny = 2160;
 
 struct winDIBFormat {
 	//https://en.wikipedia.org/wiki/BMP_file_format
@@ -46,7 +52,7 @@ bool hit_sphere(const vec3& center, float radius, const ray& r) {
 
 vec3 color(const ray& r) {
 
-	if (hit_sphere(vec3(0, 0, -1), 1.0, r))
+	if (hit_sphere(vec3(0, 0, -1), 0.9, r))
 		return vec3(1, 0, 0);
 
 	vec3 unit_direction = unit_vector(r.direction());
@@ -54,7 +60,7 @@ vec3 color(const ray& r) {
 	return (1.0 - t)*vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
 }
 
-int writeBMPToFile() {
+int writeBMPToFile(uint8_t *inputArray, uint32_t inputArraySizeInBytes, uint32_t imageWidthPixels, uint32_t imageHeightPixels, uint8_t bitsPerPixel) {
 
 	std::ofstream outputStream;
 
@@ -65,33 +71,44 @@ int writeBMPToFile() {
 
 		return 1;
 	}
-	
-	char pixels[] = { 
-		//(0,0)				//(0,1)				//padding for this row					
-		0x00, 0x00, 0xde,	0xad, 0xbe, 0xef,	0x00, 0x00,					
-		//(1,0)				//(1,1)				//padding for this row
-		0xba, 0x00, 0x00,	0x00, 0xbe, 0x00,	0x00, 0x00 
-	};
 
-	char testInputPixels[] = {
-		//(0,0)				//(0,1)			
-		0x00, 0x00, 0xde,	0xad, 0xbe, 0xef,
-		//(1,0)				//(1,1)			
-		0xba, 0x00, 0x00,	0x00, 0xbe, 0x00
-	};
+	int bytesPerPixel = (bitsPerPixel / BITS_PER_BYTE);
 
-	int testPixelWidth = 2;
+	int bytesPerPaddedRow = ceil( ((float)bitsPerPixel * (float)imageWidthPixels) / (float)DWORD_BIT_SIZE ) * BYTE_ROW_ALIGNMENT_MULTIPLES;	
+	int outputPixelArraySizeInBytes = bytesPerPaddedRow * abs((float)imageHeightPixels);
 
-	int byteRowAlignMultiples = 4;
-	int dwordBitSize = 32;
-	int bitsPerPixel = 24;
-	int bitsPerByte = 8;
-	int bytesPerPixel = (bitsPerPixel / bitsPerByte);
+	int bytesPaddedPerRow = bytesPerPaddedRow - (bytesPerPixel * imageWidthPixels);
+	int bytesPerUnpaddedRow = bytesPerPaddedRow - bytesPaddedPerRow;
 
-	int rowSize = ceil( ((float)bitsPerPixel * (float)testPixelWidth) / (float)dwordBitSize ) * byteRowAlignMultiples;	
-	int pixelArraySize = rowSize * abs((float)testPixelWidth);
+	std::unique_ptr<char[]> outputPixelsArray(new char[outputPixelArraySizeInBytes]());
 
-	int rowSizeAlignDifference = rowSize - (bytesPerPixel * testPixelWidth);
+	//int outIndexOffset = 0;
+	//Note, checking inputArrayIndex against input array index size + 1. Testing against the size + 1 allows the
+	//loop to tack on the last padding bytes.
+	for (int inputArrayIndex = 0, outIndexOffset = 0; inputArrayIndex < inputArraySizeInBytes + 1; inputArrayIndex++) {
+
+		//insert last padding
+		if (inputArrayIndex == inputArraySizeInBytes) {
+			for (int i = 0; i < bytesPaddedPerRow; i++, outIndexOffset++) {
+				outputPixelsArray[inputArrayIndex + outIndexOffset] = 0x00;
+			}
+			break;
+		}
+
+		if (inputArrayIndex > 0 && inputArrayIndex%(bytesPerPaddedRow - bytesPaddedPerRow) == 0) {
+
+			//insert padding
+			for (int i = 0; i < bytesPaddedPerRow; i++, outIndexOffset++) {
+				outputPixelsArray[inputArrayIndex + outIndexOffset] = 0x00;
+			}
+		}
+
+		outputPixelsArray[inputArrayIndex + outIndexOffset] = inputArray[inputArrayIndex];
+	}
+
+	//for (int i = 0; i < outputPixelArraySizeInBytes; i++) {
+	//	std::cout << "i: " << i << " " << outputPixelsArray[i] << "\n";
+	//}
 
 	winDIBFormat bmpHeader;
 
@@ -99,19 +116,19 @@ int writeBMPToFile() {
 	//due to how the compiler may pad the struct
 	//winDIBFormat* pointerToBmpHeader = &bmpHeader;
 
-	bmpHeader.bmpSize = 70;
-	bmpHeader.pixelArrayOffset = 54;
-	bmpHeader.dibHeaderSize = 40;
-	bmpHeader.bmpWidth = 2;
-	bmpHeader.bmpHeight = 2;
+	bmpHeader.bmpSize = BMP_HEADER_SIZE + DIB_HEADER_SIZE + outputPixelArraySizeInBytes;
+	bmpHeader.pixelArrayOffset = BMP_HEADER_SIZE + DIB_HEADER_SIZE;
+	bmpHeader.dibHeaderSize = DIB_HEADER_SIZE;
+	bmpHeader.bmpWidth = imageWidthPixels;
+	bmpHeader.bmpHeight = imageHeightPixels;
 	bmpHeader.bitsPerPixel = 24;
-	bmpHeader.rawBmpDataSize = 16;
+	bmpHeader.rawBmpDataSize = outputPixelArraySizeInBytes;
 
-	int chSize = sizeof(bmpHeader);
-	chSize += sizeof(pixels);
-	chSize -= sizeof(bmpHeader.pixelArrayPointer);
+	int bitmapArraySizeInBytes = sizeof(bmpHeader);
+	bitmapArraySizeInBytes += outputPixelArraySizeInBytes;
+	bitmapArraySizeInBytes -= sizeof(bmpHeader.pixelArrayPointer);
 
-	std::unique_ptr<char[]> combinedHeader(new char[chSize]());
+	std::unique_ptr<char[]> combinedHeader(new char[bitmapArraySizeInBytes]());
 	
 	combinedHeader[sizeof(bmpHeader)] = { 0 };
 
@@ -181,9 +198,9 @@ int writeBMPToFile() {
 
 	combinedHeaderIndex += sizeof(bmpHeader.importantColors);
 
-	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &pixels, sizeof(pixels));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, outputPixelsArray.get(), outputPixelArraySizeInBytes);
 
-	combinedHeaderIndex += sizeof(pixels);
+	combinedHeaderIndex += outputPixelArraySizeInBytes;
 
 	//write out the header
 	outputStream.write(combinedHeader.get(), combinedHeaderIndex);
@@ -195,7 +212,16 @@ int writeBMPToFile() {
 
 int main() {	
 
-#if 0
+	uint32_t tempBufferSizeInBytes = nx * ny * 3;
+
+	uint8_t *tempBuffer = new uint8_t[tempBufferSizeInBytes]();
+
+	for (int i = 0; i < tempBufferSizeInBytes - 1; i++) {
+		tempBuffer[i] = 0x24;
+		tempBuffer[tempBufferSizeInBytes - 1] = 0x24;
+	}
+
+#if 1
 	std::ofstream outFile;
 	
 	outFile.open("output.ppm");
@@ -213,10 +239,15 @@ int main() {
 	vec3 vertical(0.0, (2.0*(ny / 100)), 0.0);
 	vec3 origin(0.0, 0.0, 0.0);
 
-	for (int j = ny - 1; j >= 0; j--) {
-		for (int i = 0; i < nx; i++) {			
-			float u = float(i) / float(nx);
-			float v = float(j) / float(ny);
+	for (int row = ny - 1; row >= 0; row--) {
+		if (row == 1)
+			std::cout << "row is 1\n";
+		if (row == 0)
+			std::cout << "row is zero\n";
+
+		for (int column = 0; column < nx; column++) {			
+			float u = float(column) / float(nx);
+			float v = float(row) / float(ny);
 
 			ray r(origin, lower_left_corner + u * horizontal + v * vertical);
 			vec3 col = color(r);
@@ -225,16 +256,23 @@ int main() {
 			int ig = int(255.99 * col[1]);
 			int ib = int(255.99 * col[2]);
 			outFile << ir << " " << ig << " " << ib << "\n";
+
+			//also store values into tempBuffer
+			tempBuffer[row*nx * 3 + (column * 3)] = ib;
+			tempBuffer[row*nx * 3 + (column * 3) + 1] = ig;
+			tempBuffer[row*nx * 3 + (column * 3) + 2] = ir;
 		}
 	}
 #endif
-	/*std::cout << "Image generation complete, pres any key to continue...\n";
+	std::cout << "Image generation complete, pres any key to continue...\n";
 		
-	std::cin.get();
+	//std::cin.get();
 
-	std::cout << "Writing debug bmp file...\n";*/
+	std::cout << "Writing debug bmp file...\n";
 
-	writeBMPToFile();
+	writeBMPToFile(tempBuffer, tempBufferSizeInBytes, nx, ny, 24);
+
+	delete[] tempBuffer;
 
 	return 0;
 }
