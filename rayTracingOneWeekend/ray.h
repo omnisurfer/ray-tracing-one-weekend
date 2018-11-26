@@ -17,4 +17,22 @@ public:
 	vec3 B;
 };
 
+class camera {
+public: 
+	camera(vec3 lowerLeftCorner, vec3 horizontal, vec3 vertical, vec3 origin) {
+		_lowerLeftCorner = lowerLeftCorner;
+		_horizontal = horizontal;
+		_vertical = vertical;
+		_origin = origin;
+	}
+	ray getRay(float u, float v) {
+		return ray(_origin, _lowerLeftCorner + u * _horizontal + v * _vertical - _origin);
+	}
+
+	vec3 _origin;
+	vec3 _lowerLeftCorner;
+	vec3 _horizontal;
+	vec3 _vertical;
+};
+
 #endif
