@@ -11,6 +11,8 @@
 #include "hitableList.h"
 #include "float.h"
 
+#include "debug.h"
+
 #include "bitmap.h"
 
 /* https://github.com/petershirley/raytracinginoneweekend
@@ -37,16 +39,19 @@ vec3 random_in_unit_sphere() {
 	return point;
 }
 
-vec3 color(const ray &rayCast, Hitable *world) {
-
+//Color is called recursively!
+vec3 color(const ray &rayCast, Hitable *world) {	
+	colorCallCount++;
+	//provide a way to store the hit vector to act on it outside the hit check
 	HitRecord hitRecord;
 
-	//hits a point on the sphere or hittable
+	//hits a point on the sphere or hittable.
 	if (world->hit(rayCast, 0.001, std::numeric_limits<float>::max(), hitRecord)) {
 		
 		//produce a "reflection" ray that originates at the point where a hit was detected and is cast in some random direction away from the impact surface.
 		vec3 target = hitRecord.point + hitRecord.normal + random_in_unit_sphere();
 
+		//This creates a new ray that will seek out whether or not it hits another object in the world.
 		return 0.5*color(ray(hitRecord.point, target - hitRecord.point), world);
 	}
 	//does not hit anything, so "background" gradient
@@ -59,15 +64,17 @@ vec3 color(const ray &rayCast, Hitable *world) {
 	}
 }
 
-int main() {	
+int main() {
+
+	DEBUG_MSG_L0(__func__, "");
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
-	uint8_t *tempImageBuffer = new uint8_t[tempImageBufferSizeInBytes]();
-
+	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);
+	
 	for (int i = 0; i < tempImageBufferSizeInBytes - 1; i++) {
-		tempImageBuffer[i] = 0x24;
-		tempImageBuffer[tempImageBufferSizeInBytes - 1] = 0x24;
+		tempImageBuffer.get()[i] = 0x24;
+		tempImageBuffer.get()[tempImageBufferSizeInBytes - 1] = 0x24;
 	}
 
 	WINDIBBitmap winDIBBmp;
@@ -83,11 +90,11 @@ int main() {
 	vec3 origin(0.0, 0.0, 0.0);
 
 	camera mainCamera(lower_left_corner, horizontal, vertical, origin);
-
+	
 	Hitable *hitableList[2];
 	hitableList[0] = new Sphere(vec3(0, 0, -1), 0.5);
 	hitableList[1] = new Sphere(vec3(0, -100.5, -1), 100);
-
+	
 	Hitable *world = new HitableList(hitableList, 2);
 	
 	timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -100,8 +107,6 @@ int main() {
 
 	//main raytracing loops
 	for (int row = resHeight - 1; row >= 0; row--) {
-
-		
 		//loop to move ray across width of frame
 		for (int column = 0; column < resWidth; column++) {
 			//loop to produce AA samples
@@ -111,6 +116,7 @@ int main() {
 				float v = float(row + +unifRand(randomNumberGenerator)) / float(resHeight);
 
 				//A, the origin of the ray (camera)
+				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
 				ray rayCast = mainCamera.getRay(u, v);				
 
 				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
@@ -122,12 +128,12 @@ int main() {
 			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
 			int ir = int(255.99 * outputColor[0]);
 			int ig = int(255.99 * outputColor[1]);
-			int ib = int(255.99 * outputColor[2]);			
+			int ib = int(255.99 * outputColor[2]);
 
 			//also store values into tempBuffer
-			tempImageBuffer[row*resWidth * bytesPerPixel + (column * bytesPerPixel)] = ib;
-			tempImageBuffer[row*resWidth * bytesPerPixel + (column * bytesPerPixel) + 1] = ig;
-			tempImageBuffer[row*resWidth * bytesPerPixel + (column * bytesPerPixel) + 2] = ir;
+			tempImageBuffer.get()[row*resWidth * bytesPerPixel + (column * bytesPerPixel)] = ib;
+			tempImageBuffer.get()[row*resWidth * bytesPerPixel + (column * bytesPerPixel) + 1] = ig;
+			tempImageBuffer.get()[row*resWidth * bytesPerPixel + (column * bytesPerPixel) + 2] = ir;
 		}
 	}
 
@@ -137,9 +143,11 @@ int main() {
 
 	std::cout << "Writing to debug bmp file...\n";
 
-	winDIBBmp.writeBMPToFile(tempImageBuffer, tempImageBufferSizeInBytes, resWidth, resHeight, BITS_PER_PIXEL);
+	winDIBBmp.writeBMPToFile(tempImageBuffer.get(), tempImageBufferSizeInBytes, resWidth, resHeight, BITS_PER_PIXEL);
 
-	delete[] tempImageBuffer;
+	delete[] world;
+
+	DEBUG_MSG_L0("colorCallCount: ", colorCallCount);
 
 	return 0;
 }

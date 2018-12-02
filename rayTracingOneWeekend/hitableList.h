@@ -21,7 +21,9 @@ bool HitableList::hit(const ray &rayCast, float minPointAtParameterT, float maxP
 	double closestHitSoFar = maxPointAtParmeterT;	
 
 	for (uint32_t i = 0; i < listSize; i++) {
-		//this calls the hit method of each sphere or hittable in the hittableList populated in main
+		//this calls the hit method of each sphere or hittable in the hittableList populated in main.
+		//It looks like it is a recursive call but it is not.
+		//basically this can be interpreted as asking each object in the list if ray intercepts it
 		if (hitableList[i]->hit(rayCast, minPointAtParameterT, closestHitSoFar, tempHitRecord)) {
 			hitAnything = true;
 			closestHitSoFar = tempHitRecord.pointAtParameterT;
