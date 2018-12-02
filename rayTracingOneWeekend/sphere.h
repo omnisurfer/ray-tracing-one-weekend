@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hitable.h"
+#include "debug.h"
 
 class Sphere : public Hitable {
 public:
