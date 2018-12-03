@@ -6,20 +6,22 @@
 class Sphere : public Hitable {
 public:
 	Sphere() {}
-	Sphere(vec3 center_, float radius_) : center(center_), radius(radius_) {};
+	Sphere(vec3 center_, float radius_, material *material_) : center(center_), radius(radius_), materialPointer(material_) {};
 
 	virtual bool hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParamterT, HitRecord &hitRecord) const;
 
 	vec3 center;
 	float radius;
+	material *materialPointer;
 };
 
 bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParamterT, HitRecord &hitRecord) const {	
 
+	//figure out where the sphere is in relation to the origin of the rayCast
 	vec3 originCorrection = rayCast.origin() - center;
+
+	//figure out values use din quadratic equation which determine if the ray hit the sphere
 	float a = dot(rayCast.direction(), rayCast.direction());
-	//float b = 2.0 * dot(originCorrection, rayCast.direction());	
-	//float b = 2.0 * dot(rayCast.direction(), originCorrection);
 	float b = dot(rayCast.direction(), originCorrection);
 	float c = dot(originCorrection, originCorrection) - radius * radius;
 
@@ -31,19 +33,23 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 	//float discriminant = b * b - 4 * a*c;
 	float discriminant = b*b - a*c;
 
+	//hit the sphere, only using at least one real solution
 	if (discriminant > 0) {
+
 		float temp = (-b - sqrt(b*b - a * c)) / a;
 		if (temp < maxPointAtParamterT && temp > minPointAtParameterT) {
 			hitRecord.pointAtParameterT = temp;
-			hitRecord.point = rayCast.point_at_parameter(hitRecord.pointAtParameterT);
-			hitRecord.normal = (hitRecord.point - center) / radius;
+			hitRecord.point = rayCast.pointAtParameter(hitRecord.pointAtParameterT);
+			hitRecord.normal = (hitRecord.point - center) / radius;	
+			hitRecord.materialPointer = materialPointer;
 			return true;
 		}
 		temp = (-b + sqrt(b*b - a * c)) / a;
 		if (temp < maxPointAtParamterT && temp > minPointAtParameterT) {
 			hitRecord.pointAtParameterT = temp;
-			hitRecord.point = rayCast.point_at_parameter(hitRecord.pointAtParameterT);
+			hitRecord.point = rayCast.pointAtParameter(hitRecord.pointAtParameterT);
 			hitRecord.normal = (hitRecord.point - center) / radius;
+			hitRecord.materialPointer = materialPointer;
 			return true;
 		}
 	}

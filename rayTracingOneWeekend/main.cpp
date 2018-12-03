@@ -8,6 +8,7 @@
 #include "vec3.h"
 #include "ray.h"
 #include "sphere.h"
+#include "material.h"
 #include "hitableList.h"
 #include "float.h"
 
@@ -22,37 +23,26 @@
 int32_t resWidth = 800, resHeight = 600;
 int32_t resRatioWH = resWidth / resHeight;
 uint8_t bytesPerPixel = (BITS_PER_PIXEL / BITS_PER_BYTE);
-uint32_t antiAliasingSamples = 4;
-
-//setup RNG
-//https://stackoverflow.com/questions/9878965/rand-between-0-and-1
-
-std::mt19937_64 randomNumberGenerator;
-uint64_t timeSeed;
-std::uniform_real_distribution<double> unifRand(0, 1.0);
-
-vec3 random_in_unit_sphere() {
-	vec3 point;
-	do {
-		point = 2.0*vec3(unifRand(randomNumberGenerator), unifRand(randomNumberGenerator), unifRand(randomNumberGenerator)) - vec3(1, 1, 1);
-	} while (point.squared_length() >= 1.0);
-	return point;
-}
+uint32_t antiAliasingSamples = 100;
 
 //Color is called recursively!
-vec3 color(const ray &rayCast, Hitable *world) {	
+vec3 color(const ray &rayCast, Hitable *world, int depth) {	
 	colorCallCount++;
 	//provide a way to store the hit vector to act on it outside the hit check
 	HitRecord hitRecord;
 
 	//hits a point on the sphere or hittable.
 	if (world->hit(rayCast, 0.001, std::numeric_limits<float>::max(), hitRecord)) {
-		
-		//produce a "reflection" ray that originates at the point where a hit was detected and is cast in some random direction away from the impact surface.
-		vec3 target = hitRecord.point + hitRecord.normal + random_in_unit_sphere();
+		ray scattered;
+		vec3 attenuation;
 
-		//This creates a new ray that will seek out whether or not it hits another object in the world.
-		return 0.5*color(ray(hitRecord.point, target - hitRecord.point), world);
+		//depth refers to number of recursive calls to bounce the ray around???
+		if (depth < 50 && hitRecord.materialPointer->scatter(rayCast, hitRecord, attenuation, scattered)) {
+			return attenuation * color(scattered, world, depth + 1);
+		}
+		else {
+			return vec3(0, 0, 0);
+		}				
 	}
 	//does not hit anything, so "background" gradient
 	else {
@@ -91,11 +81,17 @@ int main() {
 
 	camera mainCamera(lower_left_corner, horizontal, vertical, origin);
 	
-	Hitable *hitableList[2];
-	hitableList[0] = new Sphere(vec3(0, 0, -1), 0.5);
-	hitableList[1] = new Sphere(vec3(0, -100.5, -1), 100);
+	Hitable *hitableList[5];
+	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
 	
-	Hitable *world = new HitableList(hitableList, 2);
+	hitableList[1] = new Sphere(vec3(0, 0.25, -1.5), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));	
+	hitableList[2] = new Sphere(vec3(0.0, -0.15, -1), -0.5, new dielectric(2.3));//lambertian(vec3(0.07, 0.25, 0.83)));
+
+	//metal spheres
+	hitableList[3] = new Sphere(vec3(1, 0, -1), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.1));
+	hitableList[4] = new Sphere(vec3(-1, 0, -1), 0.5, new metal(vec3(0.1, 0.1, 1.0), 0.5));	
+	
+	Hitable *world = new HitableList(hitableList, 5);
 	
 	timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	std::seed_seq seedSequence { 
@@ -105,7 +101,7 @@ int main() {
 
 	randomNumberGenerator.seed(seedSequence);	
 
-	//main raytracing loops
+	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
 	for (int row = resHeight - 1; row >= 0; row--) {
 		//loop to move ray across width of frame
 		for (int column = 0; column < resWidth; column++) {
@@ -113,15 +109,15 @@ int main() {
 			vec3 outputColor(0, 0, 0);
 			for (int sample = 0; sample < antiAliasingSamples; sample++) { 
 				float u = float(column + unifRand(randomNumberGenerator)) / float(resWidth);
-				float v = float(row + +unifRand(randomNumberGenerator)) / float(resHeight);
+				float v = float(row + unifRand(randomNumberGenerator)) / float(resHeight);
 
 				//A, the origin of the ray (camera)
 				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
 				ray rayCast = mainCamera.getRay(u, v);				
 
 				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
-				vec3 p = rayCast.point_at_parameter(2.0);
-				outputColor += color(rayCast, world);
+				vec3 p = rayCast.pointAtParameter(2.0);
+				outputColor += color(rayCast, world, 0);
 			}
 
 			outputColor /= float(antiAliasingSamples);
