@@ -16,14 +16,18 @@
 
 #include "bitmap.h"
 
-/* https://github.com/petershirley/raytracinginoneweekend
+/* 
+* https://github.com/petershirley/raytracinginoneweekend
+* http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/
+* http://www.codinglabs.net/article_world_view_projection_matrix.aspx
+* http://iquilezles.org/index.html
 */
 //"screen" resolution
 //4K 3840x2160, 2K 2560x1440
-int32_t resWidth = 800, resHeight = 600;
+int32_t resWidth = 640, resHeight = 360;
 int32_t resRatioWH = resWidth / resHeight;
 uint8_t bytesPerPixel = (BITS_PER_PIXEL / BITS_PER_BYTE);
-uint32_t antiAliasingSamples = 100;
+uint32_t antiAliasingSamples = 16;
 
 //Color is called recursively!
 vec3 color(const ray &rayCast, Hitable *world, int depth) {	
@@ -41,7 +45,8 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 			return attenuation * color(scattered, world, depth + 1);
 		}
 		else {
-			return vec3(0, 0, 0);
+			//what does it mean when this returns?
+			return vec3(1, 1, 1);
 		}				
 	}
 	//does not hit anything, so "background" gradient
@@ -81,11 +86,12 @@ int main() {
 
 	camera mainCamera(lower_left_corner, horizontal, vertical, origin);
 	
+	//replace with linked list??
 	Hitable *hitableList[5];
 	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
 	
 	hitableList[1] = new Sphere(vec3(0, 0.25, -1.5), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));	
-	hitableList[2] = new Sphere(vec3(0.0, -0.15, -1), -0.5, new dielectric(2.3));//lambertian(vec3(0.07, 0.25, 0.83)));
+	hitableList[2] = new Sphere(vec3(0.0, -0.15, -1), 0.5, new dielectric(2.3));//lambertian(vec3(0.07, 0.25, 0.83)));
 
 	//metal spheres
 	hitableList[3] = new Sphere(vec3(1, 0, -1), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.1));
