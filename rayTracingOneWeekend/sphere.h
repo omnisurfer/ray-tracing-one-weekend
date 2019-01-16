@@ -20,7 +20,7 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 	//figure out where the sphere is in relation to the origin of the rayCast
 	vec3 originCorrection = rayCast.origin() - center;
 
-	//figure out values use din quadratic equation which determine if the ray hit the sphere
+	//figure out values used in quadratic equation which determine if the ray hit the sphere
 	float a = dot(rayCast.direction(), rayCast.direction());
 	float b = dot(rayCast.direction(), originCorrection);
 	float c = dot(originCorrection, originCorrection) - radius * radius;

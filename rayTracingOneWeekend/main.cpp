@@ -46,7 +46,7 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 		}
 		else {
 			//what does it mean when this returns?
-			return vec3(1, 1, 1);
+			return vec3(0, 0, 0);
 		}				
 	}
 	//does not hit anything, so "background" gradient
@@ -87,17 +87,18 @@ int main() {
 	camera mainCamera(lower_left_corner, horizontal, vertical, origin);
 	
 	//replace with linked list??
-	Hitable *hitableList[5];
+	Hitable *hitableList[6];
 	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
 	
-	hitableList[1] = new Sphere(vec3(0, 0.25, -1.5), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));	
-	hitableList[2] = new Sphere(vec3(0.0, -0.15, -1), 0.5, new dielectric(2.3));//lambertian(vec3(0.07, 0.25, 0.83)));
+	hitableList[1] = new Sphere(vec3(-0.5, 1, -1.5), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));	
+	hitableList[2] = new Sphere(vec3(0.5, 1, -1.5), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.3));	
+	hitableList[3] = new Sphere(vec3(0, 0, -1), -0.95, new dielectric(1.3));//lambertian(vec3(0.07, 0.25, 0.83)));
 
 	//metal spheres
-	hitableList[3] = new Sphere(vec3(1, 0, -1), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.1));
-	hitableList[4] = new Sphere(vec3(-1, 0, -1), 0.5, new metal(vec3(0.1, 0.1, 1.0), 0.5));	
+	hitableList[4] = new Sphere(vec3(1, 0, -1), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.1));
+	hitableList[5] = new Sphere(vec3(-1, 0, -1), 0.5, new metal(vec3(0.8, 0.1, 1.0), 0.5));	
 	
-	Hitable *world = new HitableList(hitableList, 5);
+	Hitable *world = new HitableList(hitableList, 6);
 	
 	timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	std::seed_seq seedSequence { 
