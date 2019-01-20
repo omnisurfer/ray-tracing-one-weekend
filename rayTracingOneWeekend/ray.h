@@ -3,6 +3,9 @@
 #define RAY_H
 
 #include "vec3.h"
+/* Windows specific, need to define the following*/
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 class ray {
 public:
@@ -19,14 +22,25 @@ public:
 
 class camera {
 public: 
-	camera(vec3 lowerLeftCorner, vec3 horizontal, vec3 vertical, vec3 origin) {
-		_lowerLeftCorner = lowerLeftCorner;
-		_horizontal = horizontal;
-		_vertical = vertical;
-		_origin = origin;
+	camera(vec3 lookFrom, vec3 lookAt, vec3 upDirection, float vfov, float aspect) { //vfov is top to bottom in degrees
+		vec3 u, v, w;
+		float theta = vfov * M_PI / 180;
+		float half_height = tan(theta / 2);
+		float half_width = aspect * half_height;
+
+		_origin = lookFrom;
+		w = unit_vector(lookFrom - lookAt);
+		u = unit_vector(cross(upDirection, w));
+		v = cross(w, u);
+
+		_lowerLeftCorner = vec3(-half_width, -half_height, -1.0);
+		_lowerLeftCorner = _origin - half_width * u - half_height * v - w;
+
+		_horizontal = 2*half_width*u;
+		_vertical = 2*half_height*v;		
 	}
-	ray getRay(float u, float v) {
-		return ray(_origin, _lowerLeftCorner + u * _horizontal + v * _vertical - _origin);
+	ray getRay(float s, float t) {
+		return ray(_origin, _lowerLeftCorner + s * _horizontal + t * _vertical - _origin);
 	}
 
 	vec3 _origin;

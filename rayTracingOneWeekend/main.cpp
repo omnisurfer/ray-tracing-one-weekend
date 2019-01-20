@@ -32,7 +32,7 @@ int32_t resWidth = 640, resHeight = 480;
 int32_t resRatioWH = resWidth / resHeight;
 //TODO: Remove this direct dependancy on defines located in the BMP class
 uint8_t bytesPerPixel = (BMP_BITS_PER_PIXEL / BMP_BITS_PER_BYTE);
-uint32_t antiAliasingSamples = 16;
+uint32_t antiAliasingSamples = 200;
 
 //Color is called recursively!
 vec3 color(const ray &rayCast, Hitable *world, int depth) {	
@@ -74,29 +74,27 @@ int main() {
 
 	WINDIBBitmap winDIBBmp;
 
-	std::cout << "Raytracing...\n";
+	std::cout << "Raytracing...\n";	
 
-	float x = (float_t)resWidth / (float_t)resWidth,
-	y = (float_t)resHeight / (float_t)resWidth;
-
-	vec3 lower_left_corner(-x, -y, -1.0);
-	vec3 horizontal(2.0*x, 0.0, 0.0);
-	vec3 vertical(0.0, 2.0*y, 0.0);
-	vec3 origin(0.0, 0.0, 0.0);
-
-	camera mainCamera(lower_left_corner, horizontal, vertical, origin);
+	camera mainCamera(vec3(0,0,0), vec3(0,0,-1), vec3(0,1,0), 90.0, float(resWidth)/float(resHeight));
 	
 	//replace with linked list, std::list<Hitable>?
 	Hitable *hitableList[6];
+	//This is the "surface" sphere
 	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
 	
-	hitableList[1] = new Sphere(vec3(-0.5, 1, -1.5), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));	
-	hitableList[2] = new Sphere(vec3(0.5, 1, -1.5), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.3));	
-	hitableList[3] = new Sphere(vec3(0, 0, -1), -0.4, new dielectric(1.0));//lambertian(vec3(0.07, 0.25, 0.83)));
+	//red sphere
+	hitableList[1] = new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));
+	//green sphere
+	hitableList[2] = new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3));
 
-	//metal spheres
-	hitableList[4] = new Sphere(vec3(1, 0, -1), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.1));
-	hitableList[5] = new Sphere(vec3(-1, 0, -1), 0.5, new metal(vec3(0.8, 0.1, 1.0), 0.5));	
+	//blue sphere
+	hitableList[3] = new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1));
+	//mixed sphere
+	hitableList[4] = new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5));	
+
+	//Glass sphere
+	hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
 	
 	Hitable *world = new HitableList(hitableList, 6);
 	
@@ -113,7 +111,7 @@ int main() {
 	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
 	for (int row = resHeight - 1; row >= 0; row--) {
 		if(row%10 == 0 || row == resHeight - 1)
-			std::cout << "\nRow: " << row << " ";
+			std::cout << "\nRow " << row << " ";
 
 		int columnProgress = 0;
 		//loop to move ray across width of frame
@@ -151,7 +149,7 @@ int main() {
 
 	std::cout << "\nRaytracing complete, pres any key to write to bmp.\n";
 		
-	std::cin.get();
+	//std::cin.get();
 
 	std::cout << "Writing to debug bmp file...\n";
 
