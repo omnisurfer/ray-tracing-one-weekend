@@ -16,6 +16,10 @@
 
 #include "bitmap.h"
 
+/* TODO:
+	drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
+*/
+
 /* 
 * https://github.com/petershirley/raytracinginoneweekend
 * http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/
@@ -24,9 +28,10 @@
 */
 //"screen" resolution
 //4K 3840x2160, 2K 2560x1440
-int32_t resWidth = 640, resHeight = 360;
+int32_t resWidth = 640, resHeight = 480;
 int32_t resRatioWH = resWidth / resHeight;
-uint8_t bytesPerPixel = (BITS_PER_PIXEL / BITS_PER_BYTE);
+//TODO: Remove this direct dependancy on defines located in the BMP class
+uint8_t bytesPerPixel = (BMP_BITS_PER_PIXEL / BMP_BITS_PER_BYTE);
 uint32_t antiAliasingSamples = 16;
 
 //Color is called recursively!
@@ -65,12 +70,7 @@ int main() {
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
-	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);
-	
-	for (int i = 0; i < tempImageBufferSizeInBytes - 1; i++) {
-		tempImageBuffer.get()[i] = 0x24;
-		tempImageBuffer.get()[tempImageBufferSizeInBytes - 1] = 0x24;
-	}
+	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);		
 
 	WINDIBBitmap winDIBBmp;
 
@@ -86,13 +86,13 @@ int main() {
 
 	camera mainCamera(lower_left_corner, horizontal, vertical, origin);
 	
-	//replace with linked list??
+	//replace with linked list, std::list<Hitable>?
 	Hitable *hitableList[6];
 	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
 	
 	hitableList[1] = new Sphere(vec3(-0.5, 1, -1.5), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));	
 	hitableList[2] = new Sphere(vec3(0.5, 1, -1.5), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.3));	
-	hitableList[3] = new Sphere(vec3(0, 0, -1), -0.95, new dielectric(1.3));//lambertian(vec3(0.07, 0.25, 0.83)));
+	hitableList[3] = new Sphere(vec3(0, 0, -1), -0.4, new dielectric(1.0));//lambertian(vec3(0.07, 0.25, 0.83)));
 
 	//metal spheres
 	hitableList[4] = new Sphere(vec3(1, 0, -1), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.1));
@@ -100,18 +100,27 @@ int main() {
 	
 	Hitable *world = new HitableList(hitableList, 6);
 	
+
 	timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	std::seed_seq seedSequence { 
 			uint32_t(timeSeed & 0xffffffff), 
 			uint32_t(timeSeed>>32) 
 	};
 
+	//this is created in material.h
 	randomNumberGenerator.seed(seedSequence);	
 
 	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
 	for (int row = resHeight - 1; row >= 0; row--) {
+		if(row%10 == 0 || row == resHeight - 1)
+			std::cout << "\nRow: " << row << " ";
+
+		int columnProgress = 0;
 		//loop to move ray across width of frame
-		for (int column = 0; column < resWidth; column++) {
+		for (int column = 0; column < resWidth; column++, columnProgress++) {
+			if(columnProgress%1000 == 0 || columnProgress == 0)
+				std::cout << ". ";
+
 			//loop to produce AA samples
 			vec3 outputColor(0, 0, 0);
 			for (int sample = 0; sample < antiAliasingSamples; sample++) { 
@@ -140,13 +149,13 @@ int main() {
 		}
 	}
 
-	std::cout << "Raytracing complete, pres any key to write to bmp.\n";
+	std::cout << "\nRaytracing complete, pres any key to write to bmp.\n";
 		
-	//std::cin.get();
+	std::cin.get();
 
 	std::cout << "Writing to debug bmp file...\n";
 
-	winDIBBmp.writeBMPToFile(tempImageBuffer.get(), tempImageBufferSizeInBytes, resWidth, resHeight, BITS_PER_PIXEL);
+	winDIBBmp.writeBMPToFile(tempImageBuffer.get(), tempImageBufferSizeInBytes, resWidth, resHeight, BMP_BITS_PER_PIXEL);
 
 	delete[] world;
 

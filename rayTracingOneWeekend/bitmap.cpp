@@ -23,7 +23,7 @@ uint32_t WINDIBBitmap::writeBMPToFile(uint8_t *inputArray, uint32_t inputArraySi
 		return 1;
 	}
 
-	int _bytesPerPixel = (bitsPerPixel / BITS_PER_BYTE);
+	int _bytesPerPixel = (bitsPerPixel / BMP_BITS_PER_BYTE);
 
 	int _bytesPerPaddedRow = ceil(((float)bitsPerPixel * (float)imageWidthPixels) / (float)DWORD_BIT_SIZE) * BYTE_ROW_ALIGNMENT_MULTIPLES;
 	int _outputPixelArraySizeInBytes = _bytesPerPaddedRow * abs((float)imageHeightPixels);
