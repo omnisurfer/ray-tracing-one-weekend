@@ -11,13 +11,15 @@
 #include "material.h"
 #include "hitableList.h"
 #include "float.h"
+#include "camera.h"
 
 #include "debug.h"
 
 #include "bitmap.h"
 
 /* TODO:
-	drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
+	- drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
+	- drowan 20190121: I need to really refactor and clean up code style. unifRand is being pulled from material.
 */
 
 /* 
@@ -32,7 +34,7 @@ int32_t resWidth = 640, resHeight = 480;
 int32_t resRatioWH = resWidth / resHeight;
 //TODO: Remove this direct dependancy on defines located in the BMP class
 uint8_t bytesPerPixel = (BMP_BITS_PER_PIXEL / BMP_BITS_PER_BYTE);
-uint32_t antiAliasingSamples = 200;
+uint32_t antiAliasingSamples = 40;
 
 //Color is called recursively!
 vec3 color(const ray &rayCast, Hitable *world, int depth) {	
@@ -76,7 +78,15 @@ int main() {
 
 	std::cout << "Raytracing...\n";	
 
-	camera mainCamera(vec3(0,0,0), vec3(0,0,-1), vec3(0,1,0), 90.0, float(resWidth)/float(resHeight));
+	vec3 lookFrom(0, 0, -3);
+	vec3 lookAt(0, 0, -1);
+	vec3 worldUp(0, 1, 0);
+	float distToFocus = (lookFrom - lookAt).length();
+	float aperture = 2.0;
+	float aspectRatio = float(resWidth) / float(resHeight);
+	float verticalFieldOfViewDegrees = 90.0;
+
+	camera mainCamera(lookFrom, lookAt, worldUp, verticalFieldOfViewDegrees, aspectRatio, aperture, distToFocus);
 	
 	//replace with linked list, std::list<Hitable>?
 	Hitable *hitableList[6];
