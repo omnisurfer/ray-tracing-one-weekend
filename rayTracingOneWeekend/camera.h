@@ -37,7 +37,8 @@ public:
 		_vertical = 2 * half_height * focusDistance * v;
 	}
 	ray getRay(float s, float t) {
-		vec3 rd = lensRadius * randomInUnitDisk() + randomInUnitSphere();
+		//DEBUG - DISABLED SO THAT I CAN RENDER WITHOUT DOF BLUR
+		vec3 rd = lensRadius * randomInUnitDisk();// +randomInUnitSphere();
 		vec3 offset = u * rd.x() + v * rd.y();
 
 		return ray(_origin + offset, _lowerLeftCorner + s * _horizontal + t * _vertical - _origin - offset);

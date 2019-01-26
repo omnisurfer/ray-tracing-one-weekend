@@ -34,7 +34,7 @@ int32_t resWidth = 640, resHeight = 480;
 int32_t resRatioWH = resWidth / resHeight;
 //TODO: Remove this direct dependancy on defines located in the BMP class
 uint8_t bytesPerPixel = (BMP_BITS_PER_PIXEL / BMP_BITS_PER_BYTE);
-uint32_t antiAliasingSamples = 40;
+uint32_t antiAliasingSamples = 1;
 
 //Color is called recursively!
 vec3 color(const ray &rayCast, Hitable *world, int depth) {	
@@ -78,11 +78,11 @@ int main() {
 
 	std::cout << "Raytracing...\n";	
 
-	vec3 lookFrom(0, 0, -3);
+	vec3 lookFrom(0, 0, -5);
 	vec3 lookAt(0, 0, -1);
 	vec3 worldUp(0, 1, 0);
 	float distToFocus = (lookFrom - lookAt).length();
-	float aperture = 2.0;
+	float aperture = 0;
 	float aspectRatio = float(resWidth) / float(resHeight);
 	float verticalFieldOfViewDegrees = 90.0;
 
