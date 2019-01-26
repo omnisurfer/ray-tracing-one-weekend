@@ -6,9 +6,12 @@
 #define BMP_HEADER_SIZE 14
 #define BYTE_ROW_ALIGNMENT_MULTIPLES 4
 #define DWORD_BIT_SIZE 32
-#define BITS_PER_BYTE 8
-#define BITS_PER_PIXEL 24
+#define BMP_BITS_PER_BYTE 8
+#define BMP_BITS_PER_PIXEL 24
 
+/*
+	My quickly thrown together WinDIB BMP writer. Just enough to work but not really tested beyond that.
+*/
 struct WinDIBFormat {
 	//https://en.wikipedia.org/wiki/BMP_file_format
 	//BMP Header

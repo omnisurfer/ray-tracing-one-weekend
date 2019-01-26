@@ -120,9 +120,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitmap.h" />
+    <ClInclude Include="camera.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="hitable.h" />
     <ClInclude Include="hitableList.h" />
+    <ClInclude Include="material.h" />
     <ClInclude Include="ray.h" />
     <ClInclude Include="sphere.h" />
     <ClInclude Include="vec3.h" />
