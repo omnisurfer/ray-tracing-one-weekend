@@ -115,19 +115,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="bitmap.cpp" />
+    <ClCompile Include="winDIBbitmap.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="bitmap.h" />
+    <ResourceCompile Include="rayTracingOneWeekend.rc" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="debug.h" />
-    <ClInclude Include="hitable.h" />
-    <ClInclude Include="hitableList.h" />
-    <ClInclude Include="material.h" />
+    <ClInclude Include="defines.h" />
+    <ClInclude Include="includes\hitable.h" />
+    <ClInclude Include="includes\hitableList.h" />
+    <ClInclude Include="includes\material.h" />
+    <ClInclude Include="includes\sphere.h" />
+    <ClInclude Include="mathUtilities.h" />
     <ClInclude Include="ray.h" />
-    <ClInclude Include="sphere.h" />
+    <ClInclude Include="rngs.h" />
     <ClInclude Include="vec3.h" />
+    <ClInclude Include="winDIBbitmap.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

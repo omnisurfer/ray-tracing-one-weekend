@@ -1,7 +1,13 @@
 #include <iostream>
 #include <fstream>
 
-#include "bitmap.h"
+#include "winDIBbitmap.h"
+
+#define DIB_HEADER_SIZE 40
+#define BMP_HEADER_SIZE 14
+#define BYTE_ROW_ALIGNMENT_MULTIPLES 4
+#define DWORD_BIT_SIZE 32
+#define BMP_BITS_PER_BYTE 8
 
 WINDIBBitmap::WINDIBBitmap() {
 
@@ -64,7 +70,7 @@ uint32_t WINDIBBitmap::writeBMPToFile(uint8_t *inputArray, uint32_t inputArraySi
 	WinDIBFormat _bmpHeader;
 
 	//Using a pointer to address struct elements directly does not work
-	//due to how the compiler may pad the struct
+	//due to how the compiler may pad the struct. So brute force instead of clever...
 	//winDIBFormat* pointerToBmpHeader = &bmpHeader;
 
 	_bmpHeader.bmpSize = BMP_HEADER_SIZE + DIB_HEADER_SIZE + _outputPixelArraySizeInBytes;

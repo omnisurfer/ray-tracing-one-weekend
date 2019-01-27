@@ -13,42 +13,74 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\imageOutput">
+      <UniqueIdentifier>{2fbd9b48-35d5-4d3c-a10c-ad8c690f8330}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\utilities">
+      <UniqueIdentifier>{50777dc2-e3ac-446b-8ea7-e804b30fc977}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\hitables">
+      <UniqueIdentifier>{a407f301-15ee-46e1-a18b-c6ac2225785e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\coreEngine">
+      <UniqueIdentifier>{40d839f6-10b4-4320-8b63-1ff07eba9431}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\math">
+      <UniqueIdentifier>{774e82af-e9f3-40d7-82a2-1f326e45e1e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\config">
+      <UniqueIdentifier>{ada62a8c-84e5-497a-a702-9500b3683d9a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="bitmap.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="winDIBbitmap.cpp">
+      <Filter>Header Files\imageOutput</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="vec3.h">
-      <Filter>Header Files</Filter>
+    <ResourceCompile Include="rayTracingOneWeekend.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="includes\hitable.h">
+      <Filter>Header Files\hitables</Filter>
     </ClInclude>
-    <ClInclude Include="ray.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="includes\hitableList.h">
+      <Filter>Header Files\hitables</Filter>
     </ClInclude>
-    <ClInclude Include="bitmap.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="includes\material.h">
+      <Filter>Header Files\hitables</Filter>
     </ClInclude>
-    <ClInclude Include="hitable.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="includes\sphere.h">
+      <Filter>Header Files\hitables</Filter>
     </ClInclude>
-    <ClInclude Include="sphere.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="hitableList.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="debug.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="material.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="winDIBbitmap.h">
+      <Filter>Header Files\imageOutput</Filter>
     </ClInclude>
     <ClInclude Include="camera.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="ray.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="rngs.h">
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="vec3.h">
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="mathUtilities.h">
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="debug.h">
+      <Filter>Header Files\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="defines.h">
+      <Filter>Header Files\config</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

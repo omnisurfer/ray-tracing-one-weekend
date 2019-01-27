@@ -1,6 +1,4 @@
 #pragma once
-#ifndef RAY_H
-#define RAY_H
 
 class ray {
 public:
@@ -14,4 +12,3 @@ public:
 	vec3 A;
 	vec3 B;
 };
-#endif

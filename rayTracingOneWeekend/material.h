@@ -1,24 +1,11 @@
 #pragma once
 
 #include "vec3.h"
+#include "rngs.h"
+#include "mathUtilities.h"
+
 #include "ray.h"
 #include "hitable.h"
-
-
-//setup RNG
-//https://stackoverflow.com/questions/9878965/rand-between-0-and-1
-
-std::mt19937_64 randomNumberGenerator;
-uint64_t timeSeed;
-std::uniform_real_distribution<double> unifRand(0, 1.0);
-
-vec3 randomInUnitSphere() {
-	vec3 point;
-	do {
-		point = 2.0*vec3(unifRand(randomNumberGenerator), unifRand(randomNumberGenerator), unifRand(randomNumberGenerator)) - vec3(1, 1, 1);
-	} while (point.squared_length() >= 1.0);
-	return point;
-}
 
 static vec3 reflect(const vec3 &v, const vec3 &n) {
 	return v - 2 * dot(v, n)*n;

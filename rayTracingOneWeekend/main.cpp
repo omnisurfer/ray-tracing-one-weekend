@@ -5,6 +5,7 @@
 #include <random>
 #include <chrono>
 
+#include "defines.h"
 #include "vec3.h"
 #include "ray.h"
 #include "sphere.h"
@@ -15,7 +16,7 @@
 
 #include "debug.h"
 
-#include "bitmap.h"
+#include "winDIBbitmap.h"
 
 /* TODO:
 	- drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
@@ -28,13 +29,6 @@
 * http://www.codinglabs.net/article_world_view_projection_matrix.aspx
 * http://iquilezles.org/index.html
 */
-//"screen" resolution
-//4K 3840x2160, 2K 2560x1440
-int32_t resWidth = 640, resHeight = 480;
-int32_t resRatioWH = resWidth / resHeight;
-//TODO: Remove this direct dependancy on defines located in the BMP class
-uint8_t bytesPerPixel = (BMP_BITS_PER_PIXEL / BMP_BITS_PER_BYTE);
-uint32_t antiAliasingSamples = 1;
 
 //Color is called recursively!
 vec3 color(const ray &rayCast, Hitable *world, int depth) {	
@@ -70,11 +64,18 @@ int main() {
 
 	DEBUG_MSG_L0(__func__, "");
 
+	WINDIBBitmap winDIBBmp;
+
+	//"screen" resolution
+	//4K 3840x2160, 2K 2560x1440
+	int32_t resWidth = 640, resHeight = 480;	
+	//TODO: Remove this direct dependancy on defines located in the BMP class
+	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
+	uint32_t antiAliasingSamples = 1;
+
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
-	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);		
-
-	WINDIBBitmap winDIBBmp;
+	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);			
 
 	std::cout << "Raytracing...\n";	
 
@@ -84,9 +85,11 @@ int main() {
 	float distToFocus = (lookFrom - lookAt).length();
 	float aperture = 0;
 	float aspectRatio = float(resWidth) / float(resHeight);
-	float verticalFieldOfViewDegrees = 90.0;
+	float vFoV = 20.0;
 
-	camera mainCamera(lookFrom, lookAt, worldUp, verticalFieldOfViewDegrees, aspectRatio, aperture, distToFocus);
+	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus);
+
+	mainCamera.setLookFrom(vec3(0, 1, -5));
 	
 	//replace with linked list, std::list<Hitable>?
 	Hitable *hitableList[6];
