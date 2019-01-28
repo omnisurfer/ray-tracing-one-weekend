@@ -68,53 +68,27 @@ int main() {
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus);
 
-	//mainCamera.setLookFrom(vec3(0, 1, -5));
-	
-	//Setup hitable objects
-	//https://thispointer.com/stdlist-tutorial-and-usage-details/
-	std::list<std::shared_ptr<Hitable>> hitables;
+	//mainCamera.setLookFrom(vec3(0, 1, -5));	
 
-	//surface/ground sphere
-	std::shared_ptr<Hitable> ground(new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01)));	
-	//red sphere
-	std::shared_ptr<Hitable> red(new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3)));
-	//green sphere
-	std::shared_ptr<Hitable> green(new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3)));
-	//blue sphere
-	std::shared_ptr<Hitable> blue(new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1)));
-	//mixed sphere
-	std::shared_ptr<Hitable> mixed(new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5)));
-	//Glass sphere
-	std::shared_ptr<Hitable> glass(new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0)));
-	
-	hitables.push_back(std::move(ground));
-	hitables.push_back(std::move(red));
-	hitables.push_back(std::move(green));
-	hitables.push_back(std::move(blue));
-	hitables.push_back(std::move(mixed));
-	hitables.push_back(std::move(glass));
-
-	/*Hitable *hitableList[6];*/
+	Hitable *hitableList[6];
 	
 	//This is the "ground" sphere
-	//hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
-	//
-	////red sphere
-	//hitableList[1] = new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));
-	////green sphere
-	//hitableList[2] = new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3));
-
-	////blue sphere
-	//hitableList[3] = new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1));
-	////mixed sphere
-	//hitableList[4] = new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5));	
-
-	////Glass sphere
-	//hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
+	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
 	
-	//Hitable *world = new HitableList(hitableList, 6);
+	//red sphere
+	hitableList[1] = new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));
+	//green sphere
+	hitableList[2] = new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3));
 
-	std::shared_ptr<Hitable> worldHitablesList(new HitableList(hitables));
+	//blue sphere
+	hitableList[3] = new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1));
+	//mixed sphere
+	hitableList[4] = new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5));	
+
+	//Glass sphere
+	hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
+	
+	Hitable *world = new HitableList(hitableList, 6);	
 	
 	std::cout << "Raytracing...\n";
 
@@ -141,8 +115,7 @@ int main() {
 
 				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
 				vec3 pointAt = rayCast.pointAtParameter(2.0);
-				//outputColor += color(rayCast, world, 0);
-				outputColor += color(rayCast, worldHitablesList, 0);
+				outputColor += color(rayCast, world, 0);				
 			}
 
 			outputColor /= float(antiAliasingSamples);
