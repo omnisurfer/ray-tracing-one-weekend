@@ -32,6 +32,8 @@
 * http://iquilezles.org/index.html
 */
 
+Hitable *randomScene();
+
 int main() {
 
 	DEBUG_MSG_L0(__func__, "");
@@ -49,26 +51,26 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 640, resHeight = 480;
+	int32_t resWidth = 340, resHeight = 280;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 1;
+	uint32_t antiAliasingSamples = 100;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
 	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);				
 
 	//Setup camera
-	vec3 lookFrom(0, 0, -5);
+	vec3 lookFrom(6, 6, 2);
 	vec3 lookAt(0, 0, -1);
 	vec3 worldUp(0, 1, 0);
 	float distToFocus = (lookFrom - lookAt).length();
-	float aperture = 0;
+	float aperture = 2.0;
 	float aspectRatio = float(resWidth) / float(resHeight);
 	float vFoV = 20.0;
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus);
 
-	//mainCamera.setLookFrom(vec3(0, 1, -5));	
+	mainCamera.setLookFrom(vec3(0, 1, -5));	
 
 	Hitable *hitableList[6];
 	
@@ -88,7 +90,10 @@ int main() {
 	//Glass sphere
 	hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
 	
-	Hitable *world = new HitableList(hitableList, 6);	
+	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
+	Hitable *world = new HitableList(hitableList, 6);
+
+	world = randomScene();
 	
 	std::cout << "Raytracing...\n";
 
@@ -103,8 +108,9 @@ int main() {
 			if(columnProgress%1000 == 0 || columnProgress == 0)
 				std::cout << ". ";
 
-			//loop to produce AA samples
+			
 			vec3 outputColor(0, 0, 0);
+			//loop to produce AA samples
 			for (int sample = 0; sample < antiAliasingSamples; sample++) { 
 				float u = float(column + unifRand(randomNumberGenerator)) / float(resWidth);
 				float v = float(row + unifRand(randomNumberGenerator)) / float(resHeight);
@@ -139,9 +145,48 @@ int main() {
 
 	winDIBBmp.writeBMPToFile(tempImageBuffer.get(), tempImageBufferSizeInBytes, resWidth, resHeight, BMP_BITS_PER_PIXEL);
 
-	//delete[] world;
+	delete[] world;
 
 	DEBUG_MSG_L0("colorCallCount: ", colorCallCount);
 
 	return 0;
+}
+
+Hitable *randomScene() {
+	int n = 500;
+	Hitable **list = new Hitable*[n + 1];
+	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
+	int i = 1;
+	for (int a = -11; a < 11; a++) {
+		for (int b = -11; b < 11; b++) {
+			float chooseMaterial = unifRand(randomNumberGenerator);
+			vec3 center(a + 0.9*unifRand(randomNumberGenerator), 0.2, b + 0.9*unifRand(randomNumberGenerator));
+			if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
+				if (chooseMaterial < 0.8) { //diffuse
+					list[i++] = new Sphere(center, 0.2,
+						new lambertian(
+							vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
+							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
+							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))));
+				}
+				else if (chooseMaterial < 0.95) { //metal
+					list[i++] = new Sphere(center, 0.2,
+						new metal(
+							vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))), 
+							0.5*(1 + unifRand(randomNumberGenerator))
+							)
+						);
+				}
+				else { //glass
+					list[i++] = new Sphere(center, 0.2, new dielectric(1.5));
+				}
+			}
+		}
+	}
+
+	list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
+	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
+	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
+
+	return new HitableList(list, i);
 }
