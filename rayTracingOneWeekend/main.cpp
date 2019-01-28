@@ -51,26 +51,26 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 340, resHeight = 280;
+	int32_t resWidth = 640, resHeight = 480;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 100;
+	uint32_t antiAliasingSamples = 20;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
 	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);				
 
 	//Setup camera
-	vec3 lookFrom(6, 6, 2);
-	vec3 lookAt(0, 0, -1);
+	vec3 lookFrom(2, 3, -10);
+	vec3 lookAt(0, 0, 0);
 	vec3 worldUp(0, 1, 0);
 	float distToFocus = (lookFrom - lookAt).length();
 	float aperture = 2.0;
 	float aspectRatio = float(resWidth) / float(resHeight);
-	float vFoV = 20.0;
+	float vFoV = 40.0;
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus);
 
-	mainCamera.setLookFrom(vec3(0, 1, -5));	
+	mainCamera.setLookAt(vec3(0, 0, 0));
 
 	Hitable *hitableList[6];
 	
@@ -107,7 +107,6 @@ int main() {
 		for (int column = 0; column < resWidth; column++, columnProgress++) {
 			if(columnProgress%1000 == 0 || columnProgress == 0)
 				std::cout << ". ";
-
 			
 			vec3 outputColor(0, 0, 0);
 			//loop to produce AA samples
@@ -153,6 +152,7 @@ int main() {
 }
 
 Hitable *randomScene() {
+	//drowan 20190127: changing n from 500 to 250 causes a crash..?
 	int n = 500;
 	Hitable **list = new Hitable*[n + 1];
 	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
