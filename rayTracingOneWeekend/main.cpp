@@ -4,6 +4,7 @@
 #include <vector>
 #include <random>
 #include <chrono>
+#include <list>
 
 #include "defines.h"
 #include "vec3.h"
@@ -13,6 +14,7 @@
 #include "hitableList.h"
 #include "float.h"
 #include "camera.h"
+#include "color.h"
 
 #include "debug.h"
 
@@ -30,55 +32,32 @@
 * http://iquilezles.org/index.html
 */
 
-//Color is called recursively!
-vec3 color(const ray &rayCast, Hitable *world, int depth) {	
-	colorCallCount++;
-	//provide a way to store the hit vector to act on it outside the hit check
-	HitRecord hitRecord;
-
-	//hits a point on the sphere or hittable.
-	if (world->hit(rayCast, 0.001, std::numeric_limits<float>::max(), hitRecord)) {
-		ray scattered;
-		vec3 attenuation;
-
-		//depth refers to number of recursive calls to bounce the ray around???
-		if (depth < 50 && hitRecord.materialPointer->scatter(rayCast, hitRecord, attenuation, scattered)) {
-			return attenuation * color(scattered, world, depth + 1);
-		}
-		else {
-			//what does it mean when this returns?
-			return vec3(0, 0, 0);
-		}				
-	}
-	//does not hit anything, so "background" gradient
-	else {
-		vec3 unit_direction = unit_vector(rayCast.direction());
-
-		float tempPointAtParameterT = 0.5*(unit_direction.y() + 1.0);
-
-		return (1.0 - tempPointAtParameterT)*vec3(1.0, 1.0, 1.0) + tempPointAtParameterT * vec3(0.5, 0.7, 1.0);
-	}
-}
-
 int main() {
 
 	DEBUG_MSG_L0(__func__, "");
 
+	//Setup random number generator
+	timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+	std::seed_seq seedSequence{
+			uint32_t(timeSeed & 0xffffffff),
+			uint32_t(timeSeed >> 32)
+	};
+
+	randomNumberGenerator.seed(seedSequence);
+
+	//Setup screen and output image
+	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	//"screen" resolution
-	//4K 3840x2160, 2K 2560x1440
-	int32_t resWidth = 640, resHeight = 480;	
-	//TODO: Remove this direct dependancy on defines located in the BMP class
+	int32_t resWidth = 640, resHeight = 480;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 	uint32_t antiAliasingSamples = 1;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
-	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);			
+	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);				
 
-	std::cout << "Raytracing...\n";	
-
+	//Setup camera
 	vec3 lookFrom(0, 0, -5);
 	vec3 lookAt(0, 0, -1);
 	vec3 worldUp(0, 1, 0);
@@ -89,37 +68,55 @@ int main() {
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus);
 
-	mainCamera.setLookFrom(vec3(0, 1, -5));
+	//mainCamera.setLookFrom(vec3(0, 1, -5));
 	
-	//replace with linked list, std::list<Hitable>?
-	Hitable *hitableList[6];
-	//This is the "surface" sphere
-	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
-	
+	//Setup hitable objects
+	//https://thispointer.com/stdlist-tutorial-and-usage-details/
+	std::list<std::shared_ptr<Hitable>> hitables;
+
+	//surface/ground sphere
+	std::shared_ptr<Hitable> ground(new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01)));	
 	//red sphere
-	hitableList[1] = new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));
+	std::shared_ptr<Hitable> red(new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3)));
 	//green sphere
-	hitableList[2] = new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3));
-
+	std::shared_ptr<Hitable> green(new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3)));
 	//blue sphere
-	hitableList[3] = new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1));
+	std::shared_ptr<Hitable> blue(new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1)));
 	//mixed sphere
-	hitableList[4] = new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5));	
-
+	std::shared_ptr<Hitable> mixed(new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5)));
 	//Glass sphere
-	hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
+	std::shared_ptr<Hitable> glass(new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0)));
 	
-	Hitable *world = new HitableList(hitableList, 6);
+	hitables.push_back(std::move(ground));
+	hitables.push_back(std::move(red));
+	hitables.push_back(std::move(green));
+	hitables.push_back(std::move(blue));
+	hitables.push_back(std::move(mixed));
+	hitables.push_back(std::move(glass));
+
+	/*Hitable *hitableList[6];*/
 	
+	//This is the "ground" sphere
+	//hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
+	//
+	////red sphere
+	//hitableList[1] = new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));
+	////green sphere
+	//hitableList[2] = new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3));
 
-	timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-	std::seed_seq seedSequence { 
-			uint32_t(timeSeed & 0xffffffff), 
-			uint32_t(timeSeed>>32) 
-	};
+	////blue sphere
+	//hitableList[3] = new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1));
+	////mixed sphere
+	//hitableList[4] = new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5));	
 
-	//this is created in material.h
-	randomNumberGenerator.seed(seedSequence);	
+	////Glass sphere
+	//hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
+	
+	//Hitable *world = new HitableList(hitableList, 6);
+
+	std::shared_ptr<Hitable> worldHitablesList(new HitableList(hitables));
+	
+	std::cout << "Raytracing...\n";
 
 	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
 	for (int row = resHeight - 1; row >= 0; row--) {
@@ -143,8 +140,9 @@ int main() {
 				ray rayCast = mainCamera.getRay(u, v);				
 
 				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
-				vec3 p = rayCast.pointAtParameter(2.0);
-				outputColor += color(rayCast, world, 0);
+				vec3 pointAt = rayCast.pointAtParameter(2.0);
+				//outputColor += color(rayCast, world, 0);
+				outputColor += color(rayCast, worldHitablesList, 0);
 			}
 
 			outputColor /= float(antiAliasingSamples);
@@ -168,7 +166,7 @@ int main() {
 
 	winDIBBmp.writeBMPToFile(tempImageBuffer.get(), tempImageBufferSizeInBytes, resWidth, resHeight, BMP_BITS_PER_PIXEL);
 
-	delete[] world;
+	//delete[] world;
 
 	DEBUG_MSG_L0("colorCallCount: ", colorCallCount);
 

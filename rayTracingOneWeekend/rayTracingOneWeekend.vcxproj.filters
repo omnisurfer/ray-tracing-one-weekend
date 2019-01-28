@@ -46,18 +46,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="includes\hitable.h">
-      <Filter>Header Files\hitables</Filter>
-    </ClInclude>
-    <ClInclude Include="includes\hitableList.h">
-      <Filter>Header Files\hitables</Filter>
-    </ClInclude>
-    <ClInclude Include="includes\material.h">
-      <Filter>Header Files\hitables</Filter>
-    </ClInclude>
-    <ClInclude Include="includes\sphere.h">
-      <Filter>Header Files\hitables</Filter>
-    </ClInclude>
     <ClInclude Include="winDIBbitmap.h">
       <Filter>Header Files\imageOutput</Filter>
     </ClInclude>
@@ -81,6 +69,21 @@
     </ClInclude>
     <ClInclude Include="defines.h">
       <Filter>Header Files\config</Filter>
+    </ClInclude>
+    <ClInclude Include="color.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="hitable.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
+    <ClInclude Include="hitableList.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
+    <ClInclude Include="material.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
+    <ClInclude Include="sphere.h">
+      <Filter>Header Files\hitables</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

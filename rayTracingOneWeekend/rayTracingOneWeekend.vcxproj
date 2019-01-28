@@ -123,15 +123,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
+    <ClInclude Include="color.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="defines.h" />
-    <ClInclude Include="includes\hitable.h" />
-    <ClInclude Include="includes\hitableList.h" />
-    <ClInclude Include="includes\material.h" />
-    <ClInclude Include="includes\sphere.h" />
+    <ClInclude Include="hitable.h" />
+    <ClInclude Include="hitableList.h" />
+    <ClInclude Include="material.h" />
     <ClInclude Include="mathUtilities.h" />
     <ClInclude Include="ray.h" />
     <ClInclude Include="rngs.h" />
+    <ClInclude Include="sphere.h" />
     <ClInclude Include="vec3.h" />
     <ClInclude Include="winDIBbitmap.h" />
   </ItemGroup>
