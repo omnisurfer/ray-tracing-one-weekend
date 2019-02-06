@@ -6,8 +6,8 @@
 class Camera {
 
 public:
-	Camera(vec3 lookFrom, vec3 lookAt, vec3 upDirection, float vFoV, float aspect, float aperture, float focusDistance) : 
-		_lookFrom(lookFrom), _lookAt(lookAt), _upDirection(upDirection), _vFoV(vFoV), _aspect(aspect), _aperture(aperture), _focusDistance(focusDistance) {
+	Camera(vec3 lookFrom, vec3 lookAt, vec3 upDirection, float vFoV, float aspect, float aperture, float focusDistance, float t0, float t1) : 
+		_lookFrom(lookFrom), _lookAt(lookAt), _upDirection(upDirection), _vFoV(vFoV), _aspect(aspect), _aperture(aperture), _focusDistance(focusDistance), time0(t0), time1(t1) {
 
 		setCamera();
 	}
@@ -21,7 +21,9 @@ public:
 #endif
 		vec3 offset = _u * rd.x() + _v * rd.y();
 
-		return ray(_origin + offset, _lowerLeftCorner + s * _horizontal + t * _vertical - _origin - offset);
+		float time = time0 + unifRand(randomNumberGenerator) * (time1 - time0);
+
+		return ray(_origin + offset, _lowerLeftCorner + s * _horizontal + t * _vertical - _origin - offset, time);
 	}
 
 	void setLookAt(vec3 lookAt) {
@@ -64,6 +66,18 @@ public:
 		_focusDistance = focusDistance;
 
 		setCamera();
+	}
+
+	void setTime(float t0, float t1) {
+		time0 = t0;
+		time1 = t1;
+
+		setCamera();
+	}
+
+	void getTime(float &t0, float &t1) {
+		t0 = time0;
+		t1 = time1;
 	}
 
 	vec3 getLookAt() {
@@ -137,4 +151,6 @@ private:
 	//orthonormal basis vectors that the camera is aligned to?
 	vec3 _u, _v, _w;
 	float _lensRadius;
+
+	float time0, time1;
 };

@@ -56,3 +56,7 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 
 	return false;
 }
+
+class MovingSphere : public Hitable {
+
+};

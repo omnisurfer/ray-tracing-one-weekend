@@ -51,7 +51,7 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 640, resHeight = 480;
+	int32_t resWidth = 240, resHeight = 180;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 	uint32_t antiAliasingSamples = 20;
 
@@ -68,7 +68,7 @@ int main() {
 	float aspectRatio = float(resWidth) / float(resHeight);
 	float vFoV = 40.0;
 
-	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus);
+	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0, 0.5);
 
 	mainCamera.setLookAt(vec3(0, 0, 0));
 
