@@ -6,12 +6,12 @@ class HitableList : public Hitable {
 
 public:
 	HitableList() {}
-	HitableList(Hitable **hitableList_, uint32_t listSize_) { hitableList = hitableList_; listSize = listSize_; }
+	HitableList(Hitable **hitableList_, uint32_t listSize_) { hitableList = hitableList_; listSize = listSize_; }	
 
 	virtual bool hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParmeterT, HitRecord &hitRecord) const;
 
 	Hitable **hitableList;
-	uint32_t listSize;
+	uint32_t listSize;	
 };
 
 bool HitableList::hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParmeterT, HitRecord &hitRecord) const {
