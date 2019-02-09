@@ -42,7 +42,7 @@ public:
 	virtual bool scatter(const ray &inputRay, const HitRecord& hitRecord, vec3 &attenuation, ray &scattered) const {						
 		////produce a "reflection" ray that originates at the point where a hit was detected and is cast in some random direction away from the impact surface.
 		vec3 target = hitRecord.point + hitRecord.normal + randomInUnitSphere();
-		scattered = ray(hitRecord.point, target - hitRecord.point);
+		scattered = ray(hitRecord.point, target - hitRecord.point, inputRay.time());
 		attenuation = albedo;
 		return true;
 	}

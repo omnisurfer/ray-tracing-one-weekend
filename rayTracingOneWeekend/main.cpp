@@ -68,7 +68,7 @@ int main() {
 	float aspectRatio = float(resWidth) / float(resHeight);
 	float vFoV = 40.0;
 
-	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0, 0.5);
+	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0, 1.0);
 
 	mainCamera.setLookAt(vec3(0, 0, 0));
 
@@ -116,7 +116,7 @@ int main() {
 
 				//A, the origin of the ray (camera)
 				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
-				ray rayCast = mainCamera.getRay(u, v);				
+				ray rayCast = mainCamera.getRay(u, v);	
 
 				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
 				vec3 pointAt = rayCast.pointAtParameter(2.0);
@@ -163,11 +163,17 @@ Hitable *randomScene() {
 			vec3 center(a + 0.9*unifRand(randomNumberGenerator), 0.2, b + 0.9*unifRand(randomNumberGenerator));
 			if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
 				if (chooseMaterial < 0.8) { //diffuse
-					list[i++] = new Sphere(center, 0.2,
-						new lambertian(
-							vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))));
+					list[i++] = new MovingSphere(center, 
+											center+vec3(0,0.5*unifRand(randomNumberGenerator),0),
+											0.0,
+											1.0,
+											0.2,
+											new lambertian(
+												vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
+												unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
+												unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))
+											)
+									);
 				}
 				else if (chooseMaterial < 0.95) { //metal
 					list[i++] = new Sphere(center, 0.2,

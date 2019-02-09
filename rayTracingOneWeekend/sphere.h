@@ -18,6 +18,9 @@ public:
 bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParamterT, HitRecord &hitRecord) const {	
 
 	//figure out where the sphere is in relation to the origin of the rayCast
+	//maybe this is more about making sure the rayCast is outside the object being tested for intersection and not 
+	//correcting the origin? OR maybe this is more about making sure you can compute a dot product since the center of the sphere is
+	//(maybe) assumed to be a ray from 0,0 to the center? The rays don't have a common origin depending upon where the rayCast is?
 	vec3 originCorrection = rayCast.origin() - center;
 
 	//figure out values used in quadratic equation which determine if the ray hit the sphere
@@ -71,6 +74,33 @@ public:
 	float _radius;
 	material *_materialPointer;
 };
+
+bool MovingSphere::hit(const ray& r, float t_min, float t_max, HitRecord& record) const {
+	vec3 oc = r.origin() - center(r.time());
+	float a = dot(r.direction(), r.direction());
+	float b = dot(oc, r.direction());
+	float c = dot(oc, oc) - _radius * _radius;
+	float discriminant = b * b - a * c;
+	if (discriminant > 0) {
+		float temp = (-b - sqrt(discriminant)) / a;
+		if (temp < t_max && temp > t_min) {
+			record.pointAtParameterT = temp;
+			record.point = r.pointAtParameter(record.pointAtParameterT);
+			record.normal = (record.point - center(r.time())) / _radius;
+			record.materialPointer = _materialPointer;
+			return true;
+		}
+		temp = (-b + sqrt(discriminant)) / a;
+		if (temp < t_max && temp > t_min) {
+			record.pointAtParameterT = temp;
+			record.point = r.pointAtParameter(record.pointAtParameterT);
+			record.normal = (record.point - center(r.time())) / _radius;
+			record.materialPointer = _materialPointer;
+			return true;
+		}
+	}
+	return false;
+}
 
 vec3 MovingSphere::center(float time) const {
 	return _center0 + ((time - _time0) / (_time1 - _time0))*(_center1 - _center0);
