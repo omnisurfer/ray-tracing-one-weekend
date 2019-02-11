@@ -52,9 +52,9 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 800, resHeight = 600;
+	int32_t resWidth = 400, resHeight = 300;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 20;
+	uint32_t antiAliasingSamples = 1;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -161,7 +161,7 @@ Hitable *randomScene() {
 	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
 	int i = 1;
 
-	int centerX = -(n/10), centerY = -(n/10);
+	int centerX = -(n/100), centerY = -(n/100);
 
 	while (i < n - 3) {
 		float chooseMaterial = unifRand(randomNumberGenerator);
@@ -195,14 +195,14 @@ Hitable *randomScene() {
 			}
 		}
 
-		if (centerX < (n/10)) {
+		if (centerX < (n/100)) {
 			centerX++;
 		}
-		else if (centerY > (n/10)) {
-			centerY = -(n/10);
+		else if (centerY > (n/100)) {
+			centerY = -(n/100);
 		}
 		else {
-			centerX = -(n/10);
+			centerX = -(n/100);
 			centerY++;
 		}
 
