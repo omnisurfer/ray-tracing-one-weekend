@@ -15,6 +15,7 @@
 #include "float.h"
 #include "camera.h"
 #include "color.h"
+#include "bvhNode.h"
 
 #include "debug.h"
 
@@ -51,7 +52,7 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 240, resHeight = 180;
+	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 	uint32_t antiAliasingSamples = 20;
 
@@ -152,36 +153,88 @@ int main() {
 }
 
 Hitable *randomScene() {
-	//drowan 20190127: changing n from 500 to 250 causes a crash..?
+	//drowan 20190127: The code below is basically hardcoded to generate ~400 spheres. When I try to make the list smaller than this, it tries to access
+	//out of bounds memory.
+	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
 	int n = 500;
 	Hitable **list = new Hitable*[n + 1];
 	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
 	int i = 1;
-	for (int a = -11; a < 11; a++) {
-		for (int b = -11; b < 11; b++) {
+
+	int centerX = -(n/10), centerY = -(n/10);
+
+	while (i < n - 3) {
+		float chooseMaterial = unifRand(randomNumberGenerator);
+		
+		vec3 center(centerX + 0.9*unifRand(randomNumberGenerator), 0.2, centerY + 0.9*unifRand(randomNumberGenerator));
+
+		if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
+			if (chooseMaterial < 0.8) { //diffuse
+				list[i++] = new MovingSphere(center,
+					center + vec3(0, 0.5*unifRand(randomNumberGenerator), 0),
+					0.0,
+					1.0,
+					0.2,
+					new lambertian(
+						vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
+							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
+							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))
+					)
+				);
+			}
+			else if (chooseMaterial < 0.95) { //metal
+				list[i++] = new Sphere(center, 0.2,
+					new metal(
+						vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))),
+						0.5*(1 + unifRand(randomNumberGenerator))
+					)
+				);
+			}
+			else { //glass
+				list[i++] = new Sphere(center, 0.2, new dielectric(1.5));
+			}
+		}
+
+		if (centerX < (n/10)) {
+			centerX++;
+		}
+		else if (centerY > (n/10)) {
+			centerY = -(n/10);
+		}
+		else {
+			centerX = -(n/10);
+			centerY++;
+		}
+
+		std::cout << "cX: " << centerX << " cY: " << centerY << "\n";
+	}
+
+#if 0
+	for (int a = -10; a < 10; a++) {
+		for (int b = -10; b < 10; b++) {
 			float chooseMaterial = unifRand(randomNumberGenerator);
 			vec3 center(a + 0.9*unifRand(randomNumberGenerator), 0.2, b + 0.9*unifRand(randomNumberGenerator));
 			if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
 				if (chooseMaterial < 0.8) { //diffuse
-					list[i++] = new MovingSphere(center, 
-											center+vec3(0,0.5*unifRand(randomNumberGenerator),0),
-											0.0,
-											1.0,
-											0.2,
-											new lambertian(
-												vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-												unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-												unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))
-											)
-									);
+					list[i++] = new MovingSphere(center,
+						center + vec3(0, 0.5*unifRand(randomNumberGenerator), 0),
+						0.0,
+						1.0,
+						0.2,
+						new lambertian(
+							vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
+								unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
+								unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))
+						)
+					);
 				}
 				else if (chooseMaterial < 0.95) { //metal
 					list[i++] = new Sphere(center, 0.2,
 						new metal(
-							vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))), 
+							vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))),
 							0.5*(1 + unifRand(randomNumberGenerator))
-							)
-						);
+						)
+					);
 				}
 				else { //glass
 					list[i++] = new Sphere(center, 0.2, new dielectric(1.5));
@@ -189,10 +242,13 @@ Hitable *randomScene() {
 			}
 		}
 	}
+#endif
 
 	list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
 	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
-
+	
+	std::cout << "n+1 = " << n << " i= " << i << "\n";
+	//return new BvhNode(list, i, 0.0, 1.0);
 	return new HitableList(list, i);
 }

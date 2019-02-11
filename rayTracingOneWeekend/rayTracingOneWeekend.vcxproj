@@ -122,6 +122,8 @@
     <ResourceCompile Include="rayTracingOneWeekend.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="aabb.h" />
+    <ClInclude Include="bvhNode.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="color.h" />
     <ClInclude Include="debug.h" />

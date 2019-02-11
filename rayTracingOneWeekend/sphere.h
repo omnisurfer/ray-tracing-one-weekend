@@ -9,6 +9,7 @@ public:
 	Sphere(vec3 center_, float radius_, material *material_) : center(center_), radius(radius_), materialPointer(material_) {};
 
 	virtual bool hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParamterT, HitRecord &hitRecord) const;
+	virtual bool boundingBox(float t0, float t1, AABB &box) const;
 
 	vec3 center;
 	float radius;
@@ -60,6 +61,11 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 	return false;
 }
 
+bool Sphere::boundingBox(float t0, float t1, AABB &box) const {
+	box = AABB(center - vec3(radius, radius, radius), center + vec3(radius, radius, radius));
+	return true;
+}
+
 class MovingSphere : public Hitable {
 public:
 	MovingSphere() {}
@@ -67,6 +73,8 @@ public:
 		_center0(center0), _center1(center1), _time0(t0), _time1(t1), _radius(r), _materialPointer(m) {};
 
 	virtual bool hit(const ray& r, float tmin, float tmax, HitRecord& record) const;
+	virtual bool boundingBox(float t0, float t1, AABB &box) const;
+
 	vec3 center(float time) const;
 
 	vec3 _center0, _center1;
@@ -100,6 +108,15 @@ bool MovingSphere::hit(const ray& r, float t_min, float t_max, HitRecord& record
 		}
 	}
 	return false;
+}
+
+bool MovingSphere::boundingBox(float t0, float t1, AABB &box) const {
+	AABB boxT0 = AABB(center(_time0) - vec3(_radius, _radius, _radius), center(_time0) + vec3(_radius, _radius, _radius));
+	AABB boxT1 = AABB(center(_time1) - vec3(_radius, _radius, _radius), center(_time1) + vec3(_radius, _radius, _radius));
+
+	box = surroundingBox(boxT0, boxT1);
+
+	return true;
 }
 
 vec3 MovingSphere::center(float time) const {

@@ -85,5 +85,11 @@
     <ClInclude Include="sphere.h">
       <Filter>Header Files\hitables</Filter>
     </ClInclude>
+    <ClInclude Include="aabb.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="bvhNode.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

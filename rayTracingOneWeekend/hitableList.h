@@ -2,6 +2,8 @@
 
 #include "hitable.h"
 
+AABB surroundingBox(AABB box0, AABB box1);
+
 class HitableList : public Hitable {
 
 public:
@@ -9,6 +11,7 @@ public:
 	HitableList(Hitable **hitableList_, uint32_t listSize_) { hitableList = hitableList_; listSize = listSize_; }	
 
 	virtual bool hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParmeterT, HitRecord &hitRecord) const;
+	virtual bool boundingBox(float t0, float t1, AABB &box) const;
 
 	Hitable **hitableList;
 	uint32_t listSize;	
@@ -32,4 +35,26 @@ bool HitableList::hit(const ray &rayCast, float minPointAtParameterT, float maxP
 	}
 
 	return hitAnything;
+}
+
+bool HitableList::boundingBox(float t0, float t1, AABB &box) const {
+	if (listSize < 1) return false;
+	
+	AABB tempBox;
+
+	bool firstTrue = hitableList[0]->boundingBox(t0, t1, tempBox);
+
+	if (!firstTrue)
+		return false;
+	else
+		box = tempBox;
+
+	for (int i = 0; i < listSize; i++) {
+		if (hitableList[0]->boundingBox(t0, t1, tempBox)) {
+			box = surroundingBox(box, tempBox);
+		}
+		else
+			return false;
+	}
+	return true;
 }
