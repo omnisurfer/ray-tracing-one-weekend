@@ -52,7 +52,7 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 400, resHeight = 300;
+	int32_t resWidth = 300, resHeight = 300;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 	uint32_t antiAliasingSamples = 1;
 
@@ -156,12 +156,14 @@ Hitable *randomScene() {
 	//drowan 20190127: The code below is basically hardcoded to generate ~400 spheres. When I try to make the list smaller than this, it tries to access
 	//out of bounds memory.
 	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
-	int n = 500;
+	int n = 10;
 	Hitable **list = new Hitable*[n + 1];
 	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
 	int i = 1;
 
-	int centerX = -(n/100), centerY = -(n/100);
+	const int xMod = 5, yMod = 5;
+
+	int centerX = -xMod, centerY = -yMod;
 
 	while (i < n - 3) {
 		float chooseMaterial = unifRand(randomNumberGenerator);
@@ -195,15 +197,16 @@ Hitable *randomScene() {
 			}
 		}
 
-		if (centerX < (n/100)) {
+		if (centerX < xMod) {
 			centerX++;
 		}
-		else if (centerY > (n/100)) {
-			centerY = -(n/100);
-		}
 		else {
-			centerX = -(n/100);
+			centerX = -xMod;
 			centerY++;
+		}
+
+		if (centerY > yMod) {
+			centerY = -yMod;
 		}
 
 		std::cout << "cX: " << centerX << " cY: " << centerY << "\n";
@@ -249,6 +252,6 @@ Hitable *randomScene() {
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
 	
 	std::cout << "n+1 = " << n << " i= " << i << "\n";
-	//return new BvhNode(list, i, 0.0, 1.0);
-	return new HitableList(list, i);
+	return new BvhNode(list, i, 0.0, 1.0);
+	//return new HitableList(list, i);
 }

@@ -43,7 +43,9 @@ BvhNode::BvhNode(Hitable **l, int n, float time0, float time1) {
 		right = l[1];
 	}
 	else {
+		std::cout << "left l: " << l << "\n";
 		left = new BvhNode(l, n / 2, time0, time1);
+		std::cout << "right l + n/2: " << l + n / 2 << "\n";
 		right = new BvhNode(l + n / 2, n - n / 2, time0, time1);
 	}
 
