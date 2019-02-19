@@ -43,18 +43,19 @@ BvhNode::BvhNode(Hitable **l, int n, float time0, float time1) {
 		right = l[1];
 	}
 	else {
-		std::cout << "left l: " << l << "\n";
+		//std::cout << __func__ << "left l: " << l << "\n";
 		left = new BvhNode(l, n / 2, time0, time1);
-		std::cout << "right l + n/2: " << l + n / 2 << "\n";
+		//std::cout << __func__ << "right l + n/2: " << l + n / 2 << "\n";
 		right = new BvhNode(l + n / 2, n - n / 2, time0, time1);
 	}
 
 	AABB boxLeft, boxRight;
 
 	if (!left->boundingBox(time0, time1, boxLeft) || !right->boundingBox(time0, time1, boxRight)) {
-		std::cout << "No boudning box in BvhNode constructor\n";
-		box = surroundingBox(boxLeft, boxRight);
+		std::cout << "No boudning box in BvhNode constructor\n";		
 	}
+
+	box = surroundingBox(boxLeft, boxRight);
 }
 
 bool BvhNode::boundingBox(float t0, float t1, AABB &b) const {

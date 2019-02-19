@@ -26,15 +26,17 @@ public:
 			);
 
 			float t1 = ffmax(
-				(_min[a] -r.origin()[a]) / r.direction()[a],
+				(_min[a] - r.origin()[a]) / r.direction()[a],
 				(_max[a] - r.origin()[a]) / r.direction()[a]
 			);
 
 			tmin = ffmax(t0, tmin);
 			tmax = ffmin(t1, tmax);
 
-			if (tmax <= tmin)
+			if (tmax <= tmin) {
+				//std::cout << "tmin ?>= " << tmin << " tmax " << tmax << "\n";
 				return false;
+			}
 		}
 		return true;
 	}

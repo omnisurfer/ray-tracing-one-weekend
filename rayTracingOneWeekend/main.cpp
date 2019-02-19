@@ -52,9 +52,9 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 300, resHeight = 300;
+	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 1;
+	uint32_t antiAliasingSamples = 20;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -156,7 +156,7 @@ Hitable *randomScene() {
 	//drowan 20190127: The code below is basically hardcoded to generate ~400 spheres. When I try to make the list smaller than this, it tries to access
 	//out of bounds memory.
 	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
-	int n = 10;
+	int n = 100;
 	Hitable **list = new Hitable*[n + 1];
 	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
 	int i = 1;
@@ -164,7 +164,7 @@ Hitable *randomScene() {
 	const int xMod = 5, yMod = 5;
 
 	int centerX = -xMod, centerY = -yMod;
-
+#if 1
 	while (i < n - 3) {
 		float chooseMaterial = unifRand(randomNumberGenerator);
 		
@@ -209,10 +209,11 @@ Hitable *randomScene() {
 			centerY = -yMod;
 		}
 
-		std::cout << "cX: " << centerX << " cY: " << centerY << "\n";
+		//std::cout << __func__ << "cX: " << centerX << " cY: " << centerY << "\n";
 	}
+#endif
 
-#if 0
+#if 0 //OLD RANDOM FILL CODE
 	for (int a = -10; a < 10; a++) {
 		for (int b = -10; b < 10; b++) {
 			float chooseMaterial = unifRand(randomNumberGenerator);
@@ -247,11 +248,14 @@ Hitable *randomScene() {
 	}
 #endif
 
+
 	list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
+#if 1
 	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
+#endif
 	
 	std::cout << "n+1 = " << n << " i= " << i << "\n";
-	return new BvhNode(list, i, 0.0, 1.0);
-	//return new HitableList(list, i);
+	//return new BvhNode(list, i, 0.0, 1.0);
+	return new HitableList(list, i);
 }
