@@ -54,7 +54,7 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 20;
+	uint32_t antiAliasingSamples = 4;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -71,7 +71,7 @@ int main() {
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0, 1.0);
 
-	mainCamera.setLookAt(vec3(0, 0, 0));
+	mainCamera.setLookAt(vec3(0, 3, 0));
 
 	Hitable *hitableList[6];
 	
@@ -256,6 +256,6 @@ Hitable *randomScene() {
 #endif
 	
 	std::cout << "n+1 = " << n << " i= " << i << "\n";
-	//return new BvhNode(list, i, 0.0, 1.0);
-	return new HitableList(list, i);
+	return new BvhNode(list, i, 0.0, 1.0);
+	//return new HitableList(list, i);
 }
