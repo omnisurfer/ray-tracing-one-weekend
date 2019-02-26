@@ -158,6 +158,11 @@ Hitable *randomScene() {
 	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
 	int n = 100;
 	Hitable **list = new Hitable*[n + 1];
+
+	Texture *checker = new CheckerTexture(
+		new ConstantTexture(vec3(0.2, 0.3, 0.1)), 
+		new ConstantTexture(vec3(0.9,0.9,0.9))
+	);
 	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
 	int i = 1;
 

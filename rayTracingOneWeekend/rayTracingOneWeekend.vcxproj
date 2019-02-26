@@ -135,6 +135,7 @@
     <ClInclude Include="ray.h" />
     <ClInclude Include="rngs.h" />
     <ClInclude Include="sphere.h" />
+    <ClInclude Include="texture.h" />
     <ClInclude Include="vec3.h" />
     <ClInclude Include="winDIBbitmap.h" />
   </ItemGroup>

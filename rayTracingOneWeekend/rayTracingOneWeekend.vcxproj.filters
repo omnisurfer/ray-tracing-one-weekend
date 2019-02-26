@@ -91,5 +91,8 @@
     <ClInclude Include="bvhNode.h">
       <Filter>Header Files\coreEngine</Filter>
     </ClInclude>
+    <ClInclude Include="texture.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

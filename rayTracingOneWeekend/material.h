@@ -6,6 +6,7 @@
 
 #include "ray.h"
 #include "hitable.h"
+#include "texture.h"
 
 static vec3 reflect(const vec3 &v, const vec3 &n) {
 	return v - 2 * dot(v, n)*n;
@@ -37,17 +38,17 @@ public:
 
 class lambertian : public material {
 public:
-	lambertian(const vec3 &a) : albedo(a) {}
+	lambertian(Texture *a) : albedo(a) {}
 
 	virtual bool scatter(const ray &inputRay, const HitRecord& hitRecord, vec3 &attenuation, ray &scattered) const {						
 		////produce a "reflection" ray that originates at the point where a hit was detected and is cast in some random direction away from the impact surface.
 		vec3 target = hitRecord.point + hitRecord.normal + randomInUnitSphere();
 		scattered = ray(hitRecord.point, target - hitRecord.point, inputRay.time());
-		attenuation = albedo;
+		attenuation = albedo->value(0,0,hitRecord.point);
 		return true;
 	}
 
-	vec3 albedo;
+	Texture *albedo;
 };
 
 class metal : public material {
