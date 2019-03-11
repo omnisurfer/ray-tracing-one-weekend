@@ -54,7 +54,7 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 4;
+	uint32_t antiAliasingSamples = 1;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -73,6 +73,7 @@ int main() {
 
 	mainCamera.setLookAt(vec3(0, 3, 0));
 
+	/*
 	Hitable *hitableList[6];
 	
 	//This is the "ground" sphere
@@ -90,11 +91,11 @@ int main() {
 
 	//Glass sphere
 	hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
-	
+	*/
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
-	Hitable *world = new HitableList(hitableList, 6);
+	//Hitable *world = new HitableList(hitableList, 6);
 
-	world = randomScene();
+	Hitable *world = randomScene();
 	
 	std::cout << "Raytracing...\n";
 
@@ -163,7 +164,7 @@ Hitable *randomScene() {
 		new ConstantTexture(vec3(0.2, 0.3, 0.1)), 
 		new ConstantTexture(vec3(0.9,0.9,0.9))
 	);
-	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
+	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(checker));
 	int i = 1;
 
 	const int xMod = 5, yMod = 5;
@@ -182,11 +183,13 @@ Hitable *randomScene() {
 					0.0,
 					1.0,
 					0.2,
-					new lambertian(
+					new lambertian(checker)
+					/*
 						vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
 							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
 							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))
 					)
+					*/
 				);
 			}
 			else if (chooseMaterial < 0.95) { //metal
@@ -256,7 +259,7 @@ Hitable *randomScene() {
 
 	list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
 #if 1
-	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
+	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(checker));
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
 #endif
 	
