@@ -54,7 +54,7 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 1;
+	uint32_t antiAliasingSamples = 10;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -73,27 +73,7 @@ int main() {
 
 	mainCamera.setLookAt(vec3(0, 3, 0));
 
-	/*
-	Hitable *hitableList[6];
-	
-	//This is the "ground" sphere
-	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
-	
-	//red sphere
-	hitableList[1] = new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));
-	//green sphere
-	hitableList[2] = new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3));
-
-	//blue sphere
-	hitableList[3] = new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1));
-	//mixed sphere
-	hitableList[4] = new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5));	
-
-	//Glass sphere
-	hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
-	*/
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
-	//Hitable *world = new HitableList(hitableList, 6);
 
 	Hitable *world = randomScene();
 	
@@ -161,10 +141,13 @@ Hitable *randomScene() {
 	Hitable **list = new Hitable*[n + 1];
 
 	Texture *checker = new CheckerTexture(
-		new ConstantTexture(vec3(0.2, 0.3, 0.1)), 
+		new ConstantTexture(vec3(0.2, 0.2, 0.8)), 
 		new ConstantTexture(vec3(0.9,0.9,0.9))
 	);
-	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(checker));
+
+	Texture *perlin = new NoiseTexture(false);
+
+	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(perlin));
 	int i = 1;
 
 	const int xMod = 5, yMod = 5;

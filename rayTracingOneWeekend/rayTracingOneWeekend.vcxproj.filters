@@ -94,5 +94,8 @@
     <ClInclude Include="texture.h">
       <Filter>Header Files\coreEngine</Filter>
     </ClInclude>
+    <ClInclude Include="noise.h">
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

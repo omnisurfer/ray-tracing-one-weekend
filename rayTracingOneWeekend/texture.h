@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vec3.h"
+#include "noise.h"
 
 class Texture {
 public:
@@ -35,4 +36,15 @@ public:
 
 	Texture *odd;
 	Texture *even;
+};
+
+class NoiseTexture : public Texture {
+public:
+	NoiseTexture(bool type) : noiseType(type) {}
+	virtual vec3 value(float u, float v, const vec3& p) const {		
+		return vec3(1, 1, 1)*perlin.noise(p, noiseType);		
+	}
+
+	bool noiseType;
+	Perlin perlin;	
 };

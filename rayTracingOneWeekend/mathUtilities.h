@@ -23,3 +23,17 @@ vec3 randomInUnitSphere() {
 	} while (point.squared_length() >= 1.0);
 	return point;
 }
+
+inline float TrilinearInterp(float c[2][2][2], float u, float v, float w) {
+	float accum = 0;
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			for (int k = 0; k < 2; k++) {
+				accum += (i*u + (1 - i)*(1 - u)) *
+					(j*v + (1 - j)*(1 - v)) *
+					(k*w + (1 - k)*(1 - w))*c[i][j][k];
+			}
+		}
+	}
+	return accum;
+}
