@@ -54,15 +54,15 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 1;
+	uint32_t antiAliasingSamples = 20;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
 	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);				
 
 	//Setup camera
-	vec3 lookFrom(2, 3, -10);
-	vec3 lookAt(0, 0, 0);
+	vec3 lookFrom(0, 0, -6);
+	vec3 lookAt(0, 10, 0);
 	vec3 worldUp(0, 1, 0);
 	float distToFocus = (lookFrom - lookAt).length();
 	float aperture = 2.0;
@@ -71,7 +71,7 @@ int main() {
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0, 1.0);
 
-	mainCamera.setLookAt(vec3(0, 3, 0));
+	mainCamera.setLookAt(vec3(-5, 2, 0));
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
 
@@ -145,7 +145,7 @@ Hitable *randomScene() {
 		new ConstantTexture(vec3(0.9,0.9,0.9))
 	);
 
-	Texture *perlin = new NoiseTexture(false);
+	Texture *perlin = new NoiseTexture(true, 8.0f);
 
 	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(perlin));
 	int i = 1;
@@ -242,7 +242,7 @@ Hitable *randomScene() {
 
 	list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
 #if 1
-	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(checker));
+	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(perlin));
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
 #endif
 	

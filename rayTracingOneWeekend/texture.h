@@ -40,11 +40,12 @@ public:
 
 class NoiseTexture : public Texture {
 public:
-	NoiseTexture(bool type) : noiseType(type) {}
+	NoiseTexture(bool enable, float scale) : filter(enable), scaled(scale) {}
 	virtual vec3 value(float u, float v, const vec3& p) const {		
-		return vec3(1, 1, 1)*perlin.noise(p, noiseType);		
+		return vec3(1, 1, 1)*perlin.noise(p * scaled, filter);		
 	}
 
-	bool noiseType;
+	float scaled;
+	bool filter;
 	Perlin perlin;	
 };
