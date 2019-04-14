@@ -24,7 +24,7 @@ vec3 randomInUnitSphere() {
 	return point;
 }
 
-inline float TrilinearInterp(float c[2][2][2], float u, float v, float w) {
+inline float trilinearInterp(float c[2][2][2], float u, float v, float w) {
 	float accum = 0;
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 2; j++) {
@@ -32,6 +32,27 @@ inline float TrilinearInterp(float c[2][2][2], float u, float v, float w) {
 				accum += (i*u + (1 - i)*(1 - u)) *
 					(j*v + (1 - j)*(1 - v)) *
 					(k*w + (1 - k)*(1 - w))*c[i][j][k];
+			}
+		}
+	}
+	return accum;
+}
+
+inline float perlinInterp(vec3 c[2][2][2], float u, float v, float w) {
+	float uu = u * u*(3 - 2 * u);
+	float vv = v * v*(3 - 2 * v);
+	float ww = w * w*(3 - 2 * w);
+	float accum = 0;
+
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			for (int k = 0; k < 2; k++) {
+				vec3 weightV(u - i, v - j, w - k);
+				accum +=
+						(i*uu + (1 - i)*(1 - uu)) *
+						(j*vv + (1 - j)*(1 - vv)) *
+						(k*ww + (1 - k)*(1 - ww)) * dot(c[i][j][k], weightV);
+					
 			}
 		}
 	}

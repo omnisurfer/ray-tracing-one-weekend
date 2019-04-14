@@ -7,6 +7,9 @@ class material;
 
 struct HitRecord {
 	float pointAtParameterT;
+	//drowan 20190414: not sure if u and v are ever used.
+	float u;
+	float v;
 	vec3 point;
 	vec3 normal;
 	material *materialPointer;

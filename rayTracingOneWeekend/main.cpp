@@ -47,14 +47,14 @@ int main() {
 	};
 
 	randomNumberGenerator.seed(seedSequence);
-
+	
 	//Setup screen and output image
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 20;
+	uint32_t antiAliasingSamples = 1;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -72,6 +72,7 @@ int main() {
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0, 1.0);
 
 	mainCamera.setLookAt(vec3(-5, 2, 0));
+	mainCamera.setLookAt(vec3(5, 0, 10));
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
 
@@ -147,6 +148,8 @@ Hitable *randomScene() {
 
 	Texture *perlin = new NoiseTexture(true, 8.0f);
 
+	Texture *constant = new ConstantTexture(vec3(0.0, 1.0, 0.0));
+
 	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(perlin));
 	int i = 1;
 
@@ -167,12 +170,6 @@ Hitable *randomScene() {
 					1.0,
 					0.2,
 					new lambertian(checker)
-					/*
-						vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))
-					)
-					*/
 				);
 			}
 			else if (chooseMaterial < 0.95) { //metal
