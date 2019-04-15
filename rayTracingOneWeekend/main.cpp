@@ -54,14 +54,14 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 1;
+	uint32_t antiAliasingSamples = 250;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
 	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);				
 
 	//Setup camera
-	vec3 lookFrom(0, 0, -6);
+	vec3 lookFrom(0, 0, -10);
 	vec3 lookAt(0, 10, 0);
 	vec3 worldUp(0, 1, 0);
 	float distToFocus = (lookFrom - lookAt).length();
@@ -71,8 +71,8 @@ int main() {
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0, 1.0);
 
-	mainCamera.setLookAt(vec3(-5, 2, 0));
-	mainCamera.setLookAt(vec3(5, 0, 10));
+	mainCamera.setLookFrom(vec3(0, 0, -10));
+	mainCamera.setLookAt(vec3(0, 0, 0));
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
 
