@@ -54,7 +54,7 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 250;
+	uint32_t antiAliasingSamples = 5;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 

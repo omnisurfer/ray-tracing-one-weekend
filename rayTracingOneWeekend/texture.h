@@ -43,7 +43,8 @@ public:
 	NoiseTexture(bool enable, float scale) : filter(enable), scaled(scale) {}
 	virtual vec3 value(float u, float v, const vec3& p) const {		
 		//return vec3(1, 1, 1)*perlin.noise(p * scaled, filter);
-		return vec3(1, 1, 1)*perlin.turbulance(scaled * p);
+		//return vec3(1, 1, 1)*perlin.turbulance(scaled * p);
+		return vec3(1, 1, 1)*0.5*(1 + sin(scaled*p.z() + 10 * perlin.turbulance(p)));
 	}
 
 	float scaled;
