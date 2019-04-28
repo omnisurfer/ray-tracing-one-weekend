@@ -31,29 +31,29 @@ float schlick(float cosine, float refIndex) {
 	return r0 + (1 - r0)*pow((1 - cosine), 5);
 }
 
-class material {
+class Material {
 public:
 	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scatteredRay) const = 0;
 };
 
-class lambertian : public material {
+class Lambertian : public Material {
 public:
-	lambertian(Texture *a) : albedo(a) {}
+	Lambertian(Texture *a) : albedo(a) {}
 
-	virtual bool scatter(const ray &inputRay, const HitRecord& hitRecord, vec3 &attenuation, ray &scattered) const {						
+	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scattered) const {						
 		////produce a "reflection" ray that originates at the point where a hit was detected and is cast in some random direction away from the impact surface.
 		vec3 target = hitRecord.point + hitRecord.normal + randomInUnitSphere();
 		scattered = ray(hitRecord.point, target - hitRecord.point, inputRay.time());
-		attenuation = albedo->value(0, 0, hitRecord.point);
+		attenuation = albedo->value(hitRecord.u, hitRecord.v, hitRecord.point);
 		return true;
 	}
 
 	Texture *albedo;
 };
 
-class metal : public material {
+class Metal : public Material {
 public:
-	metal(const vec3 &a, float f) : albedo(a) { if (f < 1) fuzz = f; else fuzz = 1; }
+	Metal(const vec3 &a, float f) : albedo(a) { if (f < 1) fuzz = f; else fuzz = 1; }
 
 	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scattered) const {
 		vec3 reflected = reflect(unit_vector(inputRay.direction()), hitRecord.normal);
@@ -66,9 +66,9 @@ public:
 	float fuzz;
 };
 
-class dielectric : public material {
+class Dielectric : public Material {
 public:
-	dielectric(float ri) : refIndex(ri) {}
+	Dielectric(float ri) : refIndex(ri) {}
 
 	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scattered) const {
 		vec3 outwardNormal;

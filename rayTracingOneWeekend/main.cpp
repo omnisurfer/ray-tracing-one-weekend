@@ -21,6 +21,10 @@
 
 #include "winDIBbitmap.h"
 
+//https://github.com/nothings/stb
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 /* TODO:
 	- drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
 	- drowan 20190121: I need to really refactor and clean up code style. unifRand is being pulled from material.
@@ -54,7 +58,7 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 5;
+	uint32_t antiAliasingSamples = 1;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -150,7 +154,15 @@ Hitable *randomScene() {
 
 	Texture *constant = new ConstantTexture(vec3(0.0, 1.0, 0.0));
 
-	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(perlin));
+	//read in an image for texture mapping
+	int nx, ny, nn;
+	unsigned char *textureData = stbi_load("./input_images/earth1300x1300.jpg", &nx, &ny, &nn, 0);
+	//unsigned char *textureData = stbi_load("./input_images/red750x750.jpg", &nx, &ny, &nn, 0);
+
+	Material *imageMat = new Lambertian(new ImageTexture(textureData, nx, ny));
+
+	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new Lambertian(perlin));
+
 	int i = 1;
 
 	const int xMod = 5, yMod = 5;
@@ -169,19 +181,19 @@ Hitable *randomScene() {
 					0.0,
 					1.0,
 					0.2,
-					new lambertian(checker)
+					new Lambertian(checker)
 				);
 			}
 			else if (chooseMaterial < 0.95) { //metal
 				list[i++] = new Sphere(center, 0.2,
-					new metal(
+					new Metal(
 						vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))),
 						0.5*(1 + unifRand(randomNumberGenerator))
 					)
 				);
 			}
 			else { //glass
-				list[i++] = new Sphere(center, 0.2, new dielectric(1.5));
+				list[i++] = new Sphere(center, 0.2, new Dielectric(1.5));
 			}
 		}
 
@@ -200,47 +212,15 @@ Hitable *randomScene() {
 		//std::cout << __func__ << "cX: " << centerX << " cY: " << centerY << "\n";
 	}
 #endif
-
-#if 0 //OLD RANDOM FILL CODE
-	for (int a = -10; a < 10; a++) {
-		for (int b = -10; b < 10; b++) {
-			float chooseMaterial = unifRand(randomNumberGenerator);
-			vec3 center(a + 0.9*unifRand(randomNumberGenerator), 0.2, b + 0.9*unifRand(randomNumberGenerator));
-			if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
-				if (chooseMaterial < 0.8) { //diffuse
-					list[i++] = new MovingSphere(center,
-						center + vec3(0, 0.5*unifRand(randomNumberGenerator), 0),
-						0.0,
-						1.0,
-						0.2,
-						new lambertian(
-							vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-								unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-								unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))
-						)
-					);
-				}
-				else if (chooseMaterial < 0.95) { //metal
-					list[i++] = new Sphere(center, 0.2,
-						new metal(
-							vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))),
-							0.5*(1 + unifRand(randomNumberGenerator))
-						)
-					);
-				}
-				else { //glass
-					list[i++] = new Sphere(center, 0.2, new dielectric(1.5));
-				}
-			}
-		}
+	if (textureData != NULL) {
+		list[i++] = new Sphere(vec3(0, 2, 0), 2.0, imageMat);
 	}
-#endif
-
-
-	list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
+	else {
+		list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new Dielectric(1.5));
+	}
 #if 1
-	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(perlin));
-	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
+	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new Lambertian(perlin));
+	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
 #endif
 	
 	std::cout << "n+1 = " << n << " i= " << i << "\n";

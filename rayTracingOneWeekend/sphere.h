@@ -2,18 +2,19 @@
 
 #include "hitable.h"
 #include "debug.h"
+#include "mathUtilities.h"
 
 class Sphere : public Hitable {
 public:
 	Sphere() {}
-	Sphere(vec3 center_, float radius_, material *material_) : center(center_), radius(radius_), materialPointer(material_) {};
+	Sphere(vec3 center_, float radius_, Material *material_) : center(center_), radius(radius_), materialPointer(material_) {};
 
 	virtual bool hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParamterT, HitRecord &hitRecord) const;
 	virtual bool boundingBox(float t0, float t1, AABB &box) const;
 
 	vec3 center;
 	float radius;
-	material *materialPointer;
+	Material *materialPointer;
 };
 
 bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParamterT, HitRecord &hitRecord) const {	
@@ -44,6 +45,9 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 		if (temp < maxPointAtParamterT && temp > minPointAtParameterT) {
 			hitRecord.pointAtParameterT = temp;
 			hitRecord.point = rayCast.pointAtParameter(hitRecord.pointAtParameterT);
+						
+			get_sphere_uv((hitRecord.point - center)/radius, hitRecord.u, hitRecord.v);
+
 			hitRecord.normal = (hitRecord.point - center) / radius;	
 			hitRecord.materialPointer = materialPointer;
 			return true;
@@ -52,6 +56,9 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 		if (temp < maxPointAtParamterT && temp > minPointAtParameterT) {
 			hitRecord.pointAtParameterT = temp;
 			hitRecord.point = rayCast.pointAtParameter(hitRecord.pointAtParameterT);
+
+			get_sphere_uv((hitRecord.point - center)/radius, hitRecord.u, hitRecord.v);
+
 			hitRecord.normal = (hitRecord.point - center) / radius;
 			hitRecord.materialPointer = materialPointer;
 			return true;
@@ -69,7 +76,7 @@ bool Sphere::boundingBox(float t0, float t1, AABB &box) const {
 class MovingSphere : public Hitable {
 public:
 	MovingSphere() {}
-	MovingSphere(vec3 center0, vec3 center1, float t0, float t1, float r, material *m) :
+	MovingSphere(vec3 center0, vec3 center1, float t0, float t1, float r, Material *m) :
 		_center0(center0), _center1(center1), _time0(t0), _time1(t1), _radius(r), _materialPointer(m) {};
 
 	virtual bool hit(const ray& r, float tmin, float tmax, HitRecord& record) const;
@@ -80,7 +87,7 @@ public:
 	vec3 _center0, _center1;
 	float _time0, _time1;
 	float _radius;
-	material *_materialPointer;
+	Material *_materialPointer;
 };
 
 bool MovingSphere::hit(const ray& r, float t_min, float t_max, HitRecord& record) const {

@@ -3,7 +3,7 @@
 #include "ray.h"
 #include "aabb.h"
 
-class material;
+class Material;
 
 struct HitRecord {
 	float pointAtParameterT;
@@ -12,7 +12,7 @@ struct HitRecord {
 	float v;
 	vec3 point;
 	vec3 normal;
-	material *materialPointer;
+	Material *materialPointer;
 };
 
 class Hitable {
