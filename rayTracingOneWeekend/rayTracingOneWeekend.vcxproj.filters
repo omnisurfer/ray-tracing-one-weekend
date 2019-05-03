@@ -103,5 +103,8 @@
     <ClInclude Include="stb_image.h">
       <Filter>Header Files\stbLib</Filter>
     </ClInclude>
+    <ClInclude Include="xy_rect.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

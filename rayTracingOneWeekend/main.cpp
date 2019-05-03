@@ -10,6 +10,7 @@
 #include "vec3.h"
 #include "ray.h"
 #include "sphere.h"
+#include "xy_rect.h"
 #include "material.h"
 #include "hitableList.h"
 #include "float.h"
@@ -58,7 +59,7 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 1;
+	uint32_t antiAliasingSamples = 2;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -142,7 +143,7 @@ Hitable *randomScene() {
 	//drowan 20190127: The code below is basically hardcoded to generate ~400 spheres. When I try to make the list smaller than this, it tries to access
 	//out of bounds memory.
 	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
-	int n = 100;
+	int n = 110;
 	Hitable **list = new Hitable*[n + 1];
 
 	Texture *checker = new CheckerTexture(
@@ -153,6 +154,8 @@ Hitable *randomScene() {
 	Texture *perlin = new NoiseTexture(true, 8.0f);
 
 	Texture *constant = new ConstantTexture(vec3(0.0, 1.0, 0.0));
+
+	Material *emitterMat = new DiffuseLight(new ConstantTexture(vec3(4,4,4)));
 
 	//read in an image for texture mapping
 	int nx, ny, nn;
@@ -221,6 +224,8 @@ Hitable *randomScene() {
 #if 1
 	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new Lambertian(perlin));
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
+
+	list[i++] = new XYRectangle(0, 0, 2, 2, -2, emitterMat);
 #endif
 	
 	std::cout << "n+1 = " << n << " i= " << i << "\n";

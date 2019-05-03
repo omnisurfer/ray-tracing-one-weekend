@@ -140,6 +140,7 @@
     <ClInclude Include="texture.h" />
     <ClInclude Include="vec3.h" />
     <ClInclude Include="winDIBbitmap.h" />
+    <ClInclude Include="xy_rect.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
