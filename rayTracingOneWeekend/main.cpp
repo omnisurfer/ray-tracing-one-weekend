@@ -39,6 +39,7 @@
 */
 
 Hitable *randomScene();
+Hitable *cornellBox();
 
 int main() {
 
@@ -59,7 +60,7 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 2;
+	uint32_t antiAliasingSamples = 100;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -79,9 +80,15 @@ int main() {
 	mainCamera.setLookFrom(vec3(0, 0, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));
 
+	//cornell box
+	mainCamera.setLookFrom(vec3(278, 278, -800));
+	mainCamera.setLookAt(vec3(278, 278, 0));
+
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
 
 	Hitable *world = randomScene();
+
+	world = cornellBox();
 	
 	std::cout << "Raytracing...\n";
 
@@ -225,10 +232,29 @@ Hitable *randomScene() {
 	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new Lambertian(perlin));
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
 
-	list[i++] = new XYRectangle(0, 0, 2, 2, -2, emitterMat);
+	list[i++] = new XYRectangle(0, 2, 0, 2, -6, emitterMat);
 #endif
 	
 	std::cout << "n+1 = " << n << " i= " << i << "\n";
 	return new BvhNode(list, i, 0.0, 1.0);
 	//return new HitableList(list, i);
+}
+
+Hitable *cornellBox() {
+	Hitable **list = new Hitable*[6];
+	int i = 0;
+
+	Material *red = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
+	Material *white = new Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
+	Material *green = new Lambertian(new ConstantTexture(vec3(0.12, 0.45, 0.15)));
+	Material *light = new DiffuseLight(new ConstantTexture(vec3(15, 15, 15)));
+
+	list[i++] = new FlipNormals(new YZRectangle(0, 555, 0, 555, 555, green));	
+	list[i++] = new YZRectangle(0, 555, 0, 555, 0, red);
+	list[i++] = new XZRectangle(213, 343, 227, 332, 554, light);	
+	list[i++] = new FlipNormals(new XZRectangle(0, 555, 0, 555, 555, white));
+	list[i++] = new XZRectangle(0, 555, 0, 555, 0, white);
+	list[i++] = new FlipNormals(new XYRectangle(0, 555, 0, 555, 555, white));
+
+	return new HitableList(list, i);
 }
