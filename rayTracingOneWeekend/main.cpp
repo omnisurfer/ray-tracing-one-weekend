@@ -60,7 +60,7 @@ int main() {
 
 	int32_t resWidth = 800, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 100;
+	uint32_t antiAliasingSamples = 400;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -70,12 +70,12 @@ int main() {
 	vec3 lookFrom(0, 0, -10);
 	vec3 lookAt(0, 10, 0);
 	vec3 worldUp(0, 1, 0);
-	float distToFocus = (lookFrom - lookAt).length();
-	float aperture = 2.0;
+	float distToFocus = 10.0; //(lookFrom - lookAt).length();
+	float aperture = 0.0;
 	float aspectRatio = float(resWidth) / float(resHeight);
 	float vFoV = 40.0;
 
-	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0, 1.0);
+	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
 	mainCamera.setLookFrom(vec3(0, 0, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));

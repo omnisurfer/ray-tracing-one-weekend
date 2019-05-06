@@ -14,8 +14,8 @@ public:
 
 	ray getRay(float s, float t) {
 		//DEBUG - COMMNETED OUT SO THAT I CAN RENDER WITHOUT DOF BLUR
-#if 0
-		vec3 rd = _lensRadius * randomInUnitDisk() + randomInUnitSphere();
+#if 1
+		vec3 rd = _lensRadius * randomInUnitDisk(); // +randomInUnitSphere();
 #else 
 		vec3 rd = _lensRadius * vec3(1, 1, 0); // randomInUnitDisk();
 #endif
