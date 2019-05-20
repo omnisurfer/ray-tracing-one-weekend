@@ -106,5 +106,8 @@
     <ClInclude Include="xy_rect.h">
       <Filter>Header Files\hitables</Filter>
     </ClInclude>
+    <ClInclude Include="box.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

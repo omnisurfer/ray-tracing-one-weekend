@@ -11,6 +11,7 @@
 #include "ray.h"
 #include "sphere.h"
 #include "xy_rect.h"
+#include "box.h"
 #include "material.h"
 #include "hitableList.h"
 #include "float.h"
@@ -58,9 +59,9 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 800, resHeight = 600;
+	int32_t resWidth = 400, resHeight = 300;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 400;
+	uint32_t antiAliasingSamples = 40;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -241,7 +242,7 @@ Hitable *randomScene() {
 }
 
 Hitable *cornellBox() {
-	Hitable **list = new Hitable*[6];
+	Hitable **list = new Hitable*[8];
 	int i = 0;
 
 	Material *red = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
@@ -255,6 +256,10 @@ Hitable *cornellBox() {
 	list[i++] = new FlipNormals(new XZRectangle(0, 555, 0, 555, 555, white));
 	list[i++] = new XZRectangle(0, 555, 0, 555, 0, white);
 	list[i++] = new FlipNormals(new XYRectangle(0, 555, 0, 555, 555, white));
+
+	//add boxes
+	list[i++] = new Box(vec3(130, 0, 65), vec3(295, 165, 230), white);
+	list[i++] = new Box(vec3(265, 0, 295), vec3(430, 330, 460), white);
 
 	return new HitableList(list, i);
 }

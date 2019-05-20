@@ -123,6 +123,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="aabb.h" />
+    <ClInclude Include="box.h" />
     <ClInclude Include="bvhNode.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="color.h" />
