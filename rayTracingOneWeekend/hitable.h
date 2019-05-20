@@ -98,8 +98,59 @@ RotateY::RotateY(Hitable *hitablePointerX, float angle) {
 	hasBox = pointer->boundingBox(0, 1, boundBox);
 	vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
 	vec3 max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			for (int k = 0; k < 2; k++) {
+				float x = i * boundBox.max().x() + (1 - i)*boundBox.min().x();
+				float y = j * boundBox.max().y() + (1 - j)*boundBox.min().y();
+				float z = k * boundBox.max().z() + (1 - k)*boundBox.min().z();
+
+				float newX = cosTheta * x + sinTheta * z;
+				float newZ = -sinTheta * x + cosTheta * z;
+
+				vec3 tester(newX, y, newZ);
+				for (int c = 0; c < 3; c++) {
+					if (tester[c] > max[c]) {
+						max[c] = tester[c];
+					}
+					if (tester[c] < min[c]) {
+						min[c] = tester[c];
+					}
+				}
+			}
+		}
+	}
+	boundBox = AABB(min, max);
 }
 
 bool RotateY::hit(const ray &r, float tMin, float tMax, HitRecord &hitRecord) const {
-	return false;
+	vec3 origin = r.origin();
+	vec3 direction = r.direction();
+	
+	origin[0] = cosTheta * r.origin()[0] - sinTheta * r.origin()[2];
+	origin[2] = sinTheta * r.origin()[0] + cosTheta * r.origin()[2];
+
+	direction[0] = cosTheta * r.direction()[0] - sinTheta * r.direction()[2];
+	direction[1] = sinTheta * r.direction()[0] - cosTheta * r.direction()[2];
+
+	ray rotatedRay(origin, direction, r.time());
+
+	if (pointer->hit(rotatedRay, tMin, tMax, hitRecord)) {
+		vec3 p = hitRecord.point;
+		vec3 normal = hitRecord.normal;
+
+		p[0] = cosTheta * hitRecord.point[0] + sinTheta * hitRecord.point[2];
+		p[2] = -sinTheta * hitRecord.point[0] + cosTheta * hitRecord.point[2];
+
+		normal[0] = cosTheta * hitRecord.normal[0] + sinTheta * hitRecord.normal[2];
+		normal[2] = -sinTheta * hitRecord.normal[0] + cosTheta * hitRecord.normal[2];
+
+		hitRecord.point = p;
+		hitRecord.normal = normal;
+		return true;
+	}
+	else {
+		return false;
+	}
 }
