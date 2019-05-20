@@ -89,7 +89,7 @@ public:
 };
 
 
-RotateY::RotateY(Hitable *hitablePointerX, float angle) {
+RotateY::RotateY(Hitable *hitablePointer, float angle) : pointer(hitablePointer) {
 
 	float radians = (M_PI / 180.0) * angle;
 	sinTheta = sin(radians);

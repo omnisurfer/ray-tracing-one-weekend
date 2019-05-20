@@ -59,9 +59,9 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 400, resHeight = 300;
+	int32_t resWidth = 200, resHeight = 200;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 40;
+	uint32_t antiAliasingSamples = 100;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -87,9 +87,9 @@ int main() {
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
 
-	Hitable *world = randomScene();
+	Hitable *world = cornellBox(); //randomScene();
 
-	world = cornellBox();
+	//world = cornellBox();
 	
 	std::cout << "Raytracing...\n";
 
@@ -242,13 +242,14 @@ Hitable *randomScene() {
 }
 
 Hitable *cornellBox() {
-	Hitable **list = new Hitable*[8];
+	Hitable **list = new Hitable*[7];
 	int i = 0;
 
 	Material *red = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
 	Material *white = new Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
 	Material *green = new Lambertian(new ConstantTexture(vec3(0.12, 0.45, 0.15)));
 	Material *light = new DiffuseLight(new ConstantTexture(vec3(15, 15, 15)));
+	Material *blue = new Lambertian(new ConstantTexture(vec3(0.12, 0.12, 0.45)));
 
 	list[i++] = new FlipNormals(new YZRectangle(0, 555, 0, 555, 555, green));	
 	list[i++] = new YZRectangle(0, 555, 0, 555, 0, red);
@@ -258,8 +259,25 @@ Hitable *cornellBox() {
 	list[i++] = new FlipNormals(new XYRectangle(0, 555, 0, 555, 555, white));
 
 	//add boxes
-	list[i++] = new Box(vec3(130, 0, 65), vec3(295, 165, 230), white);
+#if 0
+	list[i++] = new Box(vec3(100, 100, 100), vec3(200, 200, 200), blue);
 	list[i++] = new Box(vec3(265, 0, 295), vec3(430, 330, 460), white);
+#else
+	list[i++] = new Translate(
+		new RotateY(
+			new Box(vec3(0, 0, 0), vec3(165, 165, 165), blue), 
+			-18
+		), 
+		vec3(139, 0, 65)
+	);
 
+	list[i++] = new Translate(
+		new RotateY(
+			new Box(vec3(0, 0, 0), vec3(165, 330, 165), green),
+			-15
+		),
+		vec3(265, 0, 295)
+	);
+#endif
 	return new HitableList(list, i);
 }
