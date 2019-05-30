@@ -29,11 +29,14 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 	}
 	//does not hit anything, so "background" gradient
 	else {
-		//vec3 unit_direction = unit_vector(rayCast.direction());
+#if 0
+		vec3 unit_direction = unit_vector(rayCast.direction());
 
-		//float tempPointAtParameterT = 0.5*(unit_direction.y() + 1.0);
+		float tempPointAtParameterT = 0.5*(unit_direction.y() + 1.0);
 
-		//return (1.0 - tempPointAtParameterT)*vec3(1.0, 1.0, 1.0) + tempPointAtParameterT * vec3(0.5, 0.7, 1.0);
+		return (1.0 - tempPointAtParameterT)*vec3(1.0, 1.0, 1.0) + tempPointAtParameterT * vec3(0.5, 0.7, 1.0);
+#else
 		return vec3(0, 0, 0);
+#endif
 	}
 }

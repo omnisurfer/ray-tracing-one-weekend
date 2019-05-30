@@ -59,9 +59,9 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 200, resHeight = 200;
+	int32_t resWidth = 600, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 100;
+	uint32_t antiAliasingSamples = 10;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -251,33 +251,32 @@ Hitable *cornellBox() {
 	Material *light = new DiffuseLight(new ConstantTexture(vec3(15, 15, 15)));
 	Material *blue = new Lambertian(new ConstantTexture(vec3(0.12, 0.12, 0.45)));
 
+
 	list[i++] = new FlipNormals(new YZRectangle(0, 555, 0, 555, 555, green));	
+#if 1
 	list[i++] = new YZRectangle(0, 555, 0, 555, 0, red);
 	list[i++] = new XZRectangle(213, 343, 227, 332, 554, light);	
 	list[i++] = new FlipNormals(new XZRectangle(0, 555, 0, 555, 555, white));
 	list[i++] = new XZRectangle(0, 555, 0, 555, 0, white);
 	list[i++] = new FlipNormals(new XYRectangle(0, 555, 0, 555, 555, white));
+#endif
 
 	//add boxes
 #if 0
 	list[i++] = new Box(vec3(100, 100, 100), vec3(200, 200, 200), blue);
 	list[i++] = new Box(vec3(265, 0, 295), vec3(430, 330, 460), white);
 #else
+
 	list[i++] = new Translate(
-		new RotateY(
-			new Box(vec3(0, 0, 0), vec3(165, 165, 165), blue), 
-			-18
-		), 
-		vec3(139, 0, 65)
+		new RotateY(new Box(vec3(0, 0, 0), vec3(165, 165, 165), red), -18.0), 
+		vec3(130,0,65)
 	);
 
 	list[i++] = new Translate(
-		new RotateY(
-			new Box(vec3(0, 0, 0), vec3(165, 330, 165), green),
-			-15
-		),
-		vec3(265, 0, 295)
+		new RotateY(new Box(vec3(0, 0, 0), vec3(165, 330, 165), blue), 15.0),
+		vec3(265,0,295)
 	);
+
 #endif
 	return new HitableList(list, i);
 }

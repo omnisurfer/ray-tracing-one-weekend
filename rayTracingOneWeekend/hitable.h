@@ -132,7 +132,7 @@ bool RotateY::hit(const ray &r, float tMin, float tMax, HitRecord &hitRecord) co
 	origin[2] = sinTheta * r.origin()[0] + cosTheta * r.origin()[2];
 
 	direction[0] = cosTheta * r.direction()[0] - sinTheta * r.direction()[2];
-	direction[1] = sinTheta * r.direction()[0] - cosTheta * r.direction()[2];
+	direction[2] = sinTheta * r.direction()[0] + cosTheta * r.direction()[2];
 
 	ray rotatedRay(origin, direction, r.time());
 
