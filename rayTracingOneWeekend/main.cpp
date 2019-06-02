@@ -13,6 +13,7 @@
 #include "xy_rect.h"
 #include "box.h"
 #include "material.h"
+#include "constantMedium.h"
 #include "hitableList.h"
 #include "float.h"
 #include "camera.h"
@@ -30,6 +31,8 @@
 /* TODO:
 	- drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
 	- drowan 20190121: I need to really refactor and clean up code style. unifRand is being pulled from material.
+	- drowan 20190601: Look into this:
+		https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/
 */
 
 /* 
@@ -61,7 +64,7 @@ int main() {
 
 	int32_t resWidth = 600, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 10;
+	uint32_t antiAliasingSamples = 200;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -242,20 +245,20 @@ Hitable *randomScene() {
 }
 
 Hitable *cornellBox() {
-	Hitable **list = new Hitable*[7];
+	Hitable **list = new Hitable*[8];
 	int i = 0;
 
 	Material *red = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
 	Material *white = new Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
 	Material *green = new Lambertian(new ConstantTexture(vec3(0.12, 0.45, 0.15)));
-	Material *light = new DiffuseLight(new ConstantTexture(vec3(15, 15, 15)));
+	Material *light = new DiffuseLight(new ConstantTexture(vec3(7, 7, 7)));
 	Material *blue = new Lambertian(new ConstantTexture(vec3(0.12, 0.12, 0.45)));
 
 
 	list[i++] = new FlipNormals(new YZRectangle(0, 555, 0, 555, 555, green));	
 #if 1
 	list[i++] = new YZRectangle(0, 555, 0, 555, 0, red);
-	list[i++] = new XZRectangle(213, 343, 227, 332, 554, light);	
+	list[i++] = new XZRectangle(113, 443, 127, 432, 554, light);	
 	list[i++] = new FlipNormals(new XZRectangle(0, 555, 0, 555, 555, white));
 	list[i++] = new XZRectangle(0, 555, 0, 555, 0, white);
 	list[i++] = new FlipNormals(new XYRectangle(0, 555, 0, 555, 555, white));
@@ -272,10 +275,13 @@ Hitable *cornellBox() {
 		vec3(130,0,65)
 	);
 
-	list[i++] = new Translate(
+	Hitable *box = new Translate(
 		new RotateY(new Box(vec3(0, 0, 0), vec3(165, 330, 165), blue), 15.0),
 		vec3(265,0,295)
 	);
+		
+	// make a smoke box
+	list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.2, 0.6, 0.3)));
 
 #endif
 	return new HitableList(list, i);

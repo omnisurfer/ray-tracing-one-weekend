@@ -109,5 +109,8 @@
     <ClInclude Include="box.h">
       <Filter>Header Files\hitables</Filter>
     </ClInclude>
+    <ClInclude Include="constantMedium.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

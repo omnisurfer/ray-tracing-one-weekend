@@ -71,7 +71,6 @@ bool Translate::boundingBox(float t0, float t1, AABB &box) const {
 	}
 }
 
-
 class RotateY : public Hitable {
 public:
 	RotateY(Hitable *hitablePointer, float angle);
@@ -87,7 +86,6 @@ public:
 	bool hasBox;
 	AABB boundBox;
 };
-
 
 RotateY::RotateY(Hitable *hitablePointer, float angle) : pointer(hitablePointer) {
 

@@ -6,7 +6,9 @@
 #include "ray.h"
 #include "hitable.h"
 
-//Color is called recursively!
+#define DEPTH_RECURSION 50
+
+//Color can be called recursively!
 vec3 color(const ray &rayCast, Hitable *world, int depth) {	
 	//provide a way to store the hit vector to act on it outside the hit check
 	HitRecord hitRecord;
@@ -18,7 +20,7 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 		vec3 emitted = hitRecord.materialPointer->emitted(hitRecord.u, hitRecord.v, hitRecord.point);
 
 		//depth refers to number of recursive calls to bounce the ray around???
-		if (depth < 50 && hitRecord.materialPointer->scatter(rayCast, hitRecord, attenuation, scattered)) {
+		if (depth < DEPTH_RECURSION && hitRecord.materialPointer->scatter(rayCast, hitRecord, attenuation, scattered)) {
 			return emitted + attenuation * color(scattered, world, depth + 1);
 		}
 		else {

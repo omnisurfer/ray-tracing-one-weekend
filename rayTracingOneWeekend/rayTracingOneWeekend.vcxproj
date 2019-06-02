@@ -127,6 +127,7 @@
     <ClInclude Include="bvhNode.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="color.h" />
+    <ClInclude Include="constantMedium.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="defines.h" />
     <ClInclude Include="hitable.h" />
