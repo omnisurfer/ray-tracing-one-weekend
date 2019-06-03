@@ -64,7 +64,7 @@ int main() {
 
 	int32_t resWidth = 600, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 200;
+	uint32_t antiAliasingSamples = 1000;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
@@ -124,9 +124,19 @@ int main() {
 
 			outputColor /= float(antiAliasingSamples);
 			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
-			int ir = int(255.99 * outputColor[0]);
-			int ig = int(255.99 * outputColor[1]);
-			int ib = int(255.99 * outputColor[2]);
+			// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
+			// Probably related to me outputing to bitmap instead of the ppm format...
+			uint8_t ir = 0;
+			uint8_t ig = 0;
+			uint8_t ib = 0;
+
+			uint16_t irO = uint16_t(255.99 * outputColor[0]);
+			uint16_t igO = uint16_t(255.99 * outputColor[1]);
+			uint16_t ibO = uint16_t(255.99 * outputColor[2]);
+
+			(irO > 255) ? ir = 255 : ir = uint8_t(irO);			
+			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
+			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
 
 			//also store values into tempBuffer
 			tempImageBuffer.get()[row*resWidth * bytesPerPixel + (column * bytesPerPixel)] = ib;
@@ -251,7 +261,7 @@ Hitable *cornellBox() {
 	Material *red = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
 	Material *white = new Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
 	Material *green = new Lambertian(new ConstantTexture(vec3(0.12, 0.45, 0.15)));
-	Material *light = new DiffuseLight(new ConstantTexture(vec3(7, 7, 7)));
+	Material *light = new DiffuseLight(new ConstantTexture(vec3(4, 4, 4)));
 	Material *blue = new Lambertian(new ConstantTexture(vec3(0.12, 0.12, 0.45)));
 
 
@@ -282,6 +292,7 @@ Hitable *cornellBox() {
 		
 	// make a smoke box
 	list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.2, 0.6, 0.3)));
+	//list[i++] = box;
 
 #endif
 	return new HitableList(list, i);

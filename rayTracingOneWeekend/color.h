@@ -14,7 +14,9 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 	HitRecord hitRecord;
 
 	//hits a point on the sphere or hittable.
-	if (world->hit(rayCast, 0.001, std::numeric_limits<float>::max(), hitRecord)) {
+	float maxFloat = std::numeric_limits<float>::max();	
+
+	if (world->hit(rayCast, 0.001, maxFloat, hitRecord)) {
 		ray scattered;
 		vec3 attenuation;
 		vec3 emitted = hitRecord.materialPointer->emitted(hitRecord.u, hitRecord.v, hitRecord.point);
