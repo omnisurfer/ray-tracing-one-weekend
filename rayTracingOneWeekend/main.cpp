@@ -66,7 +66,7 @@ void workerFunction(uint8_t threadId, RenderProperties renderProps, Camera scene
 
 	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
 	std::cout << "Hitable:  " << world << "\n";
-	std::cout << "ImageBuffer: " << workerImageBuffer.get()[0] << "\n";
+	std::cout << "ImageBuffer: " << &workerImageBuffer << " [0]" << workerImageBuffer.get()[0] << "\n";
 
 	std::cout << "Raytracing from worker...\n";
 #if 1
@@ -199,81 +199,27 @@ int main() {
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
-	mainCamera.setLookFrom(vec3(0, 0, -10));
+	// drowan(20190607) TOOD: make a way to select this programatically?
+#if 0
+	//random scene
+	mainCamera.setLookFrom(vec3(3, 3, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));
 
+	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
+	Hitable *world = randomScene();
+#else
 	//cornell box
 	mainCamera.setLookFrom(vec3(278, 278, -800));
 	mainCamera.setLookAt(vec3(278, 278, 0));
 
-	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
-
-	Hitable *world = cornellBox(); //randomScene();
-
-	//world = cornellBox();
+	Hitable *world = cornellBox();
+#endif
 
 	//DEBUG create some worker threads with their own buffers
 	std::thread testThread(workerFunction, 0, renderProps, mainCamera, world, finalImageBuffer);
 
 	testThread.join();
 	
-//DEBUG bypass actuall render for now
-#if 0
-	std::cout << "Raytracing...\n";
-
-	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
-	for (int row = renderProps.resHeightInPixels - 1; row >= 0; row--) {
-		if(row%10 == 0 || row == renderProps.resHeightInPixels - 1)
-			std::cout << "\nRow " << row << " ";
-
-		int columnProgress = 0;
-		//loop to move ray across width of frame
-		for (int column = 0; column < renderProps.resWidthInPixels; column++, columnProgress++) {
-			if(columnProgress%1000 == 0 || columnProgress == 0)
-				std::cout << ". ";
-			
-			vec3 outputColor(0, 0, 0);
-			//loop to produce AA samples
-			for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
-				float u = float(column + unifRand(randomNumberGenerator)) / float(renderProps.resWidthInPixels);
-				float v = float(row + unifRand(randomNumberGenerator)) / float(renderProps.resHeightInPixels);
-
-				//A, the origin of the ray (camera)
-				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
-				ray rayCast = mainCamera.getRay(u, v);	
-
-				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
-				vec3 pointAt = rayCast.pointAtParameter(2.0);
-				outputColor += color(rayCast, world, 0);				
-			}
-
-			outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
-			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
-			// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
-			// Probably related to me outputing to bitmap instead of the ppm format...
-			uint8_t ir = 0;
-			uint8_t ig = 0;
-			uint8_t ib = 0;
-
-			uint16_t irO = uint16_t(255.99 * outputColor[0]);
-			uint16_t igO = uint16_t(255.99 * outputColor[1]);
-			uint16_t ibO = uint16_t(255.99 * outputColor[2]);
-
-			(irO > 255) ? ir = 255 : ir = uint8_t(irO);			
-			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
-			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
-
-			//also store values into tempBuffer
-			finalImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel)] = ib;
-			finalImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 1] = ig;
-			finalImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 2] = ir;
-		}
-	}
-
-	// std::cout << "\nRaytracing complete, pres any key to write to bmp.\n";
-		
-	// std::cin.get();
-#endif
 	std::cout << "Writing to bmp file...\n";
 
 	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.imageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
@@ -283,8 +229,12 @@ int main() {
 	DEBUG_MSG_L0("colorCallCount: ", colorCallCount);
 
 	//DEBUG pause
-	
-	std::cout << "Hit any key to exit...\n";
+	// putting a \n triggers cin...?
+	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels) 
+	// the cin.get() is completely bypassed unless I put a cin.ignore(). Is the thread exiting
+	// weird relative to the main thread???
+	std::cout << "Hit any key to exit...";
+	std::cin.ignore();
 	std::cin.get();
 
 	return 0;
@@ -323,6 +273,7 @@ Hitable *randomScene() {
 
 	int centerX = -xMod, centerY = -yMod;
 #if 1
+	// drowan(20190607) TODO: figure out what magic number 3 was supposed to be (I forgot...)
 	while (i < n - 3) {
 		float chooseMaterial = unifRand(randomNumberGenerator);
 		
