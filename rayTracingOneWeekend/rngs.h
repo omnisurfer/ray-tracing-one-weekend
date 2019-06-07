@@ -8,4 +8,4 @@
 
 std::mt19937_64 randomNumberGenerator;
 uint64_t timeSeed;
-std::uniform_real_distribution<double> unifRand(0, 1.0);
+std::uniform_real_distribution<double> unifRand(0.0, 1.0);

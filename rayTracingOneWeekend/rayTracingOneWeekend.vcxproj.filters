@@ -31,6 +31,9 @@
     <Filter Include="Header Files\config">
       <UniqueIdentifier>{ada62a8c-84e5-497a-a702-9500b3683d9a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\stbLib">
+      <UniqueIdentifier>{66f50758-2ac7-46f5-a61b-dac00fee0939}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -83,6 +86,30 @@
       <Filter>Header Files\hitables</Filter>
     </ClInclude>
     <ClInclude Include="sphere.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
+    <ClInclude Include="aabb.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="bvhNode.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="texture.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="noise.h">
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="stb_image.h">
+      <Filter>Header Files\stbLib</Filter>
+    </ClInclude>
+    <ClInclude Include="xy_rect.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
+    <ClInclude Include="box.h">
+      <Filter>Header Files\hitables</Filter>
+    </ClInclude>
+    <ClInclude Include="constantMedium.h">
       <Filter>Header Files\hitables</Filter>
     </ClInclude>
   </ItemGroup>

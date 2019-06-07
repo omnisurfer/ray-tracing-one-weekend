@@ -10,19 +10,29 @@
 #include "vec3.h"
 #include "ray.h"
 #include "sphere.h"
+#include "xy_rect.h"
+#include "box.h"
 #include "material.h"
+#include "constantMedium.h"
 #include "hitableList.h"
 #include "float.h"
 #include "camera.h"
 #include "color.h"
+#include "bvhNode.h"
 
 #include "debug.h"
 
 #include "winDIBbitmap.h"
 
+//https://github.com/nothings/stb
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 /* TODO:
 	- drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
 	- drowan 20190121: I need to really refactor and clean up code style. unifRand is being pulled from material.
+	- drowan 20190601: Look into this:
+		https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/
 */
 
 /* 
@@ -33,6 +43,7 @@
 */
 
 Hitable *randomScene();
+Hitable *cornellBox();
 
 int main() {
 
@@ -46,54 +57,42 @@ int main() {
 	};
 
 	randomNumberGenerator.seed(seedSequence);
-
+	
 	//Setup screen and output image
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 640, resHeight = 480;
+	int32_t resWidth = 600, resHeight = 600;
 	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 20;
+	uint32_t antiAliasingSamples = 1000;
 
 	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
 
 	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);				
 
 	//Setup camera
-	vec3 lookFrom(2, 3, -10);
-	vec3 lookAt(0, 0, 0);
+	vec3 lookFrom(0, 0, -10);
+	vec3 lookAt(0, 10, 0);
 	vec3 worldUp(0, 1, 0);
-	float distToFocus = (lookFrom - lookAt).length();
-	float aperture = 2.0;
+	float distToFocus = 10.0; //(lookFrom - lookAt).length();
+	float aperture = 0.0;
 	float aspectRatio = float(resWidth) / float(resHeight);
 	float vFoV = 40.0;
 
-	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus);
+	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
+	mainCamera.setLookFrom(vec3(0, 0, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));
 
-	Hitable *hitableList[6];
-	
-	//This is the "ground" sphere
-	hitableList[0] = new Sphere(vec3(0, -100.5, -1), 100, new metal(vec3(0.1, 0.1, 0.1), 0.01));
-	
-	//red sphere
-	hitableList[1] = new Sphere(vec3(-1.0, 0.0, -1.0), 0.5, new metal(vec3(0.8, 0.1, 0.1), 0.3));
-	//green sphere
-	hitableList[2] = new Sphere(vec3(1.0, 0.0, -1.5), 0.5, new metal(vec3(0.1, 0.8, 0.1), 0.3));
+	//cornell box
+	mainCamera.setLookFrom(vec3(278, 278, -800));
+	mainCamera.setLookAt(vec3(278, 278, 0));
 
-	//blue sphere
-	hitableList[3] = new Sphere(vec3(0, 1.5, -2.0), 0.5, new metal(vec3(0.1, 0.1, 0.8), 0.1));
-	//mixed sphere
-	hitableList[4] = new Sphere(vec3(0.0, 0.0, -2.0), 0.5, new metal(vec3(0.2, 0.4, 0.6), 0.5));	
-
-	//Glass sphere
-	hitableList[5] = new Sphere(vec3(0, 0, -1), 0.5, new dielectric(5.0));//lambertian(vec3(0.07, 0.25, 0.83)));
-	
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
-	Hitable *world = new HitableList(hitableList, 6);
 
-	world = randomScene();
+	Hitable *world = cornellBox(); //randomScene();
+
+	//world = cornellBox();
 	
 	std::cout << "Raytracing...\n";
 
@@ -116,7 +115,7 @@ int main() {
 
 				//A, the origin of the ray (camera)
 				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
-				ray rayCast = mainCamera.getRay(u, v);				
+				ray rayCast = mainCamera.getRay(u, v);	
 
 				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
 				vec3 pointAt = rayCast.pointAtParameter(2.0);
@@ -125,9 +124,19 @@ int main() {
 
 			outputColor /= float(antiAliasingSamples);
 			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
-			int ir = int(255.99 * outputColor[0]);
-			int ig = int(255.99 * outputColor[1]);
-			int ib = int(255.99 * outputColor[2]);
+			// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
+			// Probably related to me outputing to bitmap instead of the ppm format...
+			uint8_t ir = 0;
+			uint8_t ig = 0;
+			uint8_t ib = 0;
+
+			uint16_t irO = uint16_t(255.99 * outputColor[0]);
+			uint16_t igO = uint16_t(255.99 * outputColor[1]);
+			uint16_t ibO = uint16_t(255.99 * outputColor[2]);
+
+			(irO > 255) ? ir = 255 : ir = uint8_t(irO);			
+			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
+			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
 
 			//also store values into tempBuffer
 			tempImageBuffer.get()[row*resWidth * bytesPerPixel + (column * bytesPerPixel)] = ib;
@@ -152,41 +161,139 @@ int main() {
 }
 
 Hitable *randomScene() {
-	//drowan 20190127: changing n from 500 to 250 causes a crash..?
-	int n = 500;
+	//drowan 20190127: The code below is basically hardcoded to generate ~400 spheres. When I try to make the list smaller than this, it tries to access
+	//out of bounds memory.
+	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
+	int n = 110;
 	Hitable **list = new Hitable*[n + 1];
-	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
+
+	Texture *checker = new CheckerTexture(
+		new ConstantTexture(vec3(0.2, 0.2, 0.8)), 
+		new ConstantTexture(vec3(0.9,0.9,0.9))
+	);
+
+	Texture *perlin = new NoiseTexture(true, 8.0f);
+
+	Texture *constant = new ConstantTexture(vec3(0.0, 1.0, 0.0));
+
+	Material *emitterMat = new DiffuseLight(new ConstantTexture(vec3(4,4,4)));
+
+	//read in an image for texture mapping
+	int nx, ny, nn;
+	unsigned char *textureData = stbi_load("./input_images/earth1300x1300.jpg", &nx, &ny, &nn, 0);
+	//unsigned char *textureData = stbi_load("./input_images/red750x750.jpg", &nx, &ny, &nn, 0);
+
+	Material *imageMat = new Lambertian(new ImageTexture(textureData, nx, ny));
+
+	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new Lambertian(perlin));
+
 	int i = 1;
-	for (int a = -11; a < 11; a++) {
-		for (int b = -11; b < 11; b++) {
-			float chooseMaterial = unifRand(randomNumberGenerator);
-			vec3 center(a + 0.9*unifRand(randomNumberGenerator), 0.2, b + 0.9*unifRand(randomNumberGenerator));
-			if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
-				if (chooseMaterial < 0.8) { //diffuse
-					list[i++] = new Sphere(center, 0.2,
-						new lambertian(
-							vec3(unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator),
-							unifRand(randomNumberGenerator) * unifRand(randomNumberGenerator))));
-				}
-				else if (chooseMaterial < 0.95) { //metal
-					list[i++] = new Sphere(center, 0.2,
-						new metal(
-							vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))), 
-							0.5*(1 + unifRand(randomNumberGenerator))
-							)
-						);
-				}
-				else { //glass
-					list[i++] = new Sphere(center, 0.2, new dielectric(1.5));
-				}
+
+	const int xMod = 5, yMod = 5;
+
+	int centerX = -xMod, centerY = -yMod;
+#if 1
+	while (i < n - 3) {
+		float chooseMaterial = unifRand(randomNumberGenerator);
+		
+		vec3 center(centerX + 0.9*unifRand(randomNumberGenerator), 0.2, centerY + 0.9*unifRand(randomNumberGenerator));
+
+		if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
+			if (chooseMaterial < 0.8) { //diffuse
+				list[i++] = new MovingSphere(center,
+					center + vec3(0, 0.5*unifRand(randomNumberGenerator), 0),
+					0.0,
+					1.0,
+					0.2,
+					new Lambertian(checker)
+				);
+			}
+			else if (chooseMaterial < 0.95) { //metal
+				list[i++] = new Sphere(center, 0.2,
+					new Metal(
+						vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))),
+						0.5*(1 + unifRand(randomNumberGenerator))
+					)
+				);
+			}
+			else { //glass
+				list[i++] = new Sphere(center, 0.2, new Dielectric(1.5));
 			}
 		}
+
+		if (centerX < xMod) {
+			centerX++;
+		}
+		else {
+			centerX = -xMod;
+			centerY++;
+		}
+
+		if (centerY > yMod) {
+			centerY = -yMod;
+		}
+
+		//std::cout << __func__ << "cX: " << centerX << " cY: " << centerY << "\n";
 	}
+#endif
+	if (textureData != NULL) {
+		list[i++] = new Sphere(vec3(0, 2, 0), 2.0, imageMat);
+	}
+	else {
+		list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new Dielectric(1.5));
+	}
+#if 1
+	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new Lambertian(perlin));
+	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
 
-	list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
-	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
-	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
+	list[i++] = new XYRectangle(0, 2, 0, 2, -6, emitterMat);
+#endif
+	
+	std::cout << "n+1 = " << n << " i= " << i << "\n";
+	return new BvhNode(list, i, 0.0, 1.0);
+	//return new HitableList(list, i);
+}
 
+Hitable *cornellBox() {
+	Hitable **list = new Hitable*[8];
+	int i = 0;
+
+	Material *red = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
+	Material *white = new Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
+	Material *green = new Lambertian(new ConstantTexture(vec3(0.12, 0.45, 0.15)));
+	Material *light = new DiffuseLight(new ConstantTexture(vec3(4, 4, 4)));
+	Material *blue = new Lambertian(new ConstantTexture(vec3(0.12, 0.12, 0.45)));
+
+
+	list[i++] = new FlipNormals(new YZRectangle(0, 555, 0, 555, 555, green));	
+#if 1
+	list[i++] = new YZRectangle(0, 555, 0, 555, 0, red);
+	list[i++] = new XZRectangle(113, 443, 127, 432, 554, light);	
+	list[i++] = new FlipNormals(new XZRectangle(0, 555, 0, 555, 555, white));
+	list[i++] = new XZRectangle(0, 555, 0, 555, 0, white);
+	list[i++] = new FlipNormals(new XYRectangle(0, 555, 0, 555, 555, white));
+#endif
+
+	//add boxes
+#if 0
+	list[i++] = new Box(vec3(100, 100, 100), vec3(200, 200, 200), blue);
+	list[i++] = new Box(vec3(265, 0, 295), vec3(430, 330, 460), white);
+#else
+
+	list[i++] = new Translate(
+		new RotateY(new Box(vec3(0, 0, 0), vec3(165, 165, 165), red), -18.0), 
+		vec3(130,0,65)
+	);
+
+	Hitable *box = new Translate(
+		new RotateY(new Box(vec3(0, 0, 0), vec3(165, 330, 165), blue), 15.0),
+		vec3(265,0,295)
+	);
+		
+	// make a smoke box
+	list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.2, 0.6, 0.3)));
+	//list[i++] = box;
+
+#endif
 	return new HitableList(list, i);
 }
