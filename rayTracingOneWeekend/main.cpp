@@ -6,6 +6,8 @@
 #include <chrono>
 #include <list>
 
+#include <thread>
+
 #include "defines.h"
 #include "vec3.h"
 #include "ray.h"
@@ -28,11 +30,16 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define DEFAULT_RENDER_WIDTH 100
+#define DEFAULT_RENDER_HEIGHT 100
+#define DEFAULT_RENDER_AA 10
+
 /* TODO:
 	- drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
 	- drowan 20190121: I need to really refactor and clean up code style. unifRand is being pulled from material.
 	- drowan 20190601: Look into this:
 		https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/
+	- drowan 20190607: Look into OpenMPI???
 */
 
 /* 
@@ -44,6 +51,80 @@
 
 Hitable *randomScene();
 Hitable *cornellBox();
+
+struct RenderProperties {
+	int32_t resWidthInPixels, resHeightInPixels;
+	uint8_t bytesPerPixel;
+	uint32_t antiAliasingSamplesPerPixel;
+	uint32_t imageBufferSizeInBytes;
+};
+
+// going to try and pass a buffer per thread and combine afterwards so as to avoid memory contention when using a mutex which may slow things down...
+void workerFunction(uint8_t threadId, RenderProperties renderProps, Camera sceneCamera, Hitable *world, std::shared_ptr<uint8_t> workerImageBuffer) {
+	int numOfCores = std::thread::hardware_concurrency();
+	std::cout << "Hello from thread with ID: " << threadId << "\n";
+
+	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
+	std::cout << "Hitable:  " << world << "\n";
+	std::cout << "ImageBuffer: " << workerImageBuffer.get()[0] << "\n";
+
+	std::cout << "Raytracing from worker...\n";
+#if 1
+	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
+	for (int row = renderProps.resHeightInPixels - 1; row >= 0; row--) {
+		if (row % 10 == 0 || row == renderProps.resHeightInPixels - 1)
+			std::cout << "\nRow " << row << " ";
+
+		int columnProgress = 0;
+		//loop to move ray across width of frame
+		for (int column = 0; column < renderProps.resWidthInPixels; column++, columnProgress++) {
+			if (columnProgress % 1000 == 0 || columnProgress == 0)
+				std::cout << ". ";
+
+			vec3 outputColor(0, 0, 0);
+			//loop to produce AA samples
+			for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
+				float u = float(column + unifRand(randomNumberGenerator)) / float(renderProps.resWidthInPixels);
+				float v = float(row + unifRand(randomNumberGenerator)) / float(renderProps.resHeightInPixels);
+
+				//A, the origin of the ray (camera)
+				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
+				ray rayCast = sceneCamera.getRay(u, v);
+
+				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
+				vec3 pointAt = rayCast.pointAtParameter(2.0);
+				outputColor += color(rayCast, world, 0);
+			}
+
+			outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
+			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
+			// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
+			// Probably related to me outputing to bitmap instead of the ppm format...
+			uint8_t ir = 0;
+			uint8_t ig = 0;
+			uint8_t ib = 0;
+
+			uint16_t irO = uint16_t(255.99 * outputColor[0]);
+			uint16_t igO = uint16_t(255.99 * outputColor[1]);
+			uint16_t ibO = uint16_t(255.99 * outputColor[2]);
+
+			// cap the values to 255 max
+			(irO > 255) ? ir = 255 : ir = uint8_t(irO);
+			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
+			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
+
+			//also store values into tempBuffer
+			workerImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel)] = ib;
+			workerImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 1] = ig;
+			workerImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 2] = ir;
+		}
+	}
+
+	std::cout << "\nRaytracing worker complete!\n";
+
+#endif
+	return;
+}
 
 int main() {
 
@@ -62,13 +143,50 @@ int main() {
 	//4K 3840x2160, 2K 2560x1440
 	WINDIBBitmap winDIBBmp;
 
-	int32_t resWidth = 600, resHeight = 600;
-	uint8_t bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-	uint32_t antiAliasingSamples = 1000;
+	RenderProperties renderProps;
 
-	uint32_t tempImageBufferSizeInBytes = resWidth * resHeight * bytesPerPixel;
+	renderProps.resHeightInPixels = 600;
+	renderProps.resWidthInPixels = 600;
+	renderProps.antiAliasingSamplesPerPixel = 10;
+	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 
-	std::unique_ptr<uint8_t> tempImageBuffer(new uint8_t[tempImageBufferSizeInBytes]);				
+	uint8_t numOfCores = std::thread::hardware_concurrency();
+	std::cout << "You have " << numOfCores << " hardware threads.\n";
+
+	//ask for image dimensions
+	std::cout << "Enter render width: ";
+	std::cin >> renderProps.resWidthInPixels;
+
+	if (std::cin.fail()) {
+		std::cin.clear();
+		std::cin.ignore(INT_MAX, '\n');
+		renderProps.resWidthInPixels = DEFAULT_RENDER_WIDTH;
+		std::cout << "Invalid input, using default: " << renderProps.resWidthInPixels << '\n';
+	}
+
+	std::cout << "Enter render height: ";
+	std::cin >> renderProps.resHeightInPixels;
+
+	if (std::cin.fail()) {
+		std::cin.clear();
+		std::cin.ignore(INT_MAX, '\n');
+		renderProps.resHeightInPixels = DEFAULT_RENDER_HEIGHT;
+		std::cout << "Invalid input, using default: " << renderProps.resHeightInPixels << '\n';
+	}
+
+	std::cout << "Enter number of aliasing samples (also helps increaes photon count): ";
+	std::cin >> renderProps.antiAliasingSamplesPerPixel;
+
+	if (std::cin.fail()) {
+		std::cin.clear();
+		std::cin.ignore(INT_MAX, '\n');
+		renderProps.antiAliasingSamplesPerPixel = DEFAULT_RENDER_AA;
+		std::cout << "Invalid input, using default: " << renderProps.antiAliasingSamplesPerPixel << '\n';
+	}
+
+	renderProps.imageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
+
+	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.imageBufferSizeInBytes]);
 
 	//Setup camera
 	vec3 lookFrom(0, 0, -10);
@@ -76,7 +194,7 @@ int main() {
 	vec3 worldUp(0, 1, 0);
 	float distToFocus = 10.0; //(lookFrom - lookAt).length();
 	float aperture = 0.0;
-	float aspectRatio = float(resWidth) / float(resHeight);
+	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
 	float vFoV = 40.0;
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
@@ -93,25 +211,32 @@ int main() {
 	Hitable *world = cornellBox(); //randomScene();
 
 	//world = cornellBox();
+
+	//DEBUG create some worker threads with their own buffers
+	std::thread testThread(workerFunction, 0, renderProps, mainCamera, world, finalImageBuffer);
+
+	testThread.join();
 	
+//DEBUG bypass actuall render for now
+#if 0
 	std::cout << "Raytracing...\n";
 
 	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
-	for (int row = resHeight - 1; row >= 0; row--) {
-		if(row%10 == 0 || row == resHeight - 1)
+	for (int row = renderProps.resHeightInPixels - 1; row >= 0; row--) {
+		if(row%10 == 0 || row == renderProps.resHeightInPixels - 1)
 			std::cout << "\nRow " << row << " ";
 
 		int columnProgress = 0;
 		//loop to move ray across width of frame
-		for (int column = 0; column < resWidth; column++, columnProgress++) {
+		for (int column = 0; column < renderProps.resWidthInPixels; column++, columnProgress++) {
 			if(columnProgress%1000 == 0 || columnProgress == 0)
 				std::cout << ". ";
 			
 			vec3 outputColor(0, 0, 0);
 			//loop to produce AA samples
-			for (int sample = 0; sample < antiAliasingSamples; sample++) { 
-				float u = float(column + unifRand(randomNumberGenerator)) / float(resWidth);
-				float v = float(row + unifRand(randomNumberGenerator)) / float(resHeight);
+			for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
+				float u = float(column + unifRand(randomNumberGenerator)) / float(renderProps.resWidthInPixels);
+				float v = float(row + unifRand(randomNumberGenerator)) / float(renderProps.resHeightInPixels);
 
 				//A, the origin of the ray (camera)
 				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
@@ -122,7 +247,7 @@ int main() {
 				outputColor += color(rayCast, world, 0);				
 			}
 
-			outputColor /= float(antiAliasingSamples);
+			outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
 			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
 			// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
 			// Probably related to me outputing to bitmap instead of the ppm format...
@@ -139,23 +264,28 @@ int main() {
 			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
 
 			//also store values into tempBuffer
-			tempImageBuffer.get()[row*resWidth * bytesPerPixel + (column * bytesPerPixel)] = ib;
-			tempImageBuffer.get()[row*resWidth * bytesPerPixel + (column * bytesPerPixel) + 1] = ig;
-			tempImageBuffer.get()[row*resWidth * bytesPerPixel + (column * bytesPerPixel) + 2] = ir;
+			finalImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel)] = ib;
+			finalImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 1] = ig;
+			finalImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 2] = ir;
 		}
 	}
 
-	std::cout << "\nRaytracing complete, pres any key to write to bmp.\n";
+	// std::cout << "\nRaytracing complete, pres any key to write to bmp.\n";
 		
-	//std::cin.get();
+	// std::cin.get();
+#endif
+	std::cout << "Writing to bmp file...\n";
 
-	std::cout << "Writing to debug bmp file...\n";
-
-	winDIBBmp.writeBMPToFile(tempImageBuffer.get(), tempImageBufferSizeInBytes, resWidth, resHeight, BMP_BITS_PER_PIXEL);
+	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.imageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
 
 	delete[] world;
 
 	DEBUG_MSG_L0("colorCallCount: ", colorCallCount);
+
+	//DEBUG pause
+	
+	std::cout << "Hit any key to exit...\n";
+	std::cin.get();
 
 	return 0;
 }
