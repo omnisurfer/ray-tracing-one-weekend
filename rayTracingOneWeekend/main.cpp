@@ -5,6 +5,7 @@
 #include <random>
 #include <chrono>
 #include <list>
+#include <iomanip>
 
 #include <thread>
 #include <mutex>
@@ -54,7 +55,7 @@ Hitable *randomScene();
 Hitable *cornellBox();
 
 struct RenderProperties {
-	int32_t resWidthInPixels, resHeightInPixels;
+	uint32_t resWidthInPixels, resHeightInPixels;
 	uint8_t bytesPerPixel;
 	uint32_t antiAliasingSamplesPerPixel;
 	uint32_t imageBufferSizeInBytes;
@@ -70,6 +71,37 @@ void workerFunction(uint32_t threadId, std::mutex *coutGuard, RenderProperties r
 	std::cout << "World hitable address:  " << world << "\n";
 	std::cout << "Image buffer address: " << &workerImageBuffer << " @[0]: " << workerImageBuffer.get()[0] << " Size: " << workerBufferSizeInBytes << "\n";	
 	std::cout << "Raytracing starting...\n";
+	//coutLock.unlock();
+
+	// drowan(20190613): Need to think of how the chunks will be made as the cores change. For now, splitting into stripes 
+	// based on height with the same width
+	uint32_t chunkResHeightInPixels = static_cast<uint32_t> (renderProps.resHeightInPixels / numOfCores);
+	uint32_t chunkResWidthInPixels = static_cast<uint32_t> (renderProps.resWidthInPixels);
+	uint32_t chunkResHeigthInPixelsOffset = 0;
+
+	// give first thread any extra rows that did not divide cleanly between the threads
+	if (threadId == 0) {
+		chunkResHeightInPixels += renderProps.resHeightInPixels%numOfCores;
+	}
+	else {
+		chunkResHeigthInPixelsOffset += renderProps.resHeightInPixels%numOfCores;
+		chunkResHeigthInPixelsOffset -= chunkResHeightInPixels;
+	}
+
+// dummy render loop to figure out indexes
+	for (int row = chunkResHeightInPixels - 1; row >= 0; row--) {
+		std::cout << "Row " << row << ": ";
+		for (int column = 0; column < chunkResWidthInPixels; column++) {
+
+			// calculate u and v. This is a naive implementation that does not account for non-square or even dimensions
+			float u = (float)column / (float)chunkResWidthInPixels;
+			float x = (threadId * chunkResHeightInPixels) + (chunkResHeigthInPixelsOffset * 2);
+			float v = ((float)row + x) / (float)renderProps.resHeightInPixels;
+
+			std::cout << "(" << std::setprecision(2) << v << ") ";
+		}
+		std::cout << "\n";
+	}
 	coutLock.unlock();
 #if 0
 	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
@@ -251,21 +283,23 @@ int main() {
 
 	for (int i = 0; i < numOfThreads; i++) {			
 
-		//the last thread may get a different amount of bytes to process
-		if (i == numOfThreads - 1) {		
-			workerBufferSizeInBytes = renderProps.imageBufferSizeInBytes - ((workerBufferSizeInBytes) * (numOfThreads - 1));
+		uint32_t _workerBufferSizeInBytes = workerBufferSizeInBytes;
+
+		//the first thread may get a different amount of bytes to process
+		if (i == 0) {		
+			_workerBufferSizeInBytes = renderProps.imageBufferSizeInBytes - ((workerBufferSizeInBytes) * (numOfThreads - 1));
 		}
 
 		// std::cout << "worker buffer size: " << workerBufferSizeInBytes << "\n";
 
-		std::shared_ptr<uint8_t> workingImageBuffer(new uint8_t[workerBufferSizeInBytes]);
+		std::shared_ptr<uint8_t> workingImageBuffer(new uint8_t[_workerBufferSizeInBytes]);
 
 		workingImageBuffer.get()[0] = 0x41 + i;
 
 		workerImageBufferVector.push_back(std::move(workingImageBuffer));
 	
 		//DEBUG create some worker threads with their own buffers
-		std::thread workerThread(workerFunction, i, &coutGuard, renderProps, mainCamera, world, workerImageBufferVector[i], workerBufferSizeInBytes);
+		std::thread workerThread(workerFunction, i, &coutGuard, renderProps, mainCamera, world, workerImageBufferVector[i], _workerBufferSizeInBytes);
 		workerThreadVector.push_back(std::move(workerThread));
 	}
 
