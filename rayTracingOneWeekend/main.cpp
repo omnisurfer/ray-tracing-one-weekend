@@ -32,8 +32,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define DEFAULT_RENDER_WIDTH 30
-#define DEFAULT_RENDER_HEIGHT 10
+#define DEFAULT_RENDER_WIDTH 100
+#define DEFAULT_RENDER_HEIGHT 100
 #define DEFAULT_RENDER_AA 1
 
 /* TODO:
@@ -58,51 +58,118 @@ struct RenderProperties {
 	uint32_t resWidthInPixels, resHeightInPixels;
 	uint8_t bytesPerPixel;
 	uint32_t antiAliasingSamplesPerPixel;
-	uint32_t imageBufferSizeInBytes;
+	uint32_t finalImageBufferSizeInBytes;
+};
+
+struct WorkerThreadStruct {
+	uint32_t threadId;
+	bool threadDone;
+	std::thread threadHandle;
+};
+
+struct WorkerImageBufferStruct {
+	uint32_t sizeInBytes;
+	std::shared_ptr<uint8_t> buffer;
 };
 
 // going to try and pass a buffer per thread and combine afterwards so as to avoid memory contention when using a mutex which may slow things down...
-void workerFunction(uint32_t threadId, std::mutex *coutGuard, RenderProperties renderProps, Camera sceneCamera, Hitable *world, std::shared_ptr<uint8_t> workerImageBuffer, uint32_t workerBufferSizeInBytes) {
-	int numOfCores = std::thread::hardware_concurrency();
+//WorkerThreadProperties *workerThreadProperties, , WorkerImageBuffer *workerImageBuffer
+void workerThreadFunction(std::shared_ptr<WorkerThreadStruct> workerThreadStruct, std::shared_ptr<WorkerImageBufferStruct> workerImageBufferStruct, std::mutex *coutGuard, RenderProperties renderProps, Camera sceneCamera, Hitable *world) {
+	int numOfThreads = std::thread::hardware_concurrency();
 
-	std::unique_lock<std::mutex> coutLock(*coutGuard);
-	std::cout << "\nHello from thread with ID: " << threadId << "\n";
+	std::unique_lock<std::mutex> coutLock(*coutGuard);	
+	std::cout << "\nHello from thread with ID: " << workerThreadStruct.get()->threadId << "\n";
 	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
 	std::cout << "World hitable address:  " << world << "\n";
-	std::cout << "Image buffer address: " << &workerImageBuffer << " @[0]: " << workerImageBuffer.get()[0] << " Size: " << workerBufferSizeInBytes << "\n";	
+
+	std::cout << "Image buffer address: " << &workerImageBufferStruct << " @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size: " << workerImageBufferStruct->sizeInBytes << "\n";	
 	std::cout << "Raytracing starting...\n";
-	//coutLock.unlock();
+	coutLock.unlock();
 
 	// drowan(20190613): Need to think of how the chunks will be made as the cores change. For now, splitting into stripes 
 	// based on height with the same width
-	uint32_t chunkResHeightInPixels = static_cast<uint32_t> (renderProps.resHeightInPixels / numOfCores);
+	uint32_t chunkResHeightInPixels = static_cast<uint32_t> (renderProps.resHeightInPixels / numOfThreads);	
+	uint32_t rowOffsetInPixels = 0;
 	uint32_t chunkResWidthInPixels = static_cast<uint32_t> (renderProps.resWidthInPixels);
 	uint32_t chunkResHeigthInPixelsOffset = 0;
 
-	// give first thread any extra rows that did not divide cleanly between the threads
-	if (threadId == 0) {
-		chunkResHeightInPixels += renderProps.resHeightInPixels%numOfCores;
+	// give last thread any extra rows that did not divide cleanly between the threads.
+	/*
+
+	|_______| n * 0
+	|_______| n * 1
+	|_______| n * 3
+	|		| n * 4
+	|       |
+	|_______|	
+
+	*/
+
+#if 1
+	if (workerThreadStruct->threadId == numOfThreads - 1) {
+		rowOffsetInPixels = (workerThreadStruct->threadId * chunkResHeightInPixels);
+		chunkResHeightInPixels += renderProps.resHeightInPixels%numOfThreads;
 	}
 	else {
-		chunkResHeigthInPixelsOffset += renderProps.resHeightInPixels%numOfCores;
-		chunkResHeigthInPixelsOffset -= chunkResHeightInPixels;
+		rowOffsetInPixels = (workerThreadStruct->threadId * chunkResHeightInPixels);
 	}
 
-// dummy render loop to figure out indexes
 	for (int row = chunkResHeightInPixels - 1; row >= 0; row--) {
-		std::cout << "Row " << row << ": ";
+		// std::cout << "Row " << renderProps.resHeightInPixels - row - (rowOffsetInPixels) << " (u, v): ";
+		
 		for (int column = 0; column < chunkResWidthInPixels; column++) {
 
 			// calculate u and v. This is a naive implementation that does not account for non-square or even dimensions
-			float u = (float)column / (float)chunkResWidthInPixels;
-			float x = (threadId * chunkResHeightInPixels) + (chunkResHeigthInPixelsOffset * 2);
-			float v = ((float)row + x) / (float)renderProps.resHeightInPixels;
+			float u = (float)column / (float)chunkResWidthInPixels;									
+			float v = ((float)row + rowOffsetInPixels) / (float)renderProps.resHeightInPixels;
+			
+			if (column % 1000 == 0 || column == 0) {
+				// std::cout << "(" << std::setprecision(2) << u << "," << v << ") ";
+				// std::cout << ". ";
+			}
 
-			std::cout << "(" << std::setprecision(2) << v << ") ";
+			vec3 outputColor(0, 0, 0);
+			//loop to produce AA samples
+			for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
+				float u = float(column + unifRand(randomNumberGenerator)) / float(renderProps.resWidthInPixels);
+				float v = float(row + unifRand(randomNumberGenerator)) / float(renderProps.resHeightInPixels);
+
+				//A, the origin of the ray (camera)
+				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
+				ray rayCast = sceneCamera.getRay(u, v);
+
+				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
+				vec3 pointAt = rayCast.pointAtParameter(2.0);
+				outputColor += color(rayCast, world, 0);
+			}
+
+			outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
+			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
+			// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
+			// Probably related to me outputing to bitmap instead of the ppm format...
+			uint8_t ir = 0;
+			uint8_t ig = 0;
+			uint8_t ib = 0;
+
+			uint16_t irO = uint16_t(255.99 * outputColor[0]);
+			uint16_t igO = uint16_t(255.99 * outputColor[1]);
+			uint16_t ibO = uint16_t(255.99 * outputColor[2]);
+
+			// cap the values to 255 max
+			(irO > 255) ? ir = 255 : ir = uint8_t(irO);
+			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
+			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
+
+			//also store values into tempBuffer			
+			workerImageBufferStruct->buffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel)] = ib;
+			workerImageBufferStruct->buffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 1] = ig;
+			workerImageBufferStruct->buffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 2] = ir;
 		}
-		std::cout << "\n";
+		//std::cout << "\n";
+		//coutLock.unlock();
 	}
-	coutLock.unlock();
+#endif
+	// original single thread loop
 #if 0
 	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
 	for (int row = renderProps.resHeightInPixels - 1; row >= 0; row--) {
@@ -156,8 +223,12 @@ void workerFunction(uint32_t threadId, std::mutex *coutGuard, RenderProperties r
 #endif
 
 	coutLock.lock();
-	std::cout << "\nRaytracing worker " << threadId << " finished!\n";
+	std::cout << "\nRaytracing worker " << workerThreadStruct->threadId << " finished!\n";
 	coutLock.unlock();
+
+	//indicate that ray tracing is complete
+	// TODO: wrap this in a mutex
+	workerThreadStruct->threadDone = true;
 
 	return;
 }
@@ -186,12 +257,12 @@ int main() {
 	renderProps.antiAliasingSamplesPerPixel = DEFAULT_RENDER_AA;
 	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 
-	uint32_t numOfThreads = std::thread::hardware_concurrency();
+	uint32_t numOfThreads = 7; // std::thread::hardware_concurrency();
 	std::cout << "You have " << numOfThreads << " hardware threads.\n";
 
 	//ask for image dimensions
 	std::cout << "Enter render width: ";
-	std::cin >> renderProps.resWidthInPixels;
+	//std::cin >> renderProps.resWidthInPixels;
 
 	//drowan(20190607) BUG: If the width and height is set to 1x1, I get heap corruption in the BMP writer. 
 	//For now, going to use a minimum value to step around this issue until I can fix it.
@@ -209,7 +280,7 @@ int main() {
 	}
 
 	std::cout << "Enter render height: ";
-	std::cin >> renderProps.resHeightInPixels;
+	//std::cin >> renderProps.resHeightInPixels;
 
 	if (std::cin.fail()) {
 		std::cin.clear();
@@ -225,7 +296,7 @@ int main() {
 	}
 
 	std::cout << "Enter number of aliasing samples (also helps increase photon count): ";
-	std::cin >> renderProps.antiAliasingSamplesPerPixel;
+	//std::cin >> renderProps.antiAliasingSamplesPerPixel;
 
 	if (std::cin.fail()) {
 		std::cin.clear();
@@ -267,53 +338,80 @@ int main() {
 	Hitable *world = cornellBox();
 #endif
 
-	renderProps.imageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
+	renderProps.finalImageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
 
-	std::cout << "Buffer size in bytes: " << renderProps.imageBufferSizeInBytes << "\n";	
+	std::cout << "Buffer size in bytes: " << renderProps.finalImageBufferSizeInBytes << "\n";	
 
-	std::vector<std::shared_ptr<uint8_t>> workerImageBufferVector;
+	std::vector<std::shared_ptr<WorkerImageBufferStruct>> workerImageBufferStructVector;
+	std::vector<std::shared_ptr<WorkerThreadStruct>> workerThreadStructVector;
 
-	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.imageBufferSizeInBytes]);
-
-	uint32_t workerBufferSizeInBytes = static_cast<uint32_t>(renderProps.imageBufferSizeInBytes / numOfThreads);
+	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.finalImageBufferSizeInBytes]);
 
 	//drowan(20190607): maybe look into this: https://stackoverflow.com/questions/9332263/synchronizing-std-cout-output-multi-thread
-	std::vector<std::thread> workerThreadVector;
+	// maybe combine these into a single structure?
+	//std::vector<std::thread> workerThreadVector;
 	std::mutex coutGuard;
-
-	for (int i = 0; i < numOfThreads; i++) {			
-
-		uint32_t _workerBufferSizeInBytes = workerBufferSizeInBytes;
-
-		//the first thread may get a different amount of bytes to process
-		if (i == 0) {		
-			_workerBufferSizeInBytes = renderProps.imageBufferSizeInBytes - ((workerBufferSizeInBytes) * (numOfThreads - 1));
+	
+	for (int i = 0; i < numOfThreads; i++) {
+		
+		std::shared_ptr<WorkerImageBufferStruct> workerImageBufferStruct(new WorkerImageBufferStruct);
+		
+		workerImageBufferStruct->sizeInBytes = static_cast<uint32_t>(renderProps.finalImageBufferSizeInBytes / numOfThreads);
+		
+		//the last thread may get a different amount of bytes to process
+		if (i == numOfThreads - 1) {
+			workerImageBufferStruct->sizeInBytes = renderProps.finalImageBufferSizeInBytes - ((workerImageBufferStruct->sizeInBytes) * (numOfThreads - 1));
 		}
 
-		// std::cout << "worker buffer size: " << workerBufferSizeInBytes << "\n";
+		std::shared_ptr<uint8_t> _workingImageBuffer(new uint8_t[workerImageBufferStruct->sizeInBytes]);
 
-		std::shared_ptr<uint8_t> workingImageBuffer(new uint8_t[_workerBufferSizeInBytes]);
+		for (int x = 0; x < workerImageBufferStruct->sizeInBytes; x++) {
+			_workingImageBuffer.get()[x] = 0x41 + x + i;
+		}
+		
+		workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
+		workerImageBufferStructVector.push_back(workerImageBufferStruct);
+						
+		std::shared_ptr<WorkerThreadStruct> workerThreadStruct(new WorkerThreadStruct);
+		
+		// drowan(20190616): Possible race condition with some of the variables not being assigned until after the thread starts.
+		std::thread workerThread;
 
-		workingImageBuffer.get()[0] = 0x41 + i;
+		workerThreadStruct.get()->threadId = i;
+		workerThreadStruct.get()->threadDone = false;
+		workerThreadStruct.get()->threadHandle = std::move(workerThread);
 
-		workerImageBufferVector.push_back(std::move(workingImageBuffer));
-	
-		//DEBUG create some worker threads with their own buffers
-		std::thread workerThread(workerFunction, i, &coutGuard, renderProps, mainCamera, world, workerImageBufferVector[i], _workerBufferSizeInBytes);
-		workerThreadVector.push_back(std::move(workerThread));
+		workerThreadStruct.get()->threadHandle = std::thread(workerThreadFunction, workerThreadStruct, workerImageBufferStruct, &coutGuard, renderProps, mainCamera, world);
+
+		workerThreadStructVector.push_back(workerThreadStruct);		
 	}
+	
+	// join threads		
+	for (std::shared_ptr<WorkerThreadStruct> &thread : workerThreadStructVector) {
+		
+		while (!thread->threadDone) {
+			//std::cout << "waiting...\n";
+		}
 
-	// join threads
-	for (std::thread &thread : workerThreadVector) {
-		if (thread.joinable()) {
-			thread.join();
+		if (thread->threadHandle.joinable()) {
+			thread->threadHandle.join();
 		}
 	}
-	
+
 	std::cout << "Writing to bmp file...\n";
+#if 0
+	uint32_t finalBufferIndex = 0;
+	// copy contents from worker Buffers into final Image buffer
+	for (WorkerImageBuffer &workerImageBuffer : workerImageBufferVector) {
+		
+		//get the buffer size from renderprops.		
+		for (int i = 0; i < workerImageBuffer.sizeInBytes;  i++) {
+			finalImageBuffer.get()[finalBufferIndex] = workerImageBuffer.buffer.get()[i];
+		}
+	}
 
-	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.imageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
-
+	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
+#endif
 	delete[] world;
 
 	DEBUG_MSG_L0("colorCallCount: ", colorCallCount);
