@@ -16,6 +16,7 @@ public:
 	vec3 min() const { return _min; }
 	vec3 max() const { return _max; }
 
+	// Modified hit routine created by Andrew Kensler at Pixar
 	bool hitPixar(const ray &r, float tmin, float tmax);
 
 	bool hit(const ray& r, float tmin, float tmax) const {
