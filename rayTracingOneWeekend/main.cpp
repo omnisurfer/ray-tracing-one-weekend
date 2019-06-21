@@ -32,10 +32,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// TODO: drowan(20190621): Memory access violations when the dimensions are not round values. Need to look in to this.
-#define DEFAULT_RENDER_WIDTH 400
-#define DEFAULT_RENDER_HEIGHT 400
-#define DEFAULT_RENDER_AA 10
+//Setup screen and output image
+//4K 3840x2160, 2K 2560x1440
+#define DEFAULT_RENDER_WIDTH 3840
+#define DEFAULT_RENDER_HEIGHT 2160
+#define DEFAULT_RENDER_AA 4
 #define DEBUG_RUN_THREADS 8
 
 #define OUTPUT_BMP 1
@@ -77,8 +78,7 @@ struct WorkerThreadStruct {
 
 struct WorkerImageBufferStruct {
 	uint32_t sizeInBytes;
-	uint32_t resWidthInPixels;
-	uint32_t resHeightInPixels;
+	uint32_t resWidthInPixels, resHeightInPixels;
 	std::shared_ptr<uint8_t> buffer;
 };
 
@@ -187,15 +187,13 @@ int main() {
 	};
 
 	randomNumberGenerator.seed(seedSequence);
-	
-	//Setup screen and output image
-	//4K 3840x2160, 2K 2560x1440
+
 	WINDIBBitmap winDIBBmp;
 
 	RenderProperties renderProps;
 
-	renderProps.resHeightInPixels = DEFAULT_RENDER_WIDTH;
-	renderProps.resWidthInPixels = DEFAULT_RENDER_HEIGHT;
+	renderProps.resHeightInPixels = DEFAULT_RENDER_HEIGHT; 
+	renderProps.resWidthInPixels = DEFAULT_RENDER_WIDTH;
 	renderProps.antiAliasingSamplesPerPixel = DEFAULT_RENDER_AA;
 	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 
