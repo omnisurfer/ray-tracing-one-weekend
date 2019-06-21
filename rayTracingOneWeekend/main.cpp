@@ -32,9 +32,14 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define DEFAULT_RENDER_WIDTH 100
-#define DEFAULT_RENDER_HEIGHT 100
-#define DEFAULT_RENDER_AA 1
+// TODO: drowan(20190621): Memory access violations when the dimensions are not round values. Need to look in to this.
+#define DEFAULT_RENDER_WIDTH 400
+#define DEFAULT_RENDER_HEIGHT 400
+#define DEFAULT_RENDER_AA 10
+#define DEBUG_RUN_THREADS 8
+
+#define OUTPUT_BMP 1
+#define RUN_RAY_TRACE 1
 
 /* TODO:
 	- drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
@@ -64,75 +69,53 @@ struct RenderProperties {
 struct WorkerThreadStruct {
 	uint32_t threadId;
 	bool threadDone;
+	std::mutex threadDoneMutex;
+	bool threadExit;
+	std::mutex threadExitMutex;
 	std::thread threadHandle;
 };
 
 struct WorkerImageBufferStruct {
 	uint32_t sizeInBytes;
+	uint32_t resWidthInPixels;
+	uint32_t resHeightInPixels;
 	std::shared_ptr<uint8_t> buffer;
 };
 
 // going to try and pass a buffer per thread and combine afterwards so as to avoid memory contention when using a mutex which may slow things down...
 //WorkerThreadProperties *workerThreadProperties, , WorkerImageBuffer *workerImageBuffer
 void workerThreadFunction(std::shared_ptr<WorkerThreadStruct> workerThreadStruct, std::shared_ptr<WorkerImageBufferStruct> workerImageBufferStruct, std::mutex *coutGuard, RenderProperties renderProps, Camera sceneCamera, Hitable *world) {
-	int numOfThreads = std::thread::hardware_concurrency();
+	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();
 
 	std::unique_lock<std::mutex> coutLock(*coutGuard);	
 	std::cout << "\nHello from thread with ID: " << workerThreadStruct.get()->threadId << "\n";
 	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
 	std::cout << "World hitable address:  " << world << "\n";
 
-	std::cout << "Image buffer address: " << &workerImageBufferStruct << " @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size: " << workerImageBufferStruct->sizeInBytes << "\n";	
+	std::cout << "Image buffer address: " << &workerImageBufferStruct << " @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes << "\n";	
 	std::cout << "Raytracing starting...\n";
 	coutLock.unlock();
 
-	// drowan(20190613): Need to think of how the chunks will be made as the cores change. For now, splitting into stripes 
-	// based on height with the same width
-	uint32_t chunkResHeightInPixels = static_cast<uint32_t> (renderProps.resHeightInPixels / numOfThreads);	
 	uint32_t rowOffsetInPixels = 0;
-	uint32_t chunkResWidthInPixels = static_cast<uint32_t> (renderProps.resWidthInPixels);
-	uint32_t chunkResHeigthInPixelsOffset = 0;
 
-	// give last thread any extra rows that did not divide cleanly between the threads.
-	/*
-
-	|_______| n * 0
-	|_______| n * 1
-	|_______| n * 3
-	|		| n * 4
-	|       |
-	|_______|	
-
-	*/
-
-#if 1
+#if RUN_RAY_TRACE == 1
 	if (workerThreadStruct->threadId == numOfThreads - 1) {
-		rowOffsetInPixels = (workerThreadStruct->threadId * chunkResHeightInPixels);
-		chunkResHeightInPixels += renderProps.resHeightInPixels%numOfThreads;
+		rowOffsetInPixels = static_cast<uint32_t>(workerThreadStruct->threadId * (renderProps.resHeightInPixels/numOfThreads));
+		rowOffsetInPixels += renderProps.resHeightInPixels%numOfThreads;
 	}
 	else {
-		rowOffsetInPixels = (workerThreadStruct->threadId * chunkResHeightInPixels);
+		rowOffsetInPixels = workerThreadStruct->threadId * workerImageBufferStruct->resHeightInPixels;
 	}
 
-	for (int row = chunkResHeightInPixels - 1; row >= 0; row--) {
-		// std::cout << "Row " << renderProps.resHeightInPixels - row - (rowOffsetInPixels) << " (u, v): ";
-		
-		for (int column = 0; column < chunkResWidthInPixels; column++) {
-
-			// calculate u and v. This is a naive implementation that does not account for non-square or even dimensions
-			float u = (float)column / (float)chunkResWidthInPixels;									
-			float v = ((float)row + rowOffsetInPixels) / (float)renderProps.resHeightInPixels;
+	for (int row = workerImageBufferStruct->resHeightInPixels - 1; row >= 0; row--) {
+		for (int column = 0; column < workerImageBufferStruct->resWidthInPixels; column++) {
 			
-			if (column % 1000 == 0 || column == 0) {
-				// std::cout << "(" << std::setprecision(2) << u << "," << v << ") ";
-				// std::cout << ". ";
-			}
-
 			vec3 outputColor(0, 0, 0);
 			//loop to produce AA samples
 			for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
-				float u = float(column + unifRand(randomNumberGenerator)) / float(renderProps.resWidthInPixels);
-				float v = float(row + unifRand(randomNumberGenerator)) / float(renderProps.resHeightInPixels);
+
+				float u = (float)(column + unifRand(randomNumberGenerator)) / (float)workerImageBufferStruct->resWidthInPixels;
+				float v = ((float)row + rowOffsetInPixels + unifRand(randomNumberGenerator)) / (float)renderProps.resHeightInPixels;
 
 				//A, the origin of the ray (camera)
 				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
@@ -160,75 +143,34 @@ void workerThreadFunction(std::shared_ptr<WorkerThreadStruct> workerThreadStruct
 			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
 			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
 
-			//also store values into tempBuffer			
-			workerImageBufferStruct->buffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel)] = ib;
-			workerImageBufferStruct->buffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 1] = ig;
-			workerImageBufferStruct->buffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 2] = ir;
+#if 1
+			//also store values into tempBuffer
+			uint32_t bufferIndex = row * renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel);
+			workerImageBufferStruct->buffer.get()[bufferIndex] = ib;
+			workerImageBufferStruct->buffer.get()[bufferIndex + 1] = ig;
+			workerImageBufferStruct->buffer.get()[bufferIndex + 2] = ir;
+#endif
 		}
-		//std::cout << "\n";
-		//coutLock.unlock();
 	}
 #endif
-	// original single thread loop
-#if 0
-	//main raytracing loops, the movement across u and v "drive" the render (i.e. when to stop)
-	for (int row = renderProps.resHeightInPixels - 1; row >= 0; row--) {
-		if (row % 10 == 0 || row == renderProps.resHeightInPixels - 1)
-			std::cout << "\nRow " << row << " ";
 
-		int columnProgress = 0;
-		//loop to move ray across width of frame
-		for (int column = 0; column < renderProps.resWidthInPixels; column++, columnProgress++) {
-			if (columnProgress % 1000 == 0 || columnProgress == 0)
-				std::cout << ". ";
-
-			vec3 outputColor(0, 0, 0);
-			//loop to produce AA samples
-			for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
-				float u = float(column + unifRand(randomNumberGenerator)) / float(renderProps.resWidthInPixels);
-				float v = float(row + unifRand(randomNumberGenerator)) / float(renderProps.resHeightInPixels);
-
-				//A, the origin of the ray (camera)
-				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
-				ray rayCast = sceneCamera.getRay(u, v);
-
-				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
-				vec3 pointAt = rayCast.pointAtParameter(2.0);
-				outputColor += color(rayCast, world, 0);
-			}
-
-			outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
-			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
-			// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
-			// Probably related to me outputing to bitmap instead of the ppm format...
-			uint8_t ir = 0;
-			uint8_t ig = 0;
-			uint8_t ib = 0;
-
-			uint16_t irO = uint16_t(255.99 * outputColor[0]);
-			uint16_t igO = uint16_t(255.99 * outputColor[1]);
-			uint16_t ibO = uint16_t(255.99 * outputColor[2]);
-
-			// cap the values to 255 max
-			(irO > 255) ? ir = 255 : ir = uint8_t(irO);
-			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
-			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
-
-			//also store values into tempBuffer
-			workerImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel)] = ib;
-			workerImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 1] = ig;
-			workerImageBuffer.get()[row*renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel) + 2] = ir;
-		}
-	}	
-#endif
+	//indicate that ray tracing is complete
+	// TODO: wrap this in a mutex
+	std::unique_lock<std::mutex> threadDoneLock(workerThreadStruct->threadDoneMutex);
+	workerThreadStruct->threadDone = true;
+	threadDoneLock.unlock();
 
 	coutLock.lock();
 	std::cout << "\nRaytracing worker " << workerThreadStruct->threadId << " finished!\n";
 	coutLock.unlock();
 
-	//indicate that ray tracing is complete
-	// TODO: wrap this in a mutex
-	workerThreadStruct->threadDone = true;
+	//wait for exit
+	std::unique_lock<std::mutex> threadExitLock(workerThreadStruct->threadExitMutex);
+	while (!workerThreadStruct->threadExit) {
+		threadExitLock.unlock();
+		//do nothing
+		threadExitLock.lock();
+	}
 
 	return;
 }
@@ -257,7 +199,7 @@ int main() {
 	renderProps.antiAliasingSamplesPerPixel = DEFAULT_RENDER_AA;
 	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 
-	uint32_t numOfThreads = 7; // std::thread::hardware_concurrency();
+	uint32_t numOfThreads = DEBUG_RUN_THREADS; // std::thread::hardware_concurrency();
 	std::cout << "You have " << numOfThreads << " hardware threads.\n";
 
 	//ask for image dimensions
@@ -355,19 +297,19 @@ int main() {
 	for (int i = 0; i < numOfThreads; i++) {
 		
 		std::shared_ptr<WorkerImageBufferStruct> workerImageBufferStruct(new WorkerImageBufferStruct);
-		
-		workerImageBufferStruct->sizeInBytes = static_cast<uint32_t>(renderProps.finalImageBufferSizeInBytes / numOfThreads);
-		
-		//the last thread may get a different amount of bytes to process
+
+		//figure out how many rows each thread is going to work on
+		workerImageBufferStruct->resHeightInPixels = static_cast<uint32_t>(renderProps.resHeightInPixels / numOfThreads);
+		workerImageBufferStruct->resWidthInPixels = renderProps.resWidthInPixels;
+
+		//if the last thread, get any leftover rows
 		if (i == numOfThreads - 1) {
-			workerImageBufferStruct->sizeInBytes = renderProps.finalImageBufferSizeInBytes - ((workerImageBufferStruct->sizeInBytes) * (numOfThreads - 1));
+			workerImageBufferStruct->resHeightInPixels += renderProps.resHeightInPixels%numOfThreads;
 		}
+		
+		workerImageBufferStruct->sizeInBytes = workerImageBufferStruct->resHeightInPixels * workerImageBufferStruct->resWidthInPixels * renderProps.bytesPerPixel;
 
 		std::shared_ptr<uint8_t> _workingImageBuffer(new uint8_t[workerImageBufferStruct->sizeInBytes]);
-
-		for (int x = 0; x < workerImageBufferStruct->sizeInBytes; x++) {
-			_workingImageBuffer.get()[x] = 0x41 + x + i;
-		}
 		
 		workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
 		workerImageBufferStructVector.push_back(workerImageBufferStruct);
@@ -386,27 +328,43 @@ int main() {
 		workerThreadStructVector.push_back(workerThreadStruct);		
 	}
 	
-	// join threads		
+	// join threads
+	int threadDoneCount = 0;
 	for (std::shared_ptr<WorkerThreadStruct> &thread : workerThreadStructVector) {
 		
+		std::unique_lock<std::mutex> threadDoneLock(thread->threadDoneMutex);
 		while (!thread->threadDone) {
-			//std::cout << "waiting...\n";
+			threadDoneLock.unlock();
+
+			// spin wheels for a little while?
+
+			threadDoneLock.lock();
 		}
+
+		//signal to the thread to exit
+		std::unique_lock<std::mutex> threadExitLock(thread->threadExitMutex);
+		thread->threadExit = true;
+		threadExitLock.unlock();
 
 		if (thread->threadHandle.joinable()) {
 			thread->threadHandle.join();
+			threadDoneCount++;
 		}
 	}
 
 	std::cout << "Writing to bmp file...\n";
-#if 0
+#if OUTPUT_BMP == 1
 	uint32_t finalBufferIndex = 0;
 	// copy contents from worker Buffers into final Image buffer
-	for (WorkerImageBuffer &workerImageBuffer : workerImageBufferVector) {
+	//std::vector<std::shared_ptr<WorkerImageBufferStruct>> workerImageBufferStructVector;
+	for (std::shared_ptr<WorkerImageBufferStruct> &workerImageBuffer : workerImageBufferStructVector) {
 		
 		//get the buffer size from renderprops.		
-		for (int i = 0; i < workerImageBuffer.sizeInBytes;  i++) {
-			finalImageBuffer.get()[finalBufferIndex] = workerImageBuffer.buffer.get()[i];
+		for (int i = 0; i < workerImageBuffer->sizeInBytes;  i++) {
+			if (finalBufferIndex < renderProps.finalImageBufferSizeInBytes) {
+				finalImageBuffer.get()[finalBufferIndex] = workerImageBuffer->buffer.get()[i];
+				finalBufferIndex++;
+			}
 		}
 	}
 
