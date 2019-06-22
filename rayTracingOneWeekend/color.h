@@ -6,6 +6,7 @@
 #include "ray.h"
 #include "hitable.h"
 
+#define GLOBAL_ILLUM 1
 #define DEPTH_RECURSION 50
 
 //Color can be called recursively!
@@ -33,7 +34,7 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 	}
 	//does not hit anything, so "background" gradient
 	else {
-#if 0
+#if GLOBAL_ILLUM == 1
 		// maybe this becomes like a sky box or global illumination???
 		vec3 unit_direction = unit_vector(rayCast.direction());
 

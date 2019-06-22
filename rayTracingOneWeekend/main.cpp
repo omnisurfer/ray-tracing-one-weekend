@@ -34,10 +34,10 @@
 
 //Setup screen and output image
 //4K 3840x2160, 2K 2560x1440
-#define DEFAULT_RENDER_WIDTH 1920
-#define DEFAULT_RENDER_HEIGHT 1080
-#define DEFAULT_RENDER_AA 10
-#define DEBUG_RUN_THREADS 7
+#define DEFAULT_RENDER_WIDTH 600
+#define DEFAULT_RENDER_HEIGHT 600
+#define DEFAULT_RENDER_AA 100
+#define DEBUG_RUN_THREADS 8
 
 #define OUTPUT_BMP 1
 #define RUN_RAY_TRACE 1
@@ -263,7 +263,7 @@ int main() {
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
 	// drowan(20190607) TOOD: make a way to select this programatically?
-#if 0
+#if 1
 	//random scene
 	mainCamera.setLookFrom(vec3(3, 3, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));
