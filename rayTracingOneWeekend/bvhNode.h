@@ -17,9 +17,9 @@ public:
 	virtual bool hit(const ray &r, float tmin, float tmax, HitRecord &record) const;
 	virtual bool boundingBox(float t0, float t1, AABB &box) const;
 
-	Hitable *left;
-	Hitable *right;
-	AABB box;
+	Hitable *_left;
+	Hitable *_right;
+	AABB _box;
 };
 
 BvhNode::BvhNode(Hitable **l, int n, float time0, float time1) {
@@ -36,39 +36,39 @@ BvhNode::BvhNode(Hitable **l, int n, float time0, float time1) {
 	}
 
 	if (n == 1) {
-		left = right = l[0];
+		_left = _right = l[0];
 	}
 	else if (n == 2) {
-		left = l[0];
-		right = l[1];
+		_left = l[0];
+		_right = l[1];
 	}
 	else {
 		//std::cout << __func__ << "left l: " << l << "\n";
-		left = new BvhNode(l, n / 2, time0, time1);
+		_left = new BvhNode(l, n / 2, time0, time1);
 		//std::cout << __func__ << "right l + n/2: " << l + n / 2 << "\n";
-		right = new BvhNode(l + n / 2, n - n / 2, time0, time1);
+		_right = new BvhNode(l + n / 2, n - n / 2, time0, time1);
 	}
 
 	AABB boxLeft, boxRight;
 
-	if (!left->boundingBox(time0, time1, boxLeft) || !right->boundingBox(time0, time1, boxRight)) {
+	if (!_left->boundingBox(time0, time1, boxLeft) || !_right->boundingBox(time0, time1, boxRight)) {
 		std::cout << "No boudning box in BvhNode constructor\n";		
 	}
 
-	box = surroundingBox(boxLeft, boxRight);
+	_box = surroundingBox(boxLeft, boxRight);
 }
 
 bool BvhNode::boundingBox(float t0, float t1, AABB &b) const {
-	b = box;
+	b = _box;
 	return true;
 }
 
 bool BvhNode::hit(const ray &r, float tmin, float tmax, HitRecord &record) const {
-	if (box.hit(r, tmin, tmax)) {
+	if (_box.hit(r, tmin, tmax)) {
 		HitRecord leftRecord, rightRecord;
 
-		bool hitLeft = left->hit(r, tmin, tmax, leftRecord);
-		bool hitRight = right->hit(r, tmin, tmax, rightRecord);
+		bool hitLeft = _left->hit(r, tmin, tmax, leftRecord);
+		bool hitRight = _right->hit(r, tmin, tmax, rightRecord);
 
 		if (hitLeft && hitRight) {
 			if (leftRecord.pointAtParameterT < rightRecord.pointAtParameterT)

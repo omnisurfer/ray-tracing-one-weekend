@@ -7,7 +7,7 @@ class Camera {
 
 public:
 	Camera(vec3 lookFrom, vec3 lookAt, vec3 upDirection, float vFoV, float aspect, float aperture, float focusDistance, float t0, float t1) : 
-		_lookFrom(lookFrom), _lookAt(lookAt), _upDirection(upDirection), _vFoV(vFoV), _aspect(aspect), _aperture(aperture), _focusDistance(focusDistance), time0(t0), time1(t1) {
+		_lookFrom(lookFrom), _lookAt(lookAt), _upDirection(upDirection), _vFoV(vFoV), _aspect(aspect), _aperture(aperture), _focusDistance(focusDistance), _time0(t0), _time1(t1) {
 
 		setCamera();
 	}
@@ -21,7 +21,7 @@ public:
 #endif
 		vec3 offset = _u * rd.x() + _v * rd.y();
 
-		float time = time0 + unifRand(randomNumberGenerator) * (time1 - time0);
+		float time = _time0 + unifRand(randomNumberGenerator) * (_time1 - _time0);
 
 		return ray(_origin + offset, _lowerLeftCorner + s * _horizontal + t * _vertical - _origin - offset, time);
 	}
@@ -69,15 +69,15 @@ public:
 	}
 
 	void setTime(float t0, float t1) {
-		time0 = t0;
-		time1 = t1;
+		_time0 = t0;
+		_time1 = t1;
 
 		setCamera();
 	}
 
 	void getTime(float &t0, float &t1) {
-		t0 = time0;
-		t1 = time1;
+		t0 = _time0;
+		t1 = _time1;
 	}
 
 	vec3 getLookAt() {
@@ -152,5 +152,5 @@ private:
 	vec3 _u, _v, _w;
 	float _lensRadius;
 
-	float time0, time1;
+	float _time0, _time1;
 };

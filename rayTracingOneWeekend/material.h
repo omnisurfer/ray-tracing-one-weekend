@@ -42,39 +42,39 @@ public:
 
 class Lambertian : public Material {
 public:
-	Lambertian(Texture *a) : albedo(a) {}
+	Lambertian(Texture *a) : _albedo(a) {}
 
-	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scattered) const {						
+	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scatteredRay) const {						
 		////produce a "reflection" ray that originates at the point where a hit was detected and is cast in some random direction away from the impact surface.
 		vec3 target = hitRecord.point + hitRecord.normal + randomInUnitSphere();
-		scattered = ray(hitRecord.point, target - hitRecord.point, inputRay.time());
-		attenuation = albedo->value(hitRecord.u, hitRecord.v, hitRecord.point);
+		scatteredRay = ray(hitRecord.point, target - hitRecord.point, inputRay.time());
+		attenuation = _albedo->value(hitRecord.u, hitRecord.v, hitRecord.point);
 		return true;
 	}
 
-	Texture *albedo;
+	Texture *_albedo;
 };
 
 class Metal : public Material {
 public:
-	Metal(const vec3 &a, float f) : albedo(a) { if (f < 1) fuzz = f; else fuzz = 1; }
+	Metal(const vec3 &a, float f) : _albedo(a) { if (f < 1) _fuzz = f; else _fuzz = 1; }
 
-	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scattered) const {
+	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scatteredRay) const {
 		vec3 reflected = reflect(unit_vector(inputRay.direction()), hitRecord.normal);
-		scattered = ray(hitRecord.point, reflected + fuzz*randomInUnitSphere());
-		attenuation = albedo;
-		return (dot(scattered.direction(), hitRecord.normal) > 0);
+		scatteredRay = ray(hitRecord.point, reflected + _fuzz*randomInUnitSphere());
+		attenuation = _albedo;
+		return (dot(scatteredRay.direction(), hitRecord.normal) > 0);
 	}
 
-	vec3 albedo;
-	float fuzz;
+	vec3 _albedo;
+	float _fuzz;
 };
 
 class Dielectric : public Material {
 public:
-	Dielectric(float ri) : refIndex(ri) {}
+	Dielectric(float ri) : _refIndex(ri) {}
 
-	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scattered) const {
+	virtual bool scatter(const ray &inputRay, const HitRecord &hitRecord, vec3 &attenuation, ray &scatteredRay) const {
 		vec3 outwardNormal;
 		vec3 reflected = reflect(inputRay.direction(), hitRecord.normal);
 
@@ -89,48 +89,49 @@ public:
 
 		if (dot(inputRay.direction(), hitRecord.normal) > 0) {
 			outwardNormal = -hitRecord.normal;
-			nOverNPrime = refIndex;
-			cosine = refIndex * dot(inputRay.direction(), hitRecord.normal) / inputRay.direction().length();
+			nOverNPrime = _refIndex;
+			cosine = _refIndex * dot(inputRay.direction(), hitRecord.normal) / inputRay.direction().length();
 		}
 		else {
 			outwardNormal = hitRecord.normal;
-			nOverNPrime = 1.0 / refIndex;
+			nOverNPrime = 1.0 / _refIndex;
 			cosine = -dot(inputRay.direction(), hitRecord.normal) / inputRay.direction().length();
 		}
 
 		if (refract(inputRay.direction(), outwardNormal, nOverNPrime, refracted)) {
-			reflectProbability = schlick(cosine, refIndex);
+			reflectProbability = schlick(cosine, _refIndex);
 		}
 		else {
-			scattered = ray(hitRecord.point, reflected);
+			scatteredRay = ray(hitRecord.point, reflected);
 			reflectProbability = 1.0;
 		}
 
 		if (unifRand(randomNumberGenerator) < reflectProbability) {
-			scattered = ray(hitRecord.point, reflected);
+			scatteredRay = ray(hitRecord.point, reflected);
 		}
 		else {
-			scattered = ray(hitRecord.point, refracted);
+			scatteredRay = ray(hitRecord.point, refracted);
 		}
 
 		return true;
 	}
 
-	float refIndex;
+	float _refIndex;
 };
 
 class DiffuseLight : public Material {
 public:
-	DiffuseLight(Texture *a) : emit(a) {}
+	DiffuseLight(Texture *a) : _emit(a) {}
 
-	virtual bool scatter(const ray &inputRay, const HitRecord &record, vec3 &attenuation, ray &scattered) const { 
+	virtual bool scatter(const ray &inputRay, const HitRecord &record, vec3 &attenuation, ray &scatteredRay) const { 
 		return false; 
 	}
+
 	virtual vec3 emitted(float u, float v, const vec3 &p) const { 
-		return emit->value(u, v, p); 
+		return _emit->value(u, v, p); 
 	}
 
-	Texture *emit;
+	Texture *_emit;
 };
 
 class Isotropic : public Material {

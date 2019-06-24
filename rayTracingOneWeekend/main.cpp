@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <fstream>
 #include <stdlib.h>
 #include <vector>
@@ -34,20 +35,18 @@
 
 //Setup screen and output image
 //4K 3840x2160, 2K 2560x1440
-#define DEFAULT_RENDER_WIDTH 1024
-#define DEFAULT_RENDER_HEIGHT 1024
+#define DEFAULT_RENDER_WIDTH 400
+#define DEFAULT_RENDER_HEIGHT 400
 #define DEFAULT_RENDER_AA 4
 #define DEBUG_RUN_THREADS 8
 
 #define OUTPUT_BMP 1
 #define RUN_RAY_TRACE 1
+#define BYPASS_SCENE_CONFIG 1
 
-/* TODO:
-	- drowan 20190120: More cleanly seperate and encapsulate functions and implement general OOP best practices. For now, just trying to get through the book.
-	- drowan 20190121: I need to really refactor and clean up code style. unifRand is being pulled from material.
-	- drowan 20190601: Look into this:
-		https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/
-	- drowan 20190607: Look into OpenMPI???
+/* Look into:
+	- drowan 20190601: https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/
+	- drowan 20190607: Use OpenMPI???
 */
 
 /* 
@@ -57,34 +56,41 @@
 * http://iquilezles.org/index.html
 */
 
-Hitable *randomScene();
-Hitable *cornellBox();
-
-struct StructRenderProperties {
+struct RenderProperties {
 	uint32_t resWidthInPixels, resHeightInPixels;
 	uint8_t bytesPerPixel;
 	uint32_t antiAliasingSamplesPerPixel;
 	uint32_t finalImageBufferSizeInBytes;
 };
 
-struct StructWorkerThread {
+struct WorkerThread {
 	uint32_t id;
-	bool workDone;
-	std::mutex workdDoneMutex;
-	bool stopThread;
-	std::mutex stopThreadMutex;
-	std::thread handle;	
+	bool workIsDone;
+	std::mutex workdIsDoneMutex;
+	bool exitThread;
+	std::mutex exitThreadMutex;
+	std::thread handle;
 };
 
-struct StructWorkerImageBuffer {
+struct WorkerImageBuffer {
 	uint32_t sizeInBytes;
 	uint32_t resWidthInPixels, resHeightInPixels;
 	std::shared_ptr<uint8_t> buffer;
 };
 
+Hitable *randomScene();
+Hitable *cornellBox();
 
-void configureScene(StructRenderProperties &renderProps);
-void workerThreadFunction(std::shared_ptr<StructWorkerThread> workerThreadStruct, std::shared_ptr<StructWorkerImageBuffer> workerImageBufferStruct, std::mutex *coutGuard, StructRenderProperties renderProps, Camera sceneCamera, Hitable *world);
+void configureScene(RenderProperties &renderProps);
+
+void workerThreadFunction(
+	std::shared_ptr<WorkerThread> workerThread, 
+	std::shared_ptr<WorkerImageBuffer> workerImageBuffer, 	
+	RenderProperties renderProps, 
+	Camera sceneCamera, 
+	Hitable *world,
+	std::mutex *coutGuard
+);
 
 int main() {
 
@@ -100,28 +106,29 @@ int main() {
 	randomNumberGenerator.seed(seedSequence);
 
 	WINDIBBitmap winDIBBmp;
-
-	StructRenderProperties renderProps;
-	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
-
+	RenderProperties renderProps;
+	
 	uint32_t numOfThreads = DEBUG_RUN_THREADS; // std::thread::hardware_concurrency();
-	std::cout << "You have " << numOfThreads << " hardware threads.\n";
+	std::cout << "Used hardware threads: " << numOfThreads << "\n";
 
 	configureScene(renderProps);
 
+	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
+	renderProps.finalImageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
+
 	//Setup camera
-	vec3 lookFrom(0, 0, -10);
-	vec3 lookAt(0, 10, 0);
+	vec3 lookFrom(0, 0, 0);
+	vec3 lookAt(0, 1, 0);
 	vec3 worldUp(0, 1, 0);
-	float distToFocus = 10.0; //(lookFrom - lookAt).length();
+	float distToFocus = (lookFrom - lookAt).length(); //10
 	float aperture = 0.0;
 	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
-	float vFoV = 40.0;
+	float vFoV = 60.0;
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
-	// drowan(20190607) TOOD: make a way to select this programatically?
-#if 1
+	// TODO: drowan(20190607) - should I make a way to select this programatically?
+#if 0
 	//random scene
 	mainCamera.setLookFrom(vec3(3, 3, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));
@@ -130,29 +137,23 @@ int main() {
 	Hitable *world = randomScene();
 #else
 	//cornell box
-	mainCamera.setLookFrom(vec3(278, 278, -800));
+	mainCamera.setLookFrom(vec3(278, 278, -425));
 	mainCamera.setLookAt(vec3(278, 278, 0));
 
 	Hitable *world = cornellBox();
-#endif
+#endif	
 
-	renderProps.finalImageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
-
-	std::cout << "Buffer size in bytes: " << renderProps.finalImageBufferSizeInBytes << "\n";	
-
-	std::vector<std::shared_ptr<StructWorkerImageBuffer>> workerImageBufferStructVector;
-	std::vector<std::shared_ptr<StructWorkerThread>> workerThreadStructVector;
-
+	std::vector<std::shared_ptr<WorkerImageBuffer>> workerImageBufferVector;
+	std::vector<std::shared_ptr<WorkerThread>> workerThreadVector;
 	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.finalImageBufferSizeInBytes]);
 
-	//drowan(20190607): maybe look into this: https://stackoverflow.com/questions/9332263/synchronizing-std-cout-output-multi-thread
-	// maybe combine these into a single structure?
-	//std::vector<std::thread> workerThreadVector;
+	//drowan(20190607): maybe look into this: https://stackoverflow.com/questions/9332263/synchronizing-std-cout-output-multi-thread	
 	std::mutex coutGuard;
 	
+	//create the worker threads
 	for (int i = 0; i < numOfThreads; i++) {
 		
-		std::shared_ptr<StructWorkerImageBuffer> workerImageBufferStruct(new StructWorkerImageBuffer);
+		std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct(new WorkerImageBuffer);
 
 		//figure out how many rows each thread is going to work on
 		workerImageBufferStruct->resHeightInPixels = static_cast<uint32_t>(renderProps.resHeightInPixels / numOfThreads);
@@ -168,52 +169,49 @@ int main() {
 		std::shared_ptr<uint8_t> _workingImageBuffer(new uint8_t[workerImageBufferStruct->sizeInBytes]);
 		
 		workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
-		workerImageBufferStructVector.push_back(workerImageBufferStruct);
+		workerImageBufferVector.push_back(workerImageBufferStruct);
 						
-		std::shared_ptr<StructWorkerThread> workerThreadStruct(new StructWorkerThread);
+		std::shared_ptr<WorkerThread> workerThread(new WorkerThread);
 		
 		// drowan(20190616): Possible race condition with some of the variables not being assigned until after the thread starts.
-		std::thread workerThread;
+		std::thread thread;
 
-		workerThreadStruct.get()->id = i;
-		workerThreadStruct.get()->workDone = false;
-		workerThreadStruct.get()->handle = std::move(workerThread);
+		workerThread.get()->id = i;
+		workerThread.get()->workIsDone = false;
+		workerThread.get()->handle = std::move(thread);
+		workerThread.get()->handle = std::thread(workerThreadFunction, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
 
-		workerThreadStruct.get()->handle = std::thread(workerThreadFunction, workerThreadStruct, workerImageBufferStruct, &coutGuard, renderProps, mainCamera, world);
-
-		workerThreadStructVector.push_back(workerThreadStruct);		
+		workerThreadVector.push_back(workerThread);		
 	}
 	
-	// join threads
-	int threadDoneCount = 0;
-	for (std::shared_ptr<StructWorkerThread> &thread : workerThreadStructVector) {
+	// join threads	
+	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 		
-		std::unique_lock<std::mutex> threadDoneLock(thread->workdDoneMutex);
-		while (!thread->workDone) {
+		std::unique_lock<std::mutex> threadDoneLock(thread->workdIsDoneMutex);
+		while (!thread->workIsDone) {
 			threadDoneLock.unlock();
 
-			// spin wheels for a little while?
+			// spin wheels for a little while with sleep?
 
 			threadDoneLock.lock();
 		}
 
 		//signal to the thread to exit
-		std::unique_lock<std::mutex> threadExitLock(thread->stopThreadMutex);
-		thread->stopThread = true;
+		std::unique_lock<std::mutex> threadExitLock(thread->exitThreadMutex);
+		thread->exitThread = true;
 		threadExitLock.unlock();
 
 		if (thread->handle.joinable()) {
 			thread->handle.join();
-			threadDoneCount++;
 		}
 	}
-
-	std::cout << "Writing to bmp file...\n";
+	
 #if OUTPUT_BMP == 1
+	std::cout << "Writing to bmp file...\n";
+
 	uint32_t finalBufferIndex = 0;
-	// copy contents from worker Buffers into final Image buffer
-	//std::vector<std::shared_ptr<WorkerImageBufferStruct>> workerImageBufferStructVector;
-	for (std::shared_ptr<StructWorkerImageBuffer> &workerImageBuffer : workerImageBufferStructVector) {
+	// copy contents from worker Buffers into final Image buffer	
+	for (std::shared_ptr<WorkerImageBuffer> &workerImageBuffer : workerImageBufferVector) {
 		
 		//get the buffer size from renderprops.		
 		for (int i = 0; i < workerImageBuffer->sizeInBytes;  i++) {
@@ -226,82 +224,117 @@ int main() {
 
 	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
 #endif
+
 	delete[] world;
-
-	DEBUG_MSG_L0("colorCallCount: ", colorCallCount);
-
-	//DEBUG pause
+		
 	// putting a \n triggers cin...?
 	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels) 
 	// the cin.get() is completely bypassed unless I put a cin.ignore(). Is the thread exiting
 	// weird relative to the main thread???
 	std::cout << "Hit any key to exit...";
-	std::cin.ignore();
+	std::cout.flush();
+	std::cin.ignore(INT_MAX, '\n');
 	std::cin.get();
 
 	return 0;
 }
 
-void configureScene(StructRenderProperties &renderProps) {
+void configureScene(RenderProperties &renderProps) {
 
 	renderProps.resHeightInPixels = DEFAULT_RENDER_HEIGHT;
 	renderProps.resWidthInPixels = DEFAULT_RENDER_WIDTH;
 	renderProps.antiAliasingSamplesPerPixel = DEFAULT_RENDER_AA;
 
+#if BYPASS_SCENE_CONFIG == 0
 	//ask for image dimensions
-	std::cout << "Enter render width: ";
-	std::cin >> renderProps.resWidthInPixels;
+	std::cout << "Enter render width: ";	
+	std::cout.flush();
+	std::cin.clear();
+	//std::cin.ignore(INT_MAX, '\n');
 
-	//drowan(20190607) BUG: If the width and height is set to 1x1, I get heap corruption in the BMP writer. 
-	//For now, going to use a minimum value to step around this issue until I can fix it.
-	if (std::cin.fail()) {
-		std::cin.clear();
-		std::cin.ignore(INT_MAX, '\n');
-		renderProps.resWidthInPixels = DEFAULT_RENDER_WIDTH;
+	if (std::cin.peek() == '\n') {
 		std::cout << "Invalid input, using default: " << renderProps.resWidthInPixels << '\n';
-	}
+	}	
 	else {
-		if (renderProps.resWidthInPixels < DEFAULT_RENDER_WIDTH) {
+		std::cin >> renderProps.resWidthInPixels;
+
+		//drowan(20190607) BUG: If the width and height is set to 1x1, I get heap corruption in the BMP writer. 
+		//For now, going to use a minimum value to step around this issue until I can fix it.
+		if (std::cin.fail()) {
+			std::cin.clear();
+			std::cin.ignore(INT_MAX, '\n');
 			renderProps.resWidthInPixels = DEFAULT_RENDER_WIDTH;
-			std::cout << "Minimum width set: " << DEFAULT_RENDER_WIDTH << "\n";
+			std::cout << "Invalid input, using default: " << renderProps.resWidthInPixels << '\n';
+		}
+		else {
+			if (renderProps.resWidthInPixels < DEFAULT_RENDER_WIDTH) {
+				renderProps.resWidthInPixels = DEFAULT_RENDER_WIDTH;
+				std::cout << "Minimum width set: " << DEFAULT_RENDER_WIDTH << "\n";
+			}
 		}
 	}
 
 	std::cout << "Enter render height: ";
-	std::cin >> renderProps.resHeightInPixels;
+	std::cout.flush();
+	std::cin.clear();
+	std::cin.ignore(INT_MAX, '\n');
 
-	if (std::cin.fail()) {
-		std::cin.clear();
-		std::cin.ignore(INT_MAX, '\n');
-		renderProps.resHeightInPixels = DEFAULT_RENDER_HEIGHT;
+	if (std::cin.peek() == '\n') {
 		std::cout << "Invalid input, using default: " << renderProps.resHeightInPixels << '\n';
 	}
 	else {
-		if (renderProps.resHeightInPixels < DEFAULT_RENDER_HEIGHT) {
+		std::cin >> renderProps.resHeightInPixels;
+
+		if (std::cin.fail()) {
+			std::cin.clear();
+			std::cin.ignore(INT_MAX, '\n');
 			renderProps.resHeightInPixels = DEFAULT_RENDER_HEIGHT;
-			std::cout << "Minimum height set: " << DEFAULT_RENDER_HEIGHT << "\n";
+			std::cout << "Invalid input, using default: " << renderProps.resHeightInPixels << '\n';
+		}
+		else {
+			if (renderProps.resHeightInPixels < DEFAULT_RENDER_HEIGHT) {
+				renderProps.resHeightInPixels = DEFAULT_RENDER_HEIGHT;
+				std::cout << "Minimum height set: " << DEFAULT_RENDER_HEIGHT << "\n";
+			}
 		}
 	}
 
-	std::cout << "Enter number of aliasing samples (also helps increase photon count): ";
-	std::cin >> renderProps.antiAliasingSamplesPerPixel;
+	std::cout << "Enter number of anti-aliasing samples (also helps increase photon count): ";
+	std::cout.flush();
+	std::cin.clear();
+	std::cin.ignore(INT_MAX, '\n');
 
-	if (std::cin.fail()) {
-		std::cin.clear();
-		std::cin.ignore(INT_MAX, '\n');
-		renderProps.antiAliasingSamplesPerPixel = DEFAULT_RENDER_AA;
+	if (std::cin.peek() == '\n') {
 		std::cout << "Invalid input, using default: " << renderProps.antiAliasingSamplesPerPixel << '\n';
 	}
 	else {
-		if (renderProps.antiAliasingSamplesPerPixel < DEFAULT_RENDER_AA) {
+		std::cin >> renderProps.antiAliasingSamplesPerPixel;
+
+		if (std::cin.fail()) {
+			std::cin.clear();
+			std::cin.ignore(INT_MAX, '\n');
 			renderProps.antiAliasingSamplesPerPixel = DEFAULT_RENDER_AA;
-			std::cout << "Minimum AA set: " << DEFAULT_RENDER_AA << "\n";
+			std::cout << "Invalid input, using default: " << renderProps.antiAliasingSamplesPerPixel << '\n';
+		}
+		else {
+			if (renderProps.antiAliasingSamplesPerPixel < DEFAULT_RENDER_AA) {
+				renderProps.antiAliasingSamplesPerPixel = DEFAULT_RENDER_AA;
+				std::cout << "Minimum AA set: " << DEFAULT_RENDER_AA << "\n";
+			}
 		}
 	}
+#endif
 }
 
 // going to try and pass a buffer per thread and combine afterwards so as to avoid memory contention when using a mutex which may slow things down...
-void workerThreadFunction(std::shared_ptr<StructWorkerThread> workerThreadStruct, std::shared_ptr<StructWorkerImageBuffer> workerImageBufferStruct, std::mutex *coutGuard, StructRenderProperties renderProps, Camera sceneCamera, Hitable *world) {
+void workerThreadFunction(
+	std::shared_ptr<WorkerThread> workerThreadStruct, 
+	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct, 	
+	RenderProperties renderProps, 
+	Camera sceneCamera, 
+	Hitable *world,
+	std::mutex *coutGuard) {
+
 	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();
 
 	std::unique_lock<std::mutex> coutLock(*coutGuard);
@@ -373,8 +406,8 @@ void workerThreadFunction(std::shared_ptr<StructWorkerThread> workerThreadStruct
 
 	//indicate that ray tracing is complete
 	// TODO: wrap this in a mutex
-	std::unique_lock<std::mutex> threadDoneLock(workerThreadStruct->workdDoneMutex);
-	workerThreadStruct->workDone = true;
+	std::unique_lock<std::mutex> threadDoneLock(workerThreadStruct->workdIsDoneMutex);
+	workerThreadStruct->workIsDone = true;
 	threadDoneLock.unlock();
 
 	coutLock.lock();
@@ -382,8 +415,8 @@ void workerThreadFunction(std::shared_ptr<StructWorkerThread> workerThreadStruct
 	coutLock.unlock();
 
 	//wait for exit
-	std::unique_lock<std::mutex> threadExitLock(workerThreadStruct->stopThreadMutex);
-	while (!workerThreadStruct->stopThread) {
+	std::unique_lock<std::mutex> threadExitLock(workerThreadStruct->exitThreadMutex);
+	while (!workerThreadStruct->exitThread) {
 		threadExitLock.unlock();
 		//do nothing
 		threadExitLock.lock();
@@ -393,10 +426,8 @@ void workerThreadFunction(std::shared_ptr<StructWorkerThread> workerThreadStruct
 }
 
 Hitable *randomScene() {
-	//drowan 20190127: The code below is basically hardcoded to generate ~400 spheres. When I try to make the list smaller than this, it tries to access
-	//out of bounds memory.
 	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
-	int n = 110;
+	int n = 100;
 	Hitable **list = new Hitable*[n + 1];
 
 	Texture *checker = new CheckerTexture(
@@ -479,10 +510,10 @@ Hitable *randomScene() {
 	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new Lambertian(perlin));
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
 
-	list[i++] = new XYRectangle(0, 2, 0, 2, -6, emitterMat);
+	//list[i++] = new XYRectangle(0, 2, 0, 2, -6, emitterMat);
 #endif
 	
-	std::cout << "n+1 = " << n << " i= " << i << "\n";
+	//std::cout << "n+1 = " << n << " i= " << i << "\n";
 	return new BvhNode(list, i, 0.0, 1.0);
 	//return new HitableList(list, i);
 }
@@ -525,7 +556,6 @@ Hitable *cornellBox() {
 		
 	// make a smoke box
 	list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.2, 0.6, 0.3)));
-	//list[i++] = box;
 
 #endif
 	return new HitableList(list, i);

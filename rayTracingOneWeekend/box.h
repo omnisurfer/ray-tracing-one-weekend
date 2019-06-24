@@ -14,17 +14,17 @@ public:
 
 	virtual bool hit(const ray &r, float t0, float t1, HitRecord &hitRecord) const;
 	virtual bool boundingBox(float t0, float t1, AABB &box) const {
-		box = AABB(pMin, pMax);
+		box = AABB(_pMin, _pMax);
 		return true;
 	}
 
-	vec3 pMin, pMax;
-	Hitable *hitableList;
+	vec3 _pMin, _pMax;
+	Hitable *_hitableList;
 };
 
 Box::Box(const vec3 &p0, const vec3 &p1, Material *materialPointer) {
-	pMin = p0;
-	pMax = p1;
+	_pMin = p0;
+	_pMax = p1;
 	int sides = 6;
 	Hitable **list = new Hitable*[sides];
 
@@ -37,9 +37,9 @@ Box::Box(const vec3 &p0, const vec3 &p1, Material *materialPointer) {
 	list[4] = new YZRectangle(p0.y(), p1.y(), p0.z(), p1.z(), p1.x(), materialPointer);
 	list[5] = new FlipNormals(new YZRectangle(p0.y(), p1.y(), p0.z(), p1.z(), p0.x(), materialPointer));
 	
-	hitableList = new HitableList(list, sides);
+	_hitableList = new HitableList(list, sides);
 }
 
 bool Box::hit(const ray &ray, float t0, float t1, HitRecord &hitRecord) const {
-	return hitableList->hit(ray, t0, t1, hitRecord);
+	return _hitableList->hit(ray, t0, t1, hitRecord);
 }

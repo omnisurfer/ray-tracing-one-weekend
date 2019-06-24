@@ -9,7 +9,7 @@
 #define GLOBAL_ILLUM 1
 #define DEPTH_RECURSION 50
 
-//Color can be called recursively!
+//Color is called recursively!
 vec3 color(const ray &rayCast, Hitable *world, int depth) {	
 	//provide a way to store the hit vector to act on it outside the hit check
 	HitRecord hitRecord;
@@ -19,7 +19,7 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 
 	if (world->hit(rayCast, 0.001, maxFloat, hitRecord)) {
 		ray scattered;
-		vec3 attenuation;
+		vec3 attenuation;		
 		vec3 emitted = hitRecord.materialPointer->emitted(hitRecord.u, hitRecord.v, hitRecord.point);
 
 		//depth refers to number of recursive calls to bounce the ray around???
@@ -27,8 +27,6 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 			return emitted + attenuation * color(scattered, world, depth + 1);
 		}
 		else {
-			//what does it mean when this returns?
-			//return vec3(0, 0, 0);
 			return emitted;
 		}
 	}
