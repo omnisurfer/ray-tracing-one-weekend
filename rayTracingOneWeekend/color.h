@@ -6,7 +6,7 @@
 #include "ray.h"
 #include "hitable.h"
 
-#define GLOBAL_ILLUM 1
+#define GLOBAL_ILLUM 0
 #define DEPTH_RECURSION 50
 
 //Color is called recursively!

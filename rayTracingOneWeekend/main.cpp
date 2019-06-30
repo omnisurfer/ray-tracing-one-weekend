@@ -35,9 +35,9 @@
 
 //Setup screen and output image
 //4K 3840x2160, 2K 2560x1440
-#define DEFAULT_RENDER_WIDTH 400
-#define DEFAULT_RENDER_HEIGHT 400
-#define DEFAULT_RENDER_AA 4
+#define DEFAULT_RENDER_WIDTH 1920
+#define DEFAULT_RENDER_HEIGHT 1080
+#define DEFAULT_RENDER_AA 100
 #define DEBUG_RUN_THREADS 8
 
 #define OUTPUT_BMP 1
@@ -509,7 +509,6 @@ Hitable *randomScene() {
 #if 1
 	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new Lambertian(perlin));
 	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
-
 	//list[i++] = new XYRectangle(0, 2, 0, 2, -6, emitterMat);
 #endif
 	
@@ -519,7 +518,7 @@ Hitable *randomScene() {
 }
 
 Hitable *cornellBox() {
-	Hitable **list = new Hitable*[8];
+	Hitable **list = new Hitable*[100];
 	int i = 0;
 
 	Material *red = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
@@ -528,9 +527,8 @@ Hitable *cornellBox() {
 	Material *light = new DiffuseLight(new ConstantTexture(vec3(4, 4, 4)));
 	Material *blue = new Lambertian(new ConstantTexture(vec3(0.12, 0.12, 0.45)));
 
-
-	list[i++] = new FlipNormals(new YZRectangle(0, 555, 0, 555, 555, green));	
 #if 1
+	list[i++] = new FlipNormals(new YZRectangle(0, 555, 0, 555, 555, green));	
 	list[i++] = new YZRectangle(0, 555, 0, 555, 0, red);
 	list[i++] = new XZRectangle(113, 443, 127, 432, 554, light);	
 	list[i++] = new FlipNormals(new XZRectangle(0, 555, 0, 555, 555, white));
@@ -540,10 +538,10 @@ Hitable *cornellBox() {
 
 	//add boxes
 #if 0
-	list[i++] = new Box(vec3(100, 100, 100), vec3(200, 200, 200), blue);
-	list[i++] = new Box(vec3(265, 0, 295), vec3(430, 330, 460), white);
+	list[i++] = new Box(vec3(50, 100, 100), vec3(200, 200, 200), blue);	
+	list[i++] = new Box(vec3(265, 0, 295), vec3(430, 330, 460), white);	
 #else
-
+	
 	list[i++] = new Translate(
 		new RotateY(new Box(vec3(0, 0, 0), vec3(165, 165, 165), red), -18.0), 
 		vec3(130,0,65)
@@ -555,7 +553,16 @@ Hitable *cornellBox() {
 	);
 		
 	// make a smoke box
-	list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.2, 0.6, 0.3)));
+	//list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.2, 0.6, 0.3)));
+
+	Material *innerSpehereMat = new Lambertian(new ConstantTexture(vec3(0.1, 0.05, 0.60)));
+
+	Hitable *outerSphere = new Sphere(vec3(350,120,350), 150.0, new Dielectric(1.5));
+	Hitable *innerSphere = new Sphere(vec3(350,120,350), 149.0, innerSpehereMat);
+
+	//list[i++] = new ConstantMedium(innerSphere, 0.001, new ConstantTexture(vec3(0.4, 0.6, 0.4)));
+	list[i++] = innerSphere;
+	list[i++] = outerSphere;
 
 #endif
 	return new HitableList(list, i);
