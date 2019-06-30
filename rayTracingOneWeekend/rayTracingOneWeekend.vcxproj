@@ -137,6 +137,7 @@
     <ClInclude Include="noise.h" />
     <ClInclude Include="ray.h" />
     <ClInclude Include="rngs.h" />
+    <ClInclude Include="scenes.h" />
     <ClInclude Include="sphere.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="texture.h" />

@@ -5,9 +5,7 @@
 #include "vec3.h"
 #include "ray.h"
 #include "hitable.h"
-
-#define GLOBAL_ILLUM 0
-#define DEPTH_RECURSION 50
+#include "material.h"
 
 //Color is called recursively!
 vec3 color(const ray &rayCast, Hitable *world, int depth) {	
