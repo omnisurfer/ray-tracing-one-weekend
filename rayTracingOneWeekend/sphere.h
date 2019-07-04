@@ -7,14 +7,14 @@
 class Sphere : public Hitable {
 public:
 	Sphere() {}
-	Sphere(vec3 center_, float radius_, Material *material_) : center(center_), radius(radius_), materialPointer(material_) {};
+	Sphere(vec3 center_, float radius_, Material *material_) : _center(center_), _radius(radius_), _materialPointer(material_) {};
 
 	virtual bool hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParamterT, HitRecord &hitRecord) const;
 	virtual bool boundingBox(float t0, float t1, AABB &box) const;
 
-	vec3 center;
-	float radius;
-	Material *materialPointer;
+	vec3 _center;
+	float _radius;
+	Material *_materialPointer;
 };
 
 bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointAtParamterT, HitRecord &hitRecord) const {	
@@ -23,12 +23,12 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 	//maybe this is more about making sure the rayCast is outside the object being tested for intersection and not 
 	//correcting the origin? OR maybe this is more about making sure you can compute a dot product since the center of the sphere is
 	//(maybe) assumed to be a ray from 0,0 to the center? The rays don't have a common origin depending upon where the rayCast is?
-	vec3 originCorrection = rayCast.origin() - center;
+	vec3 originCorrection = rayCast.origin() - _center;
 
 	//figure out values used in quadratic equation which determine if the ray hit the sphere
 	float a = dot(rayCast.direction(), rayCast.direction());
 	float b = dot(rayCast.direction(), originCorrection);
-	float c = dot(originCorrection, originCorrection) - radius * radius;
+	float c = dot(originCorrection, originCorrection) - _radius * _radius;
 
 	/*
 		a * x^2			+ b*x				+ c						= 0
@@ -46,10 +46,10 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 			hitRecord.pointAtParameterT = temp;
 			hitRecord.point = rayCast.pointAtParameter(hitRecord.pointAtParameterT);
 						
-			get_sphere_uv((hitRecord.point - center)/radius, hitRecord.u, hitRecord.v);
+			get_sphere_uv((hitRecord.point - _center)/_radius, hitRecord.u, hitRecord.v);
 
-			hitRecord.normal = (hitRecord.point - center) / radius;	
-			hitRecord.materialPointer = materialPointer;
+			hitRecord.normal = (hitRecord.point - _center) / _radius;	
+			hitRecord.materialPointer = _materialPointer;
 			return true;
 		}
 		temp = (-b + sqrt(b*b - a * c)) / a;
@@ -57,10 +57,10 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 			hitRecord.pointAtParameterT = temp;
 			hitRecord.point = rayCast.pointAtParameter(hitRecord.pointAtParameterT);
 
-			get_sphere_uv((hitRecord.point - center)/radius, hitRecord.u, hitRecord.v);
+			get_sphere_uv((hitRecord.point - _center)/_radius, hitRecord.u, hitRecord.v);
 
-			hitRecord.normal = (hitRecord.point - center) / radius;
-			hitRecord.materialPointer = materialPointer;
+			hitRecord.normal = (hitRecord.point - _center) / _radius;
+			hitRecord.materialPointer = _materialPointer;
 			return true;
 		}
 	}
@@ -69,7 +69,7 @@ bool Sphere::hit(const ray &rayCast, float minPointAtParameterT, float maxPointA
 }
 
 bool Sphere::boundingBox(float t0, float t1, AABB &box) const {
-	box = AABB(center - vec3(radius, radius, radius), center + vec3(radius, radius, radius));
+	box = AABB(_center - vec3(_radius, _radius, _radius), _center + vec3(_radius, _radius, _radius));
 	return true;
 }
 

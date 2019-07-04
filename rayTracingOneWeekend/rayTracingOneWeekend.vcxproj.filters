@@ -34,6 +34,9 @@
     <Filter Include="Header Files\stbLib">
       <UniqueIdentifier>{66f50758-2ac7-46f5-a61b-dac00fee0939}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\scenes">
+      <UniqueIdentifier>{6cfa7fd2-390f-4a6e-9a73-77117ee1fd0e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -111,6 +114,9 @@
     </ClInclude>
     <ClInclude Include="constantMedium.h">
       <Filter>Header Files\hitables</Filter>
+    </ClInclude>
+    <ClInclude Include="scenes.h">
+      <Filter>Header Files\scenes</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

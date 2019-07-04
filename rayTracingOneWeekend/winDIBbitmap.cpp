@@ -19,150 +19,150 @@ WINDIBBitmap::~WINDIBBitmap() {
 
 uint32_t WINDIBBitmap::writeBMPToFile(uint8_t *inputArray, uint32_t inputArraySizeInBytes, uint32_t imageWidthPixels, uint32_t imageHeightPixels, uint8_t bitsPerPixel) {
 
-	std::ofstream _outputStream;
+	std::ofstream outputStream;
 
-	_outputStream.open("test.bmp", std::ios::out | std::ios::binary);
+	outputStream.open("test.bmp", std::ios::out | std::ios::binary);
 
-	if (_outputStream.fail()) {
+	if (outputStream.fail()) {
 		std::cout << "Failed to open test.bmp\n";
 
 		return 1;
 	}
 
-	int _bytesPerPixel = (bitsPerPixel / BMP_BITS_PER_BYTE);
+	int bytesPerPixel = (bitsPerPixel / BMP_BITS_PER_BYTE);
 
-	int _bytesPerPaddedRow = ceil(((float)bitsPerPixel * (float)imageWidthPixels) / (float)DWORD_BIT_SIZE) * BYTE_ROW_ALIGNMENT_MULTIPLES;
-	int _outputPixelArraySizeInBytes = _bytesPerPaddedRow * abs((float)imageHeightPixels);
+	int bytesPerPaddedRow = ceil(((float)bitsPerPixel * (float)imageWidthPixels) / (float)DWORD_BIT_SIZE) * BYTE_ROW_ALIGNMENT_MULTIPLES;
+	int outputPixelArraySizeInBytes = bytesPerPaddedRow * abs((float)imageHeightPixels);
 
-	int _bytesPaddedPerRow = _bytesPerPaddedRow - (_bytesPerPixel * imageWidthPixels);
-	int _bytesPerUnpaddedRow = _bytesPerPaddedRow - _bytesPaddedPerRow;
+	int bytesPaddedPerRow = bytesPerPaddedRow - (bytesPerPixel * imageWidthPixels);
+	int bytesPerUnpaddedRow = bytesPerPaddedRow - bytesPaddedPerRow;
 
-	std::unique_ptr<char[]> _outputPixelsArray(new char[_outputPixelArraySizeInBytes]());
+	std::unique_ptr<char[]> outputPixelsArray(new char[outputPixelArraySizeInBytes]());
 
 	//int outIndexOffset = 0;
 	//Note, checking inputArrayIndex against input array index size + 1. Testing against the size + 1 allows the
 	//loop to tack on the last padding bytes.
-	for (uint32_t _inputArrayIndex = 0, _outIndexOffset = 0; _inputArrayIndex < inputArraySizeInBytes + 1; _inputArrayIndex++) {
+	for (uint32_t inputArrayIndex = 0, _outIndexOffset = 0; inputArrayIndex < inputArraySizeInBytes + 1; inputArrayIndex++) {
 
 		//insert last padding
-		if (_inputArrayIndex == inputArraySizeInBytes) {
-			for (int i = 0; i < _bytesPaddedPerRow; i++, _outIndexOffset++) {
-				_outputPixelsArray[_inputArrayIndex + _outIndexOffset] = 0x00;
+		if (inputArrayIndex == inputArraySizeInBytes) {
+			for (int i = 0; i < bytesPaddedPerRow; i++, _outIndexOffset++) {
+				outputPixelsArray[inputArrayIndex + _outIndexOffset] = 0x00;
 			}
 			break;
 		}
 
-		if (_inputArrayIndex > 0 && _inputArrayIndex % (_bytesPerPaddedRow - _bytesPaddedPerRow) == 0) {
+		if (inputArrayIndex > 0 && inputArrayIndex % (bytesPerPaddedRow - bytesPaddedPerRow) == 0) {
 
 			//insert padding
-			for (int i = 0; i < _bytesPaddedPerRow; i++, _outIndexOffset++) {
-				_outputPixelsArray[_inputArrayIndex + _outIndexOffset] = 0x00;
+			for (int i = 0; i < bytesPaddedPerRow; i++, _outIndexOffset++) {
+				outputPixelsArray[inputArrayIndex + _outIndexOffset] = 0x00;
 			}
 		}
 
-		_outputPixelsArray[_inputArrayIndex + _outIndexOffset] = inputArray[_inputArrayIndex];
+		outputPixelsArray[inputArrayIndex + _outIndexOffset] = inputArray[inputArrayIndex];
 	}
 
 	//for (int i = 0; i < outputPixelArraySizeInBytes; i++) {
 	//	std::cout << "i: " << i << " " << outputPixelsArray[i] << "\n";
 	//}
 
-	WinDIBFormat _bmpHeader;
+	WinDIBFormat bmpHeader;
 
 	//Using a pointer to address struct elements directly does not work
 	//due to how the compiler may pad the struct. So brute force instead of clever...
 	//winDIBFormat* pointerToBmpHeader = &bmpHeader;
 
-	_bmpHeader.bmpSize = BMP_HEADER_SIZE + DIB_HEADER_SIZE + _outputPixelArraySizeInBytes;
-	_bmpHeader.pixelArrayOffset = BMP_HEADER_SIZE + DIB_HEADER_SIZE;
-	_bmpHeader.dibHeaderSize = DIB_HEADER_SIZE;
-	_bmpHeader.bmpWidth = imageWidthPixels;
-	_bmpHeader.bmpHeight = imageHeightPixels;
-	_bmpHeader.bitsPerPixel = bitsPerPixel;
-	_bmpHeader.rawBmpDataSize = _outputPixelArraySizeInBytes;
+	bmpHeader.bmpSize = BMP_HEADER_SIZE + DIB_HEADER_SIZE + outputPixelArraySizeInBytes;
+	bmpHeader.pixelArrayOffset = BMP_HEADER_SIZE + DIB_HEADER_SIZE;
+	bmpHeader.dibHeaderSize = DIB_HEADER_SIZE;
+	bmpHeader.bmpWidth = imageWidthPixels;
+	bmpHeader.bmpHeight = imageHeightPixels;
+	bmpHeader.bitsPerPixel = bitsPerPixel;
+	bmpHeader.rawBmpDataSize = outputPixelArraySizeInBytes;
 
-	uint32_t _bitmapArraySizeInBytes = sizeof(_bmpHeader);
-	_bitmapArraySizeInBytes += _outputPixelArraySizeInBytes;
-	_bitmapArraySizeInBytes -= sizeof(_bmpHeader.pixelArrayPointer);
+	uint32_t bitmapArraySizeInBytes = sizeof(bmpHeader);
+	bitmapArraySizeInBytes += outputPixelArraySizeInBytes;
+	bitmapArraySizeInBytes -= sizeof(bmpHeader.pixelArrayPointer);
 
-	std::unique_ptr<char[]> _combinedHeader(new char[_bitmapArraySizeInBytes]());
+	std::unique_ptr<char[]> combinedHeader(new char[bitmapArraySizeInBytes]());
 
-	_combinedHeader[sizeof(_bmpHeader)] = { 0 };
+	combinedHeader[sizeof(bmpHeader)] = { 0 };
 
-	uint32_t _combinedHeaderIndex = 0;
+	uint32_t combinedHeaderIndex = 0;
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.idField, sizeof(_bmpHeader.idField));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.idField, sizeof(bmpHeader.idField));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.idField);
+	combinedHeaderIndex += sizeof(bmpHeader.idField);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.bmpSize, sizeof(_bmpHeader.bmpSize));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.bmpSize, sizeof(bmpHeader.bmpSize));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.bmpSize);
+	combinedHeaderIndex += sizeof(bmpHeader.bmpSize);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.reserved0, sizeof(_bmpHeader.reserved0));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.reserved0, sizeof(bmpHeader.reserved0));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.reserved0);
+	combinedHeaderIndex += sizeof(bmpHeader.reserved0);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.reserved1, sizeof(_bmpHeader.reserved1));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.reserved1, sizeof(bmpHeader.reserved1));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.reserved1);
+	combinedHeaderIndex += sizeof(bmpHeader.reserved1);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.pixelArrayOffset, sizeof(_bmpHeader.pixelArrayOffset));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.pixelArrayOffset, sizeof(bmpHeader.pixelArrayOffset));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.pixelArrayOffset);
+	combinedHeaderIndex += sizeof(bmpHeader.pixelArrayOffset);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.dibHeaderSize, sizeof(_bmpHeader.dibHeaderSize));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.dibHeaderSize, sizeof(bmpHeader.dibHeaderSize));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.dibHeaderSize);
+	combinedHeaderIndex += sizeof(bmpHeader.dibHeaderSize);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.bmpWidth, sizeof(_bmpHeader.bmpWidth));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.bmpWidth, sizeof(bmpHeader.bmpWidth));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.bmpWidth);
+	combinedHeaderIndex += sizeof(bmpHeader.bmpWidth);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.bmpHeight, sizeof(_bmpHeader.bmpHeight));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.bmpHeight, sizeof(bmpHeader.bmpHeight));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.bmpHeight);
+	combinedHeaderIndex += sizeof(bmpHeader.bmpHeight);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.colorPlanes, sizeof(_bmpHeader.colorPlanes));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.colorPlanes, sizeof(bmpHeader.colorPlanes));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.colorPlanes);
+	combinedHeaderIndex += sizeof(bmpHeader.colorPlanes);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.bitsPerPixel, sizeof(_bmpHeader.bitsPerPixel));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.bitsPerPixel, sizeof(bmpHeader.bitsPerPixel));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.bitsPerPixel);
+	combinedHeaderIndex += sizeof(bmpHeader.bitsPerPixel);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.pixelArrayCompression, sizeof(_bmpHeader.pixelArrayCompression));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.pixelArrayCompression, sizeof(bmpHeader.pixelArrayCompression));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.pixelArrayCompression);
+	combinedHeaderIndex += sizeof(bmpHeader.pixelArrayCompression);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.rawBmpDataSize, sizeof(_bmpHeader.rawBmpDataSize));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.rawBmpDataSize, sizeof(bmpHeader.rawBmpDataSize));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.rawBmpDataSize);
+	combinedHeaderIndex += sizeof(bmpHeader.rawBmpDataSize);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.horizontalRes, sizeof(_bmpHeader.horizontalRes));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.horizontalRes, sizeof(bmpHeader.horizontalRes));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.horizontalRes);
+	combinedHeaderIndex += sizeof(bmpHeader.horizontalRes);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.verticalRes, sizeof(_bmpHeader.verticalRes));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.verticalRes, sizeof(bmpHeader.verticalRes));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.verticalRes);
+	combinedHeaderIndex += sizeof(bmpHeader.verticalRes);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.colorsInPalette, sizeof(_bmpHeader.colorsInPalette));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.colorsInPalette, sizeof(bmpHeader.colorsInPalette));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.colorsInPalette);
+	combinedHeaderIndex += sizeof(bmpHeader.colorsInPalette);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, &_bmpHeader.importantColors, sizeof(_bmpHeader.importantColors));
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, &bmpHeader.importantColors, sizeof(bmpHeader.importantColors));
 
-	_combinedHeaderIndex += sizeof(_bmpHeader.importantColors);
+	combinedHeaderIndex += sizeof(bmpHeader.importantColors);
 
-	std::memcpy(_combinedHeader.get() + _combinedHeaderIndex, _outputPixelsArray.get(), _outputPixelArraySizeInBytes);
+	std::memcpy(combinedHeader.get() + combinedHeaderIndex, outputPixelsArray.get(), outputPixelArraySizeInBytes);
 
-	_combinedHeaderIndex += _outputPixelArraySizeInBytes;
+	combinedHeaderIndex += outputPixelArraySizeInBytes;
 
 	//write out the header
-	_outputStream.write(_combinedHeader.get(), _combinedHeaderIndex);
+	outputStream.write(combinedHeader.get(), combinedHeaderIndex);
 
-	_outputStream.close();
+	outputStream.close();
 
 	return 0;
 }

@@ -43,17 +43,17 @@ public:
 
 class Translate : public Hitable {
 public:
-	Translate(Hitable *hitable, const vec3 &displacement) : hitablePointer(hitable), offset(displacement) {}
+	Translate(Hitable *hitable, const vec3 &displacement) : _hitablePointer(hitable), _offset(displacement) {}
 	virtual bool hit(const ray &r, float tMin, float tMax, HitRecord &hitRecord) const;
 	virtual bool boundingBox(float t0, float t1, AABB &box) const;
-	Hitable *hitablePointer;
-	vec3 offset;
+	Hitable *_hitablePointer;
+	vec3 _offset;
 };
 
 bool Translate::hit(const ray &r, float tMin, float tMax, HitRecord &hitRecord) const {
-	ray movedRay(r.origin() - offset, r.direction(), r.time());
-	if (hitablePointer->hit(movedRay, tMin, tMax, hitRecord)) {
-		hitRecord.point += offset;
+	ray movedRay(r.origin() - _offset, r.direction(), r.time());
+	if (_hitablePointer->hit(movedRay, tMin, tMax, hitRecord)) {
+		hitRecord.point += _offset;
 		return true;
 	}
 	else {
@@ -62,8 +62,8 @@ bool Translate::hit(const ray &r, float tMin, float tMax, HitRecord &hitRecord) 
 }
 
 bool Translate::boundingBox(float t0, float t1, AABB &box) const {
-	if (hitablePointer->boundingBox(t0, t1, box)) {
-		box = AABB(box.min() + offset, box.max() + offset);
+	if (_hitablePointer->boundingBox(t0, t1, box)) {
+		box = AABB(box.min() + _offset, box.max() + _offset);
 		return true;
 	}
 	else {
@@ -76,36 +76,36 @@ public:
 	RotateY(Hitable *hitablePointer, float angle);
 	virtual bool hit(const ray &r, float tMin, float tMax, HitRecord &hitRecord) const;
 	virtual bool boundingBox(float t0, float t1, AABB &box) const {
-		box = boundBox;
-		return hasBox;
+		box = _boundBox;
+		return _hasBox;
 	}
 
-	Hitable *pointer;
-	float sinTheta;
-	float cosTheta;
-	bool hasBox;
-	AABB boundBox;
+	Hitable *_pointer;
+	float _sinTheta;
+	float _cosTheta;
+	bool _hasBox;
+	AABB _boundBox;
 };
 
-RotateY::RotateY(Hitable *hitablePointer, float angle) : pointer(hitablePointer) {
+RotateY::RotateY(Hitable *hitablePointer, float angle) : _pointer(hitablePointer) {
 
 	float radians = (M_PI / 180.0) * angle;
-	sinTheta = sin(radians);
-	cosTheta = cos(radians);
+	_sinTheta = sin(radians);
+	_cosTheta = cos(radians);
 
-	hasBox = pointer->boundingBox(0, 1, boundBox);
+	_hasBox = _pointer->boundingBox(0, 1, _boundBox);
 	vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
 	vec3 max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 2; j++) {
 			for (int k = 0; k < 2; k++) {
-				float x = i * boundBox.max().x() + (1 - i)*boundBox.min().x();
-				float y = j * boundBox.max().y() + (1 - j)*boundBox.min().y();
-				float z = k * boundBox.max().z() + (1 - k)*boundBox.min().z();
+				float x = i * _boundBox.max().x() + (1 - i)*_boundBox.min().x();
+				float y = j * _boundBox.max().y() + (1 - j)*_boundBox.min().y();
+				float z = k * _boundBox.max().z() + (1 - k)*_boundBox.min().z();
 
-				float newX = cosTheta * x + sinTheta * z;
-				float newZ = -sinTheta * x + cosTheta * z;
+				float newX = _cosTheta * x + _sinTheta * z;
+				float newZ = -_sinTheta * x + _cosTheta * z;
 
 				vec3 tester(newX, y, newZ);
 				for (int c = 0; c < 3; c++) {
@@ -119,30 +119,30 @@ RotateY::RotateY(Hitable *hitablePointer, float angle) : pointer(hitablePointer)
 			}
 		}
 	}
-	boundBox = AABB(min, max);
+	_boundBox = AABB(min, max);
 }
 
 bool RotateY::hit(const ray &r, float tMin, float tMax, HitRecord &hitRecord) const {
 	vec3 origin = r.origin();
 	vec3 direction = r.direction();
 	
-	origin[0] = cosTheta * r.origin()[0] - sinTheta * r.origin()[2];
-	origin[2] = sinTheta * r.origin()[0] + cosTheta * r.origin()[2];
+	origin[0] = _cosTheta * r.origin()[0] - _sinTheta * r.origin()[2];
+	origin[2] = _sinTheta * r.origin()[0] + _cosTheta * r.origin()[2];
 
-	direction[0] = cosTheta * r.direction()[0] - sinTheta * r.direction()[2];
-	direction[2] = sinTheta * r.direction()[0] + cosTheta * r.direction()[2];
+	direction[0] = _cosTheta * r.direction()[0] - _sinTheta * r.direction()[2];
+	direction[2] = _sinTheta * r.direction()[0] + _cosTheta * r.direction()[2];
 
 	ray rotatedRay(origin, direction, r.time());
 
-	if (pointer->hit(rotatedRay, tMin, tMax, hitRecord)) {
+	if (_pointer->hit(rotatedRay, tMin, tMax, hitRecord)) {
 		vec3 p = hitRecord.point;
 		vec3 normal = hitRecord.normal;
 
-		p[0] = cosTheta * hitRecord.point[0] + sinTheta * hitRecord.point[2];
-		p[2] = -sinTheta * hitRecord.point[0] + cosTheta * hitRecord.point[2];
+		p[0] = _cosTheta * hitRecord.point[0] + _sinTheta * hitRecord.point[2];
+		p[2] = -_sinTheta * hitRecord.point[0] + _cosTheta * hitRecord.point[2];
 
-		normal[0] = cosTheta * hitRecord.normal[0] + sinTheta * hitRecord.normal[2];
-		normal[2] = -sinTheta * hitRecord.normal[0] + cosTheta * hitRecord.normal[2];
+		normal[0] = _cosTheta * hitRecord.normal[0] + _sinTheta * hitRecord.normal[2];
+		normal[2] = -_sinTheta * hitRecord.normal[0] + _cosTheta * hitRecord.normal[2];
 
 		hitRecord.point = p;
 		hitRecord.normal = normal;
