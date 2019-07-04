@@ -28,6 +28,9 @@
 //#include "constantMedium.h"
 //#include "bvhNode.h"
 
+#include <Windows.h>
+#include <tchar.h>
+
 #include "debug.h"
 
 #include "winDIBbitmap.h"
@@ -89,9 +92,69 @@ void workerThreadFunction(
 	std::mutex *coutGuard
 );
 
+LRESULT CALLBACK WndProc(
+	_In_ HWND hwnd,
+	_In_ UINT uMsg,
+	_In_ WPARAM wParam,
+	_In_ LPARAM lParam
+);
+
 int main() {
 
 	DEBUG_MSG_L0(__func__, "");
+
+	//make a MS Window
+	const char* const myClass = "myclass";
+
+	WNDCLASSEX wndClassEx;
+	
+	wndClassEx.cbSize = sizeof(WNDCLASSEX);
+	wndClassEx.style = CS_HREDRAW | CS_VREDRAW;
+	wndClassEx.lpfnWndProc = WndProc;
+	wndClassEx.cbClsExtra = 0;
+	wndClassEx.cbWndExtra = 0;
+	wndClassEx.hInstance = GetModuleHandle(0);
+	wndClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
+	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wndClassEx.lpszMenuName = NULL;
+	wndClassEx.lpszClassName = myClass;
+	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);
+
+	if (RegisterClassEx(&wndClassEx)) {
+		
+		HWND window = CreateWindowEx(
+			0, 
+			myClass, 
+			"title",
+			WS_OVERLAPPEDWINDOW,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			800,
+			600,
+			0,
+			0,
+			GetModuleHandle(0),
+			0
+		);
+
+		if (window) {
+			ShowWindow(window, SW_SHOWDEFAULT);
+			
+			MSG msg;
+			bool status;
+			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
+				if (status == -1) {
+					//TODO: something went wrong (i.e. invalid memory read for message??), so through an error and exit
+					std::cout << "An error occured when calling GetMessage()\n";
+					return -1;
+				}
+				else {
+					DispatchMessage(&msg);
+				}				
+			}
+		}
+	}
 
 	//Setup random number generator
 	timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -237,6 +300,36 @@ int main() {
 	std::cin.get();
 
 	return 0;
+}
+
+/*
+- https://docs.microsoft.com/en-us/cpp/windows/walkthrough-creating-windows-desktop-applications-cpp?view=vs-2019
+- https://www.gamedev.net/forums/topic/608057-how-do-you-create-a-win32-window-from-console-application/
+- http://blog.airesoft.co.uk/2010/10/a-negative-experience-in-getting-messages/
+*/
+LRESULT CALLBACK WndProc(
+	_In_ HWND hwnd,
+	_In_ UINT uMsg,
+	_In_ WPARAM wParam,
+	_In_ LPARAM lParam
+) {
+	switch (uMsg) {
+		case WM_DESTROY:
+			std::cout << "\nClosing window...\n";
+
+			PostQuitMessage(0);
+
+			return 0L;
+		case WM_LBUTTONDOWN:
+			std::cout << "\nLeft Mouse Button Down " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
+
+			//fall thru
+
+		default:
+			std::cout << "\nUnhandled WM message\n";
+
+			return DefWindowProc(hwnd, uMsg, wParam, lParam);
+	}
 }
 
 void configureScene(RenderProperties &renderProps) {
