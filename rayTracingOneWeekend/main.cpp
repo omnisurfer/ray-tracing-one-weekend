@@ -81,6 +81,8 @@ struct WorkerImageBuffer {
 Hitable *randomScene();
 Hitable *cornellBox();
 
+HBITMAP hBitmap = NULL;
+
 void configureScene(RenderProperties &renderProps);
 
 void workerThreadFunction(
@@ -102,59 +104,6 @@ LRESULT CALLBACK WndProc(
 int main() {
 
 	DEBUG_MSG_L0(__func__, "");
-
-	//make a MS Window
-	const char* const myClass = "myclass";
-
-	WNDCLASSEX wndClassEx;
-	
-	wndClassEx.cbSize = sizeof(WNDCLASSEX);
-	wndClassEx.style = CS_HREDRAW | CS_VREDRAW;
-	wndClassEx.lpfnWndProc = WndProc;
-	wndClassEx.cbClsExtra = 0;
-	wndClassEx.cbWndExtra = 0;
-	wndClassEx.hInstance = GetModuleHandle(0);
-	wndClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
-	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-	wndClassEx.lpszMenuName = NULL;
-	wndClassEx.lpszClassName = myClass;
-	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);
-
-	if (RegisterClassEx(&wndClassEx)) {
-		
-		HWND window = CreateWindowEx(
-			0, 
-			myClass, 
-			"title",
-			WS_OVERLAPPEDWINDOW,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			800,
-			600,
-			0,
-			0,
-			GetModuleHandle(0),
-			0
-		);
-
-		if (window) {
-			ShowWindow(window, SW_SHOWDEFAULT);
-			
-			MSG msg;
-			bool status;
-			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
-				if (status == -1) {
-					//TODO: something went wrong (i.e. invalid memory read for message??), so through an error and exit
-					std::cout << "An error occured when calling GetMessage()\n";
-					return -1;
-				}
-				else {
-					DispatchMessage(&msg);
-				}				
-			}
-		}
-	}
 
 	//Setup random number generator
 	timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -188,7 +137,7 @@ int main() {
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
 	// TODO: drowan(20190607) - should I make a way to select this programatically?
-#if 1
+#if OUTPUT_RANDOM_SCENE == 1
 	//random scene
 	mainCamera.setLookFrom(vec3(3, 3, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));
@@ -288,6 +237,66 @@ int main() {
 	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
 #endif
 
+#if DISPLAY_WINDOW == 1
+
+	//make a MS Window
+	const char* const myClass = "myclass";
+
+	/*
+	- https://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
+	*/
+	WNDCLASSEX wndClassEx;
+
+	wndClassEx.cbSize = sizeof(WNDCLASSEX);
+	wndClassEx.style = CS_HREDRAW | CS_VREDRAW;
+	wndClassEx.lpfnWndProc = WndProc;
+	wndClassEx.cbClsExtra = 0;
+	wndClassEx.cbWndExtra = 0;
+	wndClassEx.hInstance = GetModuleHandle(0);
+	wndClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
+	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wndClassEx.lpszMenuName = NULL;
+	wndClassEx.lpszClassName = myClass;
+	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);
+
+	if (RegisterClassEx(&wndClassEx)) {
+
+		HWND window = CreateWindowEx(
+			0,
+			myClass,
+			"Ray Trace In One Weekend",
+			WS_OVERLAPPEDWINDOW,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			renderProps.resWidthInPixels,
+			renderProps.resHeightInPixels,
+			0,
+			0,
+			GetModuleHandle(0),
+			0
+		);
+
+		if (window) {
+			ShowWindow(window, SW_SHOWDEFAULT);
+
+			MSG msg;
+			bool status;
+			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
+				if (status == -1) {
+					//TODO: something went wrong (i.e. invalid memory read for message??), so through an error and exit
+					std::cout << "An error occured when calling GetMessage()\n";
+					return -1;
+				}
+				else {
+					DispatchMessage(&msg);
+				}
+			}
+		}
+	}
+
+#endif
+
 	delete[] world;
 		
 	// putting a \n triggers cin...?
@@ -306,6 +315,9 @@ int main() {
 - https://docs.microsoft.com/en-us/cpp/windows/walkthrough-creating-windows-desktop-applications-cpp?view=vs-2019
 - https://www.gamedev.net/forums/topic/608057-how-do-you-create-a-win32-window-from-console-application/
 - http://blog.airesoft.co.uk/2010/10/a-negative-experience-in-getting-messages/
+- https://stackoverflow.com/questions/22819003/how-to-set-the-colors-of-a-windows-pixels-with-windows-api-c-once-created
+- https://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
+- https://stackoverflow.com/questions/6423729/get-current-cursor-position
 */
 LRESULT CALLBACK WndProc(
 	_In_ HWND hwnd,
@@ -313,20 +325,61 @@ LRESULT CALLBACK WndProc(
 	_In_ WPARAM wParam,
 	_In_ LPARAM lParam
 ) {
+	//TODO drowan(20190704): Reading the cursor here is probably not best practice. Look into how to do this.
+	POINT p;
+
+	if (GetCursorPos(&p)) {
+		if (ScreenToClient(hwnd, &p)) {
+			std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
+		}
+	}
+	
 	switch (uMsg) {
+
+		case WM_CREATE:
+			hBitmap = (HBITMAP)LoadImage(NULL, "G:\\DevSync\\Sandbox\\VCC\\RayTracingOneWeekend\\rayTracingOneWeekend\\test.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+			return 0L;
+
+		case WM_PAINT:			
+			PAINTSTRUCT ps;
+			HDC hdc;
+			BITMAP bitmap;
+			HDC hdcMem;
+			HGDIOBJ oldBitmap;
+
+			hdc = BeginPaint(hwnd, &ps);
+
+			hdcMem = CreateCompatibleDC(hdc);
+			oldBitmap = SelectObject(hdcMem, hBitmap);
+
+			GetObject(hBitmap, sizeof(bitmap), &bitmap);
+			BitBlt(hdc, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
+
+			SelectObject(hdcMem, oldBitmap);
+			DeleteDC(hdcMem);
+
+			EndPaint(hwnd, &ps);
+
+			return 0L;
+
 		case WM_DESTROY:
 			std::cout << "\nClosing window...\n";
 
 			PostQuitMessage(0);
 
 			return 0L;
-		case WM_LBUTTONDOWN:
-			std::cout << "\nLeft Mouse Button Down " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
 
-			//fall thru
+		case WM_LBUTTONDOWN:
+			std::cout << "\nLeft Mouse Button Down " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";									
+
+			//ask to redraw the window
+			RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
+
+		case WM_LBUTTONDBLCLK:
+			std::cout << "\nLeft Mouse Button Click " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";			
 
 		default:
-			std::cout << "\nUnhandled WM message\n";
+			//std::cout << "\nUnhandled WM message\n";
 
 			return DefWindowProc(hwnd, uMsg, wParam, lParam);
 	}
