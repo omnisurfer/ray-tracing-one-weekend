@@ -572,7 +572,8 @@ void workerThreadFunction(
 
 			//DEBUG drowan(20190704): render to window expirment. This is rendering to the "desktop" because I don't have the window handle in here. I need to
 			//put the MS Windows message loop thread in it's own thread.
-			SetPixel(hdcPixel, row, column, RGB(ir, ig, ib));
+			//Nope, seems OK with multiple thread access. Or at least can't see any obvious issues. May have been related to creating multiple DCs?
+			SetPixel(hdcPixel, 1800 + column, 800 + row + rowOffsetInPixels, RGB(ir, ig, ib));
 
 #if 1
 			//also store values into tempBuffer
