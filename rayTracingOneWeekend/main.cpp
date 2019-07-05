@@ -267,8 +267,8 @@ int main() {
 			myClass,
 			"Ray Trace In One Weekend",
 			WS_OVERLAPPEDWINDOW,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
+			800,
+			600,
 			renderProps.resWidthInPixels,
 			renderProps.resHeightInPixels,
 			0,
@@ -330,17 +330,20 @@ LRESULT CALLBACK WndProc(
 
 	if (GetCursorPos(&p)) {
 		if (ScreenToClient(hwnd, &p)) {
-			std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
+			if (p.x >= 0 && p.y >= 0) {
+				std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
+			}
 		}
 	}
 	
 	switch (uMsg) {
 
-		case WM_CREATE:
-			hBitmap = (HBITMAP)LoadImage(NULL, "G:\\DevSync\\Sandbox\\VCC\\RayTracingOneWeekend\\rayTracingOneWeekend\\test.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		case WM_CREATE:		
+			hBitmap = (HBITMAP)LoadImage(NULL, ".\\test.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 			return 0L;
 
-		case WM_PAINT:			
+		case WM_PAINT:
+			
 			PAINTSTRUCT ps;
 			HDC hdc;
 			BITMAP bitmap;
@@ -359,7 +362,20 @@ LRESULT CALLBACK WndProc(
 			DeleteDC(hdcMem);
 
 			EndPaint(hwnd, &ps);
+			
+#if 0
+			//try setting some pixels
+			HDC hdcPixel;
 
+			hdcPixel = GetDC(hwnd);
+			for (int x = 0; x < 10; x++) {
+				for (int y = 0; y < 10; y++) {
+					SetPixel(hdcPixel, x + p.x, y + p.y, RGB(255, 0, 0));
+				}
+			}
+
+			DeleteDC(hdcPixel);
+#endif
 			return 0L;
 
 		case WM_DESTROY:
@@ -481,6 +497,11 @@ void workerThreadFunction(
 	Hitable *world,
 	std::mutex *coutGuard) {
 
+	//DEBUG drowan(20190704): pretty sure this is not safe to have multiple threads accessing the canvas without a mutex
+	HDC hdcPixel;
+
+	hdcPixel = GetDC(0);
+
 	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();
 
 	std::unique_lock<std::mutex> coutLock(*coutGuard);
@@ -548,6 +569,10 @@ void workerThreadFunction(
 			(irO > 255) ? ir = 255 : ir = uint8_t(irO);
 			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
 			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
+
+			//DEBUG drowan(20190704): render to window expirment. This is rendering to the "desktop" because I don't have the window handle in here. I need to
+			//put the MS Windows message loop thread in it's own thread.
+			SetPixel(hdcPixel, row, column, RGB(ir, ig, ib));
 
 #if 1
 			//also store values into tempBuffer
