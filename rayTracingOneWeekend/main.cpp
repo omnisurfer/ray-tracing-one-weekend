@@ -85,7 +85,7 @@ HBITMAP hBitmap = NULL;
 
 void configureScene(RenderProperties &renderProps);
 
-void workerThreadFunction(
+void raytraceWorkerThread(
 	std::shared_ptr<WorkerThread> workerThread, 
 	std::shared_ptr<WorkerImageBuffer> workerImageBuffer, 	
 	RenderProperties renderProps, 
@@ -186,7 +186,7 @@ int main() {
 		// drowan(20190616): Possible race condition with some of the variables not being assigned until after the thread starts.		
 		workerThread->id = i;
 		workerThread->workIsDone = false;
-		workerThread->handle = std::thread(workerThreadFunction, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
+		workerThread->handle = std::thread(raytraceWorkerThread, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
 
 		workerThreadVector.push_back(workerThread);			
 	}
@@ -489,7 +489,7 @@ void configureScene(RenderProperties &renderProps) {
 }
 
 // going to try and pass a buffer per thread and combine afterwards so as to avoid memory contention when using a mutex which may slow things down...
-void workerThreadFunction(
+void raytraceWorkerThread(
 	std::shared_ptr<WorkerThread> workerThreadStruct, 
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct, 	
 	RenderProperties renderProps, 
@@ -603,4 +603,8 @@ void workerThreadFunction(
 	}	
 
 	return;
+}
+
+void guiWorkerThread() {
+
 }
