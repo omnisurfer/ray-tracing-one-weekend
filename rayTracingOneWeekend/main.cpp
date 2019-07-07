@@ -20,14 +20,6 @@
 #include "color.h"
 #include "scenes.h"
 
-//#include "ray.h"
-//#include "sphere.h"
-//#include "xy_rect.h"
-//#include "box.h"
-//#include "material.h"
-//#include "constantMedium.h"
-//#include "bvhNode.h"
-
 #include <Windows.h>
 #include <tchar.h>
 
@@ -85,7 +77,7 @@ HBITMAP hBitmap = NULL;
 
 void configureScene(RenderProperties &renderProps);
 
-void raytraceWorkerThread(
+void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThread, 
 	std::shared_ptr<WorkerImageBuffer> workerImageBuffer, 	
 	RenderProperties renderProps, 
@@ -93,6 +85,11 @@ void raytraceWorkerThread(
 	Hitable *world,
 	std::mutex *coutGuard
 );
+
+int guiWorkerProcedure(
+	std::shared_ptr<WorkerThread> workerThreadStruct,
+	uint32_t windowWidth, 
+	uint32_t windowHeight);
 
 LRESULT CALLBACK WndProc(
 	_In_ HWND hwnd,
@@ -135,6 +132,59 @@ int main() {
 	float vFoV = 60.0;
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
+
+#if DISPLAY_WINDOW == 1
+
+	std::shared_ptr<WorkerThread> guiWorkerThread(new WorkerThread);
+
+	guiWorkerThread->id = 0;
+	guiWorkerThread->workIsDone = false;
+	guiWorkerThread->start = false;
+	guiWorkerThread->exit = false;
+	guiWorkerThread->handle = std::thread(guiWorkerProcedure, guiWorkerThread, renderProps.resWidthInPixels, renderProps.resWidthInPixels);
+	
+	std::unique_lock<std::mutex> startLock(guiWorkerThread->startMutex);
+	guiWorkerThread->start = true;
+	guiWorkerThread->startConditionVar.notify_all();
+	startLock.unlock();
+
+	/*
+	if (RegisterClassEx(&wndClassEx)) {
+
+		HWND window = CreateWindowEx(
+			0,
+			myClass,
+			"Ray Trace In One Weekend",
+			WS_OVERLAPPEDWINDOW,
+			800,
+			600,
+			renderProps.resWidthInPixels,
+			renderProps.resHeightInPixels,
+			0,
+			0,
+			GetModuleHandle(0),
+			0
+		);
+
+		if (window) {
+			ShowWindow(window, SW_SHOWDEFAULT);
+
+			MSG msg;
+			bool status;
+			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
+				if (status == -1) {
+					//TODO: something went wrong (i.e. invalid memory read for message??), so through an error and exit
+					std::cout << "An error occured when calling GetMessage()\n";
+					return -1;
+				}
+				else {
+					DispatchMessage(&msg);
+				}
+			}
+		}
+	}
+	*/
+#endif
 
 	// TODO: drowan(20190607) - should I make a way to select this programatically?
 #if OUTPUT_RANDOM_SCENE == 1
@@ -186,7 +236,7 @@ int main() {
 		// drowan(20190616): Possible race condition with some of the variables not being assigned until after the thread starts.		
 		workerThread->id = i;
 		workerThread->workIsDone = false;
-		workerThread->handle = std::thread(raytraceWorkerThread, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
+		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
 
 		workerThreadVector.push_back(workerThread);			
 	}
@@ -237,76 +287,30 @@ int main() {
 	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
 #endif
 
-#if DISPLAY_WINDOW == 1
-
-	//make a MS Window
-	const char* const myClass = "myclass";
-
-	/*
-	- https://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
-	*/
-	WNDCLASSEX wndClassEx;
-
-	wndClassEx.cbSize = sizeof(WNDCLASSEX);
-	wndClassEx.style = CS_HREDRAW | CS_VREDRAW;
-	wndClassEx.lpfnWndProc = WndProc;
-	wndClassEx.cbClsExtra = 0;
-	wndClassEx.cbWndExtra = 0;
-	wndClassEx.hInstance = GetModuleHandle(0);
-	wndClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
-	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-	wndClassEx.lpszMenuName = NULL;
-	wndClassEx.lpszClassName = myClass;
-	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);
-
-	if (RegisterClassEx(&wndClassEx)) {
-
-		HWND window = CreateWindowEx(
-			0,
-			myClass,
-			"Ray Trace In One Weekend",
-			WS_OVERLAPPEDWINDOW,
-			800,
-			600,
-			renderProps.resWidthInPixels,
-			renderProps.resHeightInPixels,
-			0,
-			0,
-			GetModuleHandle(0),
-			0
-		);
-
-		if (window) {
-			ShowWindow(window, SW_SHOWDEFAULT);
-
-			MSG msg;
-			bool status;
-			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
-				if (status == -1) {
-					//TODO: something went wrong (i.e. invalid memory read for message??), so through an error and exit
-					std::cout << "An error occured when calling GetMessage()\n";
-					return -1;
-				}
-				else {
-					DispatchMessage(&msg);
-				}
-			}
-		}
-	}
-
-#endif
-
 	delete[] world;
-		
-	// putting a \n triggers cin...?
-	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels) 
-	// the cin.get() is completely bypassed unless I put a cin.ignore(). Is the thread exiting
-	// weird relative to the main thread???
+
+	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels)
 	std::cout << "Hit any key to exit...";
 	//std::cout.flush();
 	//std::cin.ignore(INT_MAX, '\n');
 	std::cin.get();
+
+#if DISPLAY_WINDOW == 1
+	//exit the GUI
+	std::unique_lock<std::mutex> guiWorkerExitLock(guiWorkerThread->exitMutex);
+	guiWorkerThread->exit = true;
+	guiWorkerThread->exitConditionVar.notify_all();
+	guiWorkerExitLock.unlock();
+
+	std::unique_lock<std::mutex> guiDoneLock(guiWorkerThread->workIsDoneMutex);
+	while (!guiWorkerThread->workIsDone) {
+		guiWorkerThread->workIsDoneConditionVar.wait(guiDoneLock);
+	}
+
+	if (guiWorkerThread->handle.joinable()) {
+		guiWorkerThread->handle.join();
+	}
+#endif
 
 	return 0;
 }
@@ -489,7 +493,7 @@ void configureScene(RenderProperties &renderProps) {
 }
 
 // going to try and pass a buffer per thread and combine afterwards so as to avoid memory contention when using a mutex which may slow things down...
-void raytraceWorkerThread(
+void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct, 
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct, 	
 	RenderProperties renderProps, 
@@ -605,6 +609,84 @@ void raytraceWorkerThread(
 	return;
 }
 
-void guiWorkerThread() {
+int guiWorkerProcedure (
+	std::shared_ptr<WorkerThread> workerThreadStruct,
+	uint32_t windowWidth, 
+	uint32_t windowHeight) {
 
+	//wait to be told to run
+	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
+	while (!workerThreadStruct->start) {
+		workerThreadStruct->startConditionVar.wait(startLock);
+	}
+	/*
+- https://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
+*/
+	WNDCLASSEX wndClassEx;
+
+	//make a MS Window
+	const char* const myClass = "raytrace_MSwindow";
+
+	wndClassEx.cbSize = sizeof(WNDCLASSEX);
+	wndClassEx.style = CS_HREDRAW | CS_VREDRAW;
+	wndClassEx.lpfnWndProc = WndProc;
+	wndClassEx.cbClsExtra = 0;
+	wndClassEx.cbWndExtra = 0;
+	wndClassEx.hInstance = GetModuleHandle(0);
+	wndClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
+	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wndClassEx.lpszMenuName = NULL;
+	wndClassEx.lpszClassName = myClass;
+	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);
+
+	if (RegisterClassEx(&wndClassEx)) {
+
+		HWND window = CreateWindowEx(
+		//windowHandle = CreateWindowEx(
+			0,
+			myClass,
+			"Ray Trace In One Weekend",
+			WS_OVERLAPPEDWINDOW,
+			800,
+			600,
+			windowWidth,
+			windowHeight,
+			0,
+			0,
+			GetModuleHandle(0),
+			0
+		);
+
+		if (window) {			
+			ShowWindow(window, SW_SHOWDEFAULT);
+
+			MSG msg;
+			bool status;
+			//wait for exit
+			std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
+			while (status = GetMessage(&msg, 0, 0, 0) != 0 && workerThreadStruct->exit == false) {
+				exitLock.unlock();
+
+				if (status == -1) {
+					//TODO: something went wrong (i.e. invalid memory read for message??), so through an error and exit
+					std::cout << "An error occured when calling GetMessage()\n";
+					return -1;
+				}
+				else {
+					DispatchMessage(&msg);
+				}
+				exitLock.lock();
+			}
+		}
+	}
+
+	//coutLock.lock();
+	std::cout << "\nGui worker " << workerThreadStruct->id << " finished!\n";
+	//coutLock.unlock();
+
+	std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
+	workerThreadStruct->workIsDone = true;
+	workerThreadStruct->workIsDoneConditionVar.notify_all();
+	doneLock.unlock();
 }
