@@ -74,6 +74,7 @@ Hitable *randomScene();
 Hitable *cornellBox();
 
 HBITMAP hBitmap = NULL;
+HWND raytraceMSWindowHandle;
 
 void configureScene(RenderProperties &renderProps);
 
@@ -126,8 +127,8 @@ int main() {
 	vec3 lookFrom(0, 0, 0);
 	vec3 lookAt(0, 1, 0);
 	vec3 worldUp(0, 1, 0);
-	float distToFocus = (lookFrom - lookAt).length(); //10
-	float aperture = 0.0;
+	float distToFocus = 1000.0; //(lookFrom - lookAt).length(); //10
+	float aperture = 2.0;
 	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
 	float vFoV = 60.0;
 
@@ -148,42 +149,8 @@ int main() {
 	guiWorkerThread->startConditionVar.notify_all();
 	startLock.unlock();
 
-	/*
-	if (RegisterClassEx(&wndClassEx)) {
-
-		HWND window = CreateWindowEx(
-			0,
-			myClass,
-			"Ray Trace In One Weekend",
-			WS_OVERLAPPEDWINDOW,
-			800,
-			600,
-			renderProps.resWidthInPixels,
-			renderProps.resHeightInPixels,
-			0,
-			0,
-			GetModuleHandle(0),
-			0
-		);
-
-		if (window) {
-			ShowWindow(window, SW_SHOWDEFAULT);
-
-			MSG msg;
-			bool status;
-			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
-				if (status == -1) {
-					//TODO: something went wrong (i.e. invalid memory read for message??), so through an error and exit
-					std::cout << "An error occured when calling GetMessage()\n";
-					return -1;
-				}
-				else {
-					DispatchMessage(&msg);
-				}
-			}
-		}
-	}
-	*/
+	//debug wait for the gui to start
+	Sleep(5000);
 #endif
 
 	// TODO: drowan(20190607) - should I make a way to select this programatically?
@@ -268,7 +235,7 @@ int main() {
 		}
 	}
 	
-#if OUTPUT_BMP == 1
+#if OUTPUT_BMP_EN == 1
 	std::cout << "Writing to bmp file...\n";
 
 	uint32_t finalBufferIndex = 0;
@@ -347,7 +314,7 @@ LRESULT CALLBACK WndProc(
 			return 0L;
 
 		case WM_PAINT:
-			
+#if 0			
 			PAINTSTRUCT ps;
 			HDC hdc;
 			BITMAP bitmap;
@@ -366,19 +333,6 @@ LRESULT CALLBACK WndProc(
 			DeleteDC(hdcMem);
 
 			EndPaint(hwnd, &ps);
-			
-#if 0
-			//try setting some pixels
-			HDC hdcPixel;
-
-			hdcPixel = GetDC(hwnd);
-			for (int x = 0; x < 10; x++) {
-				for (int y = 0; y < 10; y++) {
-					SetPixel(hdcPixel, x + p.x, y + p.y, RGB(255, 0, 0));
-				}
-			}
-
-			DeleteDC(hdcPixel);
 #endif
 			return 0L;
 
@@ -390,7 +344,22 @@ LRESULT CALLBACK WndProc(
 			return 0L;
 
 		case WM_LBUTTONDOWN:
-			std::cout << "\nLeft Mouse Button Down " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";									
+			std::cout << "\nLeft Mouse Button Down " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
+
+#if 1
+			HDC hdcRayTraceWindow;
+
+			hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
+
+			//std::cout << "\nhwnd in gui thread: " << raytraceMSWindowHandle << "\n";
+			for (int x = 0; x < 10; x++) {
+				for (int y = 0; y < 10; y++) {
+					SetPixel(hdcRayTraceWindow, x + p.x, y + p.y, RGB(255, 0, 0));
+				}
+			}
+
+			DeleteDC(hdcRayTraceWindow);
+#endif
 
 			//ask to redraw the window
 			RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
@@ -502,9 +471,11 @@ void raytraceWorkerProcedure(
 	std::mutex *coutGuard) {
 
 	//DEBUG drowan(20190704): pretty sure this is not safe to have multiple threads accessing the canvas without a mutex
-	HDC hdcPixel;
+	HDC hdcRayTraceWindow;
 
-	hdcPixel = GetDC(0);
+	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
+
+	std::cout << "\nhwnd in ray thread: " << raytraceMSWindowHandle << "\n";
 
 	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();
 
@@ -531,12 +502,11 @@ void raytraceWorkerProcedure(
 
 #if RUN_RAY_TRACE == 1
 	if (workerThreadStruct->id == numOfThreads - 1) {
-		rowOffsetInPixels = static_cast<uint32_t>(workerThreadStruct->id * (renderProps.resHeightInPixels / numOfThreads));
-		rowOffsetInPixels += renderProps.resHeightInPixels%numOfThreads;
+		rowOffsetInPixels = static_cast<uint32_t>(workerThreadStruct->id * (renderProps.resHeightInPixels / numOfThreads));		
 	}
 	else {
 		rowOffsetInPixels = workerThreadStruct->id * workerImageBufferStruct->resHeightInPixels;
-	}
+	}	
 
 	for (int row = workerImageBufferStruct->resHeightInPixels - 1; row >= 0; row--) {
 		for (int column = 0; column < workerImageBufferStruct->resWidthInPixels; column++) {
@@ -573,11 +543,9 @@ void raytraceWorkerProcedure(
 			(irO > 255) ? ir = 255 : ir = uint8_t(irO);
 			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
 			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
-
-			//DEBUG drowan(20190704): render to window expirment. This is rendering to the "desktop" because I don't have the window handle in here. I need to
-			//put the MS Windows message loop thread in it's own thread.
-			//Nope, seems OK with multiple thread access. Or at least can't see any obvious issues. May have been related to creating multiple DCs?
-			SetPixel(hdcPixel, 1800 + column, 800 + row + rowOffsetInPixels, RGB(ir, ig, ib));
+			
+			//Seems OK with multiple thread access. Or at least can't see any obvious issues.
+			SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - (row + rowOffsetInPixels), RGB(ir, ig, ib));		
 
 #if 1
 			//also store values into tempBuffer
@@ -604,7 +572,9 @@ void raytraceWorkerProcedure(
 	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
 	while (!workerThreadStruct->exit) {
 		workerThreadStruct->exitConditionVar.wait(exitLock);
-	}	
+	}
+
+	DeleteDC(hdcRayTraceWindow);
 
 	return;
 }
@@ -642,14 +612,13 @@ int guiWorkerProcedure (
 
 	if (RegisterClassEx(&wndClassEx)) {
 
-		HWND window = CreateWindowEx(
-		//windowHandle = CreateWindowEx(
+		raytraceMSWindowHandle = CreateWindowEx(
 			0,
 			myClass,
 			"Ray Trace In One Weekend",
 			WS_OVERLAPPEDWINDOW,
 			800,
-			600,
+			800,
 			windowWidth,
 			windowHeight,
 			0,
@@ -658,8 +627,8 @@ int guiWorkerProcedure (
 			0
 		);
 
-		if (window) {			
-			ShowWindow(window, SW_SHOWDEFAULT);
+		if (raytraceMSWindowHandle) {			
+			ShowWindow(raytraceMSWindowHandle, SW_SHOWDEFAULT);
 
 			MSG msg;
 			bool status;
