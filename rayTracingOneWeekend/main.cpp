@@ -73,7 +73,6 @@ struct WorkerImageBuffer {
 Hitable *randomScene();
 Hitable *cornellBox();
 
-HBITMAP hBitmap = NULL;
 HWND raytraceMSWindowHandle;
 
 void configureScene(RenderProperties &renderProps);
@@ -296,8 +295,13 @@ LRESULT CALLBACK WndProc(
 	_In_ WPARAM wParam,
 	_In_ LPARAM lParam
 ) {
+
+	/*
+	- https://docs.microsoft.com/en-us/windows/win32/gdi/using-brushes	
+	- https://docs.microsoft.com/en-us/windows/win32/gdi/drawing-a-custom-window-background
+	*/
 	//TODO drowan(20190704): Reading the cursor here is probably not best practice. Look into how to do this.
-	POINT p;
+	POINT p;	
 
 	if (GetCursorPos(&p)) {
 		if (ScreenToClient(hwnd, &p)) {
@@ -309,17 +313,54 @@ LRESULT CALLBACK WndProc(
 	
 	switch (uMsg) {
 
-		case WM_CREATE:		
-			hBitmap = (HBITMAP)LoadImage(NULL, ".\\test.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		case WM_CREATE:
+		{			
 			return 0L;
+		}
+
+		case WM_ERASEBKGND:
+		{
+				RECT rctBrush;
+				HBRUSH hBrushWhite, hBrushGray;
+
+				hBrushWhite = (HBRUSH)GetStockObject(WHITE_BRUSH);
+				hBrushGray = (HBRUSH)GetStockObject(GRAY_BRUSH);
+
+				HDC hdcRaytraceWindow;
+				hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
+
+				GetClientRect(hwnd, &rctBrush);
+				SetMapMode(hdcRaytraceWindow, MM_ANISOTROPIC);
+				SetWindowExtEx(hdcRaytraceWindow, 100, 100, NULL);
+				SetViewportExtEx(hdcRaytraceWindow, rctBrush.right, rctBrush.bottom, NULL);
+				FillRect(hdcRaytraceWindow, &rctBrush, hBrushWhite);
+
+				int x = 0;
+				int y = 0;
+
+				for (int i = 0; i < 13; i++)
+				{
+					x = (i * 40) % 100;
+					y = ((i * 40) / 100) * 20;
+					SetRect(&rctBrush, x, y, x + 20, y + 20);
+					FillRect(hdcRaytraceWindow, &rctBrush, hBrushGray);
+				}
+
+				DeleteDC(hdcRaytraceWindow);
+				return 0L;
+		}
 
 		case WM_PAINT:
+		{
 #if 0			
 			PAINTSTRUCT ps;
 			HDC hdc;
 			BITMAP bitmap;
+			HBITMAP hBitmap;
 			HDC hdcMem;
 			HGDIOBJ oldBitmap;
+
+			hBitmap = (HBITMAP)LoadImage(NULL, ".\\test.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 
 			hdc = BeginPaint(hwnd, &ps);
 
@@ -335,42 +376,52 @@ LRESULT CALLBACK WndProc(
 			EndPaint(hwnd, &ps);
 #endif
 			return 0L;
+		}
 
 		case WM_DESTROY:
+		{
 			std::cout << "\nClosing window...\n";
 
-			PostQuitMessage(0);
+			PostQuitMessage(0);			
 
 			return 0L;
+		}
 
 		case WM_LBUTTONDOWN:
+		{
 			std::cout << "\nLeft Mouse Button Down " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
 
 #if 1
-			HDC hdcRayTraceWindow;
-
-			hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
-
-			//std::cout << "\nhwnd in gui thread: " << raytraceMSWindowHandle << "\n";
+			HDC hdcRaytraceWindow;
+			hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
+			
 			for (int x = 0; x < 10; x++) {
 				for (int y = 0; y < 10; y++) {
-					SetPixel(hdcRayTraceWindow, x + p.x, y + p.y, RGB(255, 0, 0));
+					SetPixel(hdcRaytraceWindow, x + p.x, y + p.y, RGB(255, 0, 0));
 				}
 			}
 
-			DeleteDC(hdcRayTraceWindow);
+			DeleteDC(hdcRaytraceWindow);
 #endif
 
 			//ask to redraw the window
 			RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
 
-		case WM_LBUTTONDBLCLK:
-			std::cout << "\nLeft Mouse Button Click " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";			
+			return 0L;
+		}
+
+		case WM_LBUTTONDBLCLK: {
+			std::cout << "\nLeft Mouse Button Click " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
+
+			return 0L;
+		}
 
 		default:
+		{
 			//std::cout << "\nUnhandled WM message\n";
 
 			return DefWindowProc(hwnd, uMsg, wParam, lParam);
+		}
 	}
 }
 
@@ -638,7 +689,7 @@ int guiWorkerProcedure (
 				exitLock.unlock();
 
 				if (status == -1) {
-					//TODO: something went wrong (i.e. invalid memory read for message??), so through an error and exit
+					//TODO: something went wrong (i.e. invalid memory read for message??), so throw an error and exit
 					std::cout << "An error occured when calling GetMessage()\n";
 					return -1;
 				}
