@@ -141,7 +141,7 @@ int main() {
 	guiWorkerThread->workIsDone = false;
 	guiWorkerThread->start = false;
 	guiWorkerThread->exit = false;
-	guiWorkerThread->handle = std::thread(guiWorkerProcedure, guiWorkerThread, renderProps.resWidthInPixels, renderProps.resWidthInPixels);
+	guiWorkerThread->handle = std::thread(guiWorkerProcedure, guiWorkerThread, renderProps.resWidthInPixels, renderProps.resHeightInPixels);
 	
 	std::unique_lock<std::mutex> startLock(guiWorkerThread->startMutex);
 	guiWorkerThread->start = true;
@@ -309,7 +309,7 @@ LRESULT CALLBACK WndProc(
 				std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
 			}
 		}
-	}
+	}	
 	
 	switch (uMsg) {
 
@@ -317,7 +317,7 @@ LRESULT CALLBACK WndProc(
 		{			
 			return 0L;
 		}
-
+#if 0
 		case WM_ERASEBKGND:
 		{
 				RECT rctBrush;
@@ -349,10 +349,10 @@ LRESULT CALLBACK WndProc(
 				DeleteDC(hdcRaytraceWindow);
 				return 0L;
 		}
-
+#endif
 		case WM_PAINT:
-		{
-#if 0			
+		{			
+#if 0
 			PAINTSTRUCT ps;
 			HDC hdc;
 			BITMAP bitmap;
@@ -360,7 +360,7 @@ LRESULT CALLBACK WndProc(
 			HDC hdcMem;
 			HGDIOBJ oldBitmap;
 
-			hBitmap = (HBITMAP)LoadImage(NULL, ".\\test.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+			hBitmap = (HBITMAP)LoadImage(NULL, ".\\test.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);			
 
 			hdc = BeginPaint(hwnd, &ps);
 
@@ -405,7 +405,8 @@ LRESULT CALLBACK WndProc(
 #endif
 
 			//ask to redraw the window
-			RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
+			//RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
+			RedrawWindow(hwnd, NULL, NULL, RDW_NOERASE);
 
 			return 0L;
 		}
@@ -596,7 +597,11 @@ void raytraceWorkerProcedure(
 			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
 			
 			//Seems OK with multiple thread access. Or at least can't see any obvious issues.
+			// Look into replacing this since it is pretty slow:
+			// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
+#if DISPLAY_WINDOW == 1
 			SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - (row + rowOffsetInPixels), RGB(ir, ig, ib));		
+#endif
 
 #if 1
 			//also store values into tempBuffer
@@ -659,7 +664,7 @@ int guiWorkerProcedure (
 	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	wndClassEx.lpszMenuName = NULL;
 	wndClassEx.lpszClassName = myClass;
-	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);
+	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);	
 
 	if (RegisterClassEx(&wndClassEx)) {
 
@@ -668,8 +673,8 @@ int guiWorkerProcedure (
 			myClass,
 			"Ray Trace In One Weekend",
 			WS_OVERLAPPEDWINDOW,
-			800,
-			800,
+			100,
+			100,
 			windowWidth,
 			windowHeight,
 			0,
@@ -699,6 +704,8 @@ int guiWorkerProcedure (
 				exitLock.lock();
 			}
 		}
+
+		DestroyWindow(raytraceMSWindowHandle);
 	}
 
 	//coutLock.lock();
