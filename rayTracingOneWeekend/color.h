@@ -30,7 +30,7 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 	}
 	//does not hit anything, so "background" gradient
 	else {
-#if GLOBAL_ILLUM == 1
+#if GLOBAL_ILLUM_EN == 1
 		// maybe this becomes like a sky box or global illumination???
 		vec3 unit_direction = unit_vector(rayCast.direction());
 
