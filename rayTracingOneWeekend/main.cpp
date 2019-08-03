@@ -162,7 +162,7 @@ int main() {
 	Hitable *world = randomScene();
 #else
 	//cornell box
-	mainCamera.setLookFrom(vec3(278, 278, -425));
+	mainCamera.setLookFrom(vec3(278, 278, -500));
 	mainCamera.setLookAt(vec3(278, 278, 0));
 
 	Hitable *world = cornellBox();
@@ -306,7 +306,7 @@ LRESULT CALLBACK WndProc(
 	if (GetCursorPos(&p)) {
 		if (ScreenToClient(hwnd, &p)) {
 			if (p.x >= 0 && p.y >= 0) {
-				std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
+				//std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
 			}
 		}
 	}	
@@ -317,7 +317,7 @@ LRESULT CALLBACK WndProc(
 		{			
 			return 0L;
 		}
-#if 0
+#if 1
 		case WM_ERASEBKGND:
 		{
 				RECT rctBrush;
@@ -352,26 +352,35 @@ LRESULT CALLBACK WndProc(
 #endif
 		case WM_PAINT:
 		{			
-#if 0
+
+#if 1	
 			PAINTSTRUCT ps;
-			HDC hdc;
+			HDC hdcClientWindow;
 			BITMAP bitmap;
-			HBITMAP hBitmap;
-			HDC hdcMem;
-			HGDIOBJ oldBitmap;
+			HDC hdcBlitWindow;
+			HGDIOBJ currentBitmap;
+			HBITMAP newBitmap;						
 
-			hBitmap = (HBITMAP)LoadImage(NULL, ".\\test.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);			
+			std::cout << "Loading background...\n";
+			newBitmap = (HBITMAP)LoadImage(NULL, ".\\high_photon_cornellbox.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);			
 
-			hdc = BeginPaint(hwnd, &ps);
+			hdcClientWindow = BeginPaint(hwnd, &ps);
 
-			hdcMem = CreateCompatibleDC(hdc);
-			oldBitmap = SelectObject(hdcMem, hBitmap);
+			//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
+			hdcBlitWindow = CreateCompatibleDC(hdcClientWindow);
+			//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
+			currentBitmap = SelectObject(hdcBlitWindow, newBitmap);
 
-			GetObject(hBitmap, sizeof(bitmap), &bitmap);
-			BitBlt(hdc, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
+			//get the properites of the newBitmap
+			GetObject(newBitmap, sizeof(bitmap), &bitmap);
 
-			SelectObject(hdcMem, oldBitmap);
-			DeleteDC(hdcMem);
+			//Bit blit the hdcBlitWindow to the hdcClientWindow
+			BitBlt(hdcClientWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
+
+			//free memory associated with the "old" newBitmap aka, currentBitmap
+			SelectObject(hdcBlitWindow, currentBitmap);
+
+			DeleteDC(hdcBlitWindow);
 
 			EndPaint(hwnd, &ps);
 #endif
@@ -664,9 +673,20 @@ int guiWorkerProcedure (
 	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	wndClassEx.lpszMenuName = NULL;
 	wndClassEx.lpszClassName = myClass;
-	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);	
+	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);
 
 	if (RegisterClassEx(&wndClassEx)) {
+
+		//http://www.directxtutorial.com/Lesson.aspx?lessonid=11-1-4
+		//figure out how big to make the whole window
+		RECT rect;		
+		rect = { 0, 0, (LONG)windowWidth, (LONG)windowHeight };
+
+		BOOL result = AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+
+		if (result) {
+			std::cout << "X Adj: " << rect.right << " Y Adj: " << rect.bottom << "\n";
+		}
 
 		raytraceMSWindowHandle = CreateWindowEx(
 			0,
@@ -675,8 +695,8 @@ int guiWorkerProcedure (
 			WS_OVERLAPPEDWINDOW,
 			100,
 			100,
-			windowWidth,
-			windowHeight,
+			rect.right - rect.left,
+			rect.bottom - rect.top,
 			0,
 			0,
 			GetModuleHandle(0),
