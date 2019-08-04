@@ -1,27 +1,14 @@
-#include <iostream>
-#include <string>
 #include <fstream>
-#include <stdlib.h>
-#include <vector>
-#include <random>
-#include <chrono>
-#include <list>
-#include <iomanip>
-
-#include <thread>
-#include <mutex>
-#include <condition_variable>
+#include "float.h"
 
 #include "defines.h"
 #include "vec3.h"
 #include "hitableList.h"
-#include "float.h"
 #include "camera.h"
 #include "color.h"
 #include "scenes.h"
-
-#include <Windows.h>
-#include <tchar.h>
+#include "common.h"
+#include "winGUI.h"
 
 #include "debug.h"
 
@@ -31,7 +18,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-/* Look into:
+/* 
+	Look into:
 	- drowan 20190601: https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/
 	- drowan 20190607: Use OpenMPI???
 */
@@ -43,60 +31,28 @@
 * http://iquilezles.org/index.html
 */
 
-struct RenderProperties {
-	uint32_t resWidthInPixels, resHeightInPixels;
-	uint8_t bytesPerPixel;
-	uint32_t antiAliasingSamplesPerPixel;
-	uint32_t finalImageBufferSizeInBytes;
-};
-
-struct WorkerThread {
-	uint32_t id;
-	bool workIsDone;
-	std::mutex workIsDoneMutex;
-	std::condition_variable workIsDoneConditionVar;
-	bool exit;
-	std::mutex exitMutex;
-	std::condition_variable exitConditionVar;
-	bool start;	
-	std::mutex startMutex;	
-	std::condition_variable startConditionVar;
-	std::thread handle;
-};
-
-struct WorkerImageBuffer {
-	uint32_t sizeInBytes;
-	uint32_t resWidthInPixels, resHeightInPixels;
-	std::shared_ptr<uint8_t> buffer;
-};
-
-Hitable *randomScene();
-Hitable *cornellBox();
-
-HWND raytraceMSWindowHandle;
-
-void configureScene(RenderProperties &renderProps);
-
 void raytraceWorkerProcedure(
-	std::shared_ptr<WorkerThread> workerThread, 
-	std::shared_ptr<WorkerImageBuffer> workerImageBuffer, 	
-	RenderProperties renderProps, 
-	Camera sceneCamera, 
+	std::shared_ptr<WorkerThread> workerThread,
+	std::shared_ptr<WorkerImageBuffer> workerImageBuffer,
+	RenderProperties renderProps,
+	Camera sceneCamera,
 	Hitable *world,
 	std::mutex *coutGuard
 );
 
-int guiWorkerProcedure(
-	std::shared_ptr<WorkerThread> workerThreadStruct,
-	uint32_t windowWidth, 
-	uint32_t windowHeight);
-
-LRESULT CALLBACK WndProc(
-	_In_ HWND hwnd,
-	_In_ UINT uMsg,
-	_In_ WPARAM wParam,
-	_In_ LPARAM lParam
+void raytraceWorkerProcedureX(
+	std::shared_ptr<WorkerThread> workerThread,
+	std::shared_ptr<WorkerImageBuffer> workerImageBuffer,
+	RenderProperties renderProps,
+	Camera sceneCamera,
+	Hitable *world,
+	std::mutex *coutGuard
 );
+
+Hitable *randomScene();
+Hitable *cornellBox();
+
+void configureScene(RenderProperties &renderProps);
 
 int main() {
 
@@ -149,7 +105,7 @@ int main() {
 	startLock.unlock();
 
 	//debug wait for the gui to start
-	Sleep(5000);
+	Sleep(3000);
 #endif
 
 	// TODO: drowan(20190607) - should I make a way to select this programatically?
@@ -177,6 +133,8 @@ int main() {
 	
 	// drowan(20190630): Some threads finish sooner than others. May be worth looking into a dispatch approach that keeps all resources busy but balances against memory operations...
 	//create the worker threads
+
+#if USE_OLD_THREAD_DISPATCH == 1
 	for (int i = 0; i < numOfThreads; i++) {
 		
 		std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct(new WorkerImageBuffer);
@@ -206,6 +164,31 @@ int main() {
 
 		workerThreadVector.push_back(workerThread);			
 	}
+#else
+	// Each thread will have a handle to this shared buffer but will access the memory with a thread unique offset
+	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct(new WorkerImageBuffer);
+
+	//figure out how many rows each thread is going to work on
+	workerImageBufferStruct->resHeightInPixels = renderProps.resHeightInPixels;
+	workerImageBufferStruct->resWidthInPixels = renderProps.resWidthInPixels;
+	workerImageBufferStruct->sizeInBytes = workerImageBufferStruct->resHeightInPixels * workerImageBufferStruct->resWidthInPixels * renderProps.bytesPerPixel;
+	
+	std::shared_ptr<uint8_t> _workingImageBuffer(new uint8_t[workerImageBufferStruct->sizeInBytes]);
+
+	workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
+
+	for (int i = 0; i < numOfThreads; i++) {				
+
+		std::shared_ptr<WorkerThread> workerThread(new WorkerThread);
+		
+		workerThread->id = i;
+		workerThread->workIsDone = false;
+		workerThread->handle = std::thread(raytraceWorkerProcedureX, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
+
+		workerThreadVector.push_back(workerThread);
+	}
+
+#endif
 
 	//start the threads
 	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
@@ -279,160 +262,6 @@ int main() {
 #endif
 
 	return 0;
-}
-
-/*
-- https://docs.microsoft.com/en-us/cpp/windows/walkthrough-creating-windows-desktop-applications-cpp?view=vs-2019
-- https://www.gamedev.net/forums/topic/608057-how-do-you-create-a-win32-window-from-console-application/
-- http://blog.airesoft.co.uk/2010/10/a-negative-experience-in-getting-messages/
-- https://stackoverflow.com/questions/22819003/how-to-set-the-colors-of-a-windows-pixels-with-windows-api-c-once-created
-- https://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
-- https://stackoverflow.com/questions/6423729/get-current-cursor-position
-*/
-LRESULT CALLBACK WndProc(
-	_In_ HWND hwnd,
-	_In_ UINT uMsg,
-	_In_ WPARAM wParam,
-	_In_ LPARAM lParam
-) {
-
-	/*
-	- https://docs.microsoft.com/en-us/windows/win32/gdi/using-brushes	
-	- https://docs.microsoft.com/en-us/windows/win32/gdi/drawing-a-custom-window-background
-	*/
-	//TODO drowan(20190704): Reading the cursor here is probably not best practice. Look into how to do this.
-	POINT p;	
-
-	if (GetCursorPos(&p)) {
-		if (ScreenToClient(hwnd, &p)) {
-			if (p.x >= 0 && p.y >= 0) {
-				//std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
-			}
-		}
-	}	
-	
-	switch (uMsg) {
-
-		case WM_CREATE:
-		{			
-			return 0L;
-		}
-#if 1
-		case WM_ERASEBKGND:
-		{
-				RECT rctBrush;
-				HBRUSH hBrushWhite, hBrushGray;
-
-				hBrushWhite = (HBRUSH)GetStockObject(WHITE_BRUSH);
-				hBrushGray = (HBRUSH)GetStockObject(GRAY_BRUSH);
-
-				HDC hdcRaytraceWindow;
-				hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
-
-				GetClientRect(hwnd, &rctBrush);
-				SetMapMode(hdcRaytraceWindow, MM_ANISOTROPIC);
-				SetWindowExtEx(hdcRaytraceWindow, 100, 100, NULL);
-				SetViewportExtEx(hdcRaytraceWindow, rctBrush.right, rctBrush.bottom, NULL);
-				FillRect(hdcRaytraceWindow, &rctBrush, hBrushWhite);
-
-				int x = 0;
-				int y = 0;
-
-				for (int i = 0; i < 13; i++)
-				{
-					x = (i * 40) % 100;
-					y = ((i * 40) / 100) * 20;
-					SetRect(&rctBrush, x, y, x + 20, y + 20);
-					FillRect(hdcRaytraceWindow, &rctBrush, hBrushGray);
-				}
-
-				DeleteDC(hdcRaytraceWindow);
-				return 0L;
-		}
-#endif
-		case WM_PAINT:
-		{			
-
-#if 1	
-			PAINTSTRUCT ps;
-			HDC hdcClientWindow;
-			BITMAP bitmap;
-			HDC hdcBlitWindow;
-			HGDIOBJ currentBitmap;
-			HBITMAP newBitmap;						
-
-			std::cout << "Loading background...\n";
-			newBitmap = (HBITMAP)LoadImage(NULL, ".\\high_photon_cornellbox.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);			
-
-			hdcClientWindow = BeginPaint(hwnd, &ps);
-
-			//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
-			hdcBlitWindow = CreateCompatibleDC(hdcClientWindow);
-			//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
-			currentBitmap = SelectObject(hdcBlitWindow, newBitmap);
-
-			//get the properites of the newBitmap
-			GetObject(newBitmap, sizeof(bitmap), &bitmap);
-
-			//Bit blit the hdcBlitWindow to the hdcClientWindow
-			BitBlt(hdcClientWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
-
-			//free memory associated with the "old" newBitmap aka, currentBitmap
-			SelectObject(hdcBlitWindow, currentBitmap);
-
-			DeleteDC(hdcBlitWindow);
-
-			EndPaint(hwnd, &ps);
-#endif
-			return 0L;
-		}
-
-		case WM_DESTROY:
-		{
-			std::cout << "\nClosing window...\n";
-
-			PostQuitMessage(0);			
-
-			return 0L;
-		}
-
-		case WM_LBUTTONDOWN:
-		{
-			std::cout << "\nLeft Mouse Button Down " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
-
-#if 1
-			HDC hdcRaytraceWindow;
-			hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
-			
-			for (int x = 0; x < 10; x++) {
-				for (int y = 0; y < 10; y++) {
-					SetPixel(hdcRaytraceWindow, x + p.x, y + p.y, RGB(255, 0, 0));
-				}
-			}
-
-			DeleteDC(hdcRaytraceWindow);
-#endif
-
-			//ask to redraw the window
-			//RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
-			RedrawWindow(hwnd, NULL, NULL, RDW_NOERASE);
-
-			return 0L;
-		}
-
-		case WM_LBUTTONDBLCLK: {
-			std::cout << "\nLeft Mouse Button Click " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
-
-			return 0L;
-		}
-
-		default:
-		{
-			//std::cout << "\nUnhandled WM message\n";
-
-			return DefWindowProc(hwnd, uMsg, wParam, lParam);
-		}
-	}
 }
 
 void configureScene(RenderProperties &renderProps) {
@@ -644,96 +473,130 @@ void raytraceWorkerProcedure(
 	return;
 }
 
-int guiWorkerProcedure (
+void raytraceWorkerProcedureX(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
-	uint32_t windowWidth, 
-	uint32_t windowHeight) {
+	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
+	RenderProperties renderProps,
+	Camera sceneCamera,
+	Hitable *world,
+	std::mutex *coutGuard) {
 
-	//wait to be told to run
+	//DEBUG drowan(20190704): pretty sure this is not safe to have multiple threads accessing the canvas without a mutex
+	HDC hdcRayTraceWindow;
+
+	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
+
+	std::cout << "\nhwnd in ray thread: " << raytraceMSWindowHandle << "\n";
+
+	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();
+
+	std::unique_lock<std::mutex> coutLock(*coutGuard);
+
+	std::cout << "\nThread ID: " << workerThreadStruct->id << "\n";
+	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
+	std::cout << "World hitable address:  " << world << "\n";
+	std::cout << "Image buffer address: " << &workerImageBufferStruct << " @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes << "\n";
+	std::cout << "Waiting for start...\n";
+
+	coutLock.unlock();
+
 	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
 	while (!workerThreadStruct->start) {
 		workerThreadStruct->startConditionVar.wait(startLock);
 	}
-	/*
-- https://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
+
+	coutLock.lock();
+	std::cout << "Thread " << workerThreadStruct->id << " starting...\n";
+	coutLock.unlock();
+
+	uint32_t rowOffsetInPixels = 0;
+
+#if RUN_RAY_TRACE == 1
+	/* # of Threads = 4
+	T1 (n + t*i):		0, 4, 8
+	T2 (n+1 + t*i):		1, 5, 9
+	T3 (n+2 + t*i):		2, 6, 10
+	T4 (n+3 + t*i):		3, 7, 11
 */
-	WNDCLASSEX wndClassEx;
+	for (int row = workerImageBufferStruct->resHeightInPixels - 1; row >= 0; row--) {
+	//for (int row = 0; row < workerImageBufferStruct->resHeightInPixels; row++) {
+		for (int i = 0; i < workerImageBufferStruct->resWidthInPixels; i++) {
 
-	//make a MS Window
-	const char* const myClass = "raytrace_MSwindow";
+			int column = workerThreadStruct->id + numOfThreads * i;
 
-	wndClassEx.cbSize = sizeof(WNDCLASSEX);
-	wndClassEx.style = CS_HREDRAW | CS_VREDRAW;
-	wndClassEx.lpfnWndProc = WndProc;
-	wndClassEx.cbClsExtra = 0;
-	wndClassEx.cbWndExtra = 0;
-	wndClassEx.hInstance = GetModuleHandle(0);
-	wndClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
-	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-	wndClassEx.lpszMenuName = NULL;
-	wndClassEx.lpszClassName = myClass;
-	wndClassEx.hIconSm = LoadIcon(wndClassEx.hInstance, IDI_APPLICATION);
+			if (column < workerImageBufferStruct->resWidthInPixels) {
+				vec3 outputColor(0, 0, 0);
+				//loop to produce AA samples
+				for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
 
-	if (RegisterClassEx(&wndClassEx)) {
+					float u = (float)(column + unifRand(randomNumberGenerator)) / (float)workerImageBufferStruct->resWidthInPixels;
+					float v = (float)(row + unifRand(randomNumberGenerator)) / (float)workerImageBufferStruct->resHeightInPixels;
 
-		//http://www.directxtutorial.com/Lesson.aspx?lessonid=11-1-4
-		//figure out how big to make the whole window
-		RECT rect;		
-		rect = { 0, 0, (LONG)windowWidth, (LONG)windowHeight };
+					//A, the origin of the ray (camera)
+					//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
+					ray rayCast = sceneCamera.getRay(u, v);
 
-		BOOL result = AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
-
-		if (result) {
-			std::cout << "X Adj: " << rect.right << " Y Adj: " << rect.bottom << "\n";
-		}
-
-		raytraceMSWindowHandle = CreateWindowEx(
-			0,
-			myClass,
-			"Ray Trace In One Weekend",
-			WS_OVERLAPPEDWINDOW,
-			100,
-			100,
-			rect.right - rect.left,
-			rect.bottom - rect.top,
-			0,
-			0,
-			GetModuleHandle(0),
-			0
-		);
-
-		if (raytraceMSWindowHandle) {			
-			ShowWindow(raytraceMSWindowHandle, SW_SHOWDEFAULT);
-
-			MSG msg;
-			bool status;
-			//wait for exit
-			std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
-			while (status = GetMessage(&msg, 0, 0, 0) != 0 && workerThreadStruct->exit == false) {
-				exitLock.unlock();
-
-				if (status == -1) {
-					//TODO: something went wrong (i.e. invalid memory read for message??), so throw an error and exit
-					std::cout << "An error occured when calling GetMessage()\n";
-					return -1;
+					//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
+					vec3 pointAt = rayCast.pointAtParameter(2.0);
+					outputColor += color(rayCast, world, 0);
 				}
-				else {
-					DispatchMessage(&msg);
-				}
-				exitLock.lock();
+
+				outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
+				outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
+				// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
+				// Probably related to me outputing to bitmap instead of the ppm format...
+				uint8_t ir = 0;
+				uint8_t ig = 0;
+				uint8_t ib = 0;
+
+				uint16_t irO = uint16_t(255.99 * outputColor[0]);
+				uint16_t igO = uint16_t(255.99 * outputColor[1]);
+				uint16_t ibO = uint16_t(255.99 * outputColor[2]);
+
+				// cap the values to 255 max
+				(irO > 255) ? ir = 255 : ir = uint8_t(irO);
+				(igO > 255) ? ig = 255 : ig = uint8_t(igO);
+				(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
+
+				//Seems OK with multiple thread access. Or at least can't see any obvious issues.
+				// Look into replacing this since it is pretty slow:
+				// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
+#if DISPLAY_WINDOW == 1
+				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));
+#endif
+
+#if 1
+				//also store values into tempBuffer
+				uint32_t bufferIndex = row * renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel);
+				workerImageBufferStruct->buffer.get()[bufferIndex] = ib;
+				workerImageBufferStruct->buffer.get()[bufferIndex + 1] = ig;
+				workerImageBufferStruct->buffer.get()[bufferIndex + 2] = ir;
+#endif
+			}
+			else {
+				break;
 			}
 		}
-
-		DestroyWindow(raytraceMSWindowHandle);
 	}
+#endif
 
-	//coutLock.lock();
-	std::cout << "\nGui worker " << workerThreadStruct->id << " finished!\n";
-	//coutLock.unlock();
-
+	//indicate that ray tracing is complete	
 	std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
 	workerThreadStruct->workIsDone = true;
 	workerThreadStruct->workIsDoneConditionVar.notify_all();
 	doneLock.unlock();
+
+	coutLock.lock();
+	std::cout << "\nRaytracing worker " << workerThreadStruct->id << " finished!\n";
+	coutLock.unlock();
+
+	//wait for exit
+	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
+	while (!workerThreadStruct->exit) {
+		workerThreadStruct->exitConditionVar.wait(exitLock);
+	}
+
+	DeleteDC(hdcRayTraceWindow);
+
+	return;
 }

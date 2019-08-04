@@ -37,6 +37,9 @@
     <Filter Include="Header Files\scenes">
       <UniqueIdentifier>{6cfa7fd2-390f-4a6e-9a73-77117ee1fd0e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\gui">
+      <UniqueIdentifier>{2c17c85b-424c-4a60-affe-756dc5ace876}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -117,6 +120,12 @@
     </ClInclude>
     <ClInclude Include="scenes.h">
       <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="winGUI.h">
+      <Filter>Header Files\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>Header Files\coreEngine</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
