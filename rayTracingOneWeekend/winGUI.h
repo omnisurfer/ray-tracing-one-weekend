@@ -62,6 +62,7 @@ int guiWorkerProcedure(
 			std::cout << "X Adj: " << rect.right << " Y Adj: " << rect.bottom << "\n";
 		}
 
+		//maybe use lParam to pass a handle to the image buffer?
 		raytraceMSWindowHandle = CreateWindowEx(
 			0,
 			myClass,
@@ -148,7 +149,7 @@ LRESULT CALLBACK WndProc(
 	{
 		return 0L;
 	}
-#if 1
+#if 0
 	case WM_ERASEBKGND:
 	{
 		RECT rctBrush;
@@ -184,7 +185,7 @@ LRESULT CALLBACK WndProc(
 	case WM_PAINT:
 	{
 
-#if 1	
+#if 0	
 		PAINTSTRUCT ps;
 		HDC hdcClientWindow;
 		BITMAP bitmap;

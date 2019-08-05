@@ -40,7 +40,7 @@ void raytraceWorkerProcedure(
 	std::mutex *coutGuard
 );
 
-void raytraceWorkerProcedureX(
+void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThread,
 	std::shared_ptr<WorkerImageBuffer> workerImageBuffer,
 	RenderProperties renderProps,
@@ -131,41 +131,7 @@ int main() {
 	//drowan(20190607): maybe look into this: https://stackoverflow.com/questions/9332263/synchronizing-std-cout-output-multi-thread	
 	std::mutex coutGuard;
 	
-	// drowan(20190630): Some threads finish sooner than others. May be worth looking into a dispatch approach that keeps all resources busy but balances against memory operations...
-	//create the worker threads
-
-#if USE_OLD_THREAD_DISPATCH == 1
-	for (int i = 0; i < numOfThreads; i++) {
-		
-		std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct(new WorkerImageBuffer);
-
-		//figure out how many rows each thread is going to work on
-		workerImageBufferStruct->resHeightInPixels = static_cast<uint32_t>(renderProps.resHeightInPixels / numOfThreads);
-		workerImageBufferStruct->resWidthInPixels = renderProps.resWidthInPixels;
-
-		//if the last thread, get any leftover rows
-		if (i == numOfThreads - 1) {
-			workerImageBufferStruct->resHeightInPixels += renderProps.resHeightInPixels%numOfThreads;
-		}
-		
-		workerImageBufferStruct->sizeInBytes = workerImageBufferStruct->resHeightInPixels * workerImageBufferStruct->resWidthInPixels * renderProps.bytesPerPixel;
-
-		std::shared_ptr<uint8_t> _workingImageBuffer(new uint8_t[workerImageBufferStruct->sizeInBytes]);
-		
-		workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
-		workerImageBufferVector.push_back(workerImageBufferStruct);
-						
-		std::shared_ptr<WorkerThread> workerThread(new WorkerThread);
-		
-		// drowan(20190616): Possible race condition with some of the variables not being assigned until after the thread starts.		
-		workerThread->id = i;
-		workerThread->workIsDone = false;
-		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
-
-		workerThreadVector.push_back(workerThread);			
-	}
-#else
-	// Each thread will have a handle to this shared buffer but will access the memory with a thread unique offset
+	// Each thread will have a handle to this shared buffer but will access the memory with a thread specific memory offset which will hopefully mitigate concurrent access issues.
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct(new WorkerImageBuffer);
 
 	//figure out how many rows each thread is going to work on
@@ -183,12 +149,10 @@ int main() {
 		
 		workerThread->id = i;
 		workerThread->workIsDone = false;
-		workerThread->handle = std::thread(raytraceWorkerProcedureX, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
+		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
 
 		workerThreadVector.push_back(workerThread);
 	}
-
-#endif
 
 	//start the threads
 	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
@@ -222,18 +186,65 @@ int main() {
 
 	uint32_t finalBufferIndex = 0;
 	// copy contents from worker Buffers into final Image buffer	
-	for (std::shared_ptr<WorkerImageBuffer> &workerImageBuffer : workerImageBufferVector) {
+	//for (std::shared_ptr<WorkerImageBuffer> &workerImageBuffer : workerImageBufferVector) {
 		
-		//get the buffer size from renderprops.		
-		for (int i = 0; i < workerImageBuffer->sizeInBytes;  i++) {
-			if (finalBufferIndex < renderProps.finalImageBufferSizeInBytes) {
-				finalImageBuffer.get()[finalBufferIndex] = workerImageBuffer->buffer.get()[i];
-				finalBufferIndex++;
-			}
+	//get the buffer size from renderprops.		
+	for (int i = 0; i < workerImageBufferStruct->sizeInBytes;  i++) {
+		if (finalBufferIndex < renderProps.finalImageBufferSizeInBytes) {
+			finalImageBuffer.get()[finalBufferIndex] = workerImageBufferStruct->buffer.get()[i];
+			finalBufferIndex++;
 		}
 	}
+	//}
 
 	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
+
+	byte *bufferTest = new byte[4];
+
+	bufferTest[0] = 0;
+	bufferTest[1] = 0;
+	bufferTest[2] = 0;
+	bufferTest[3] = 255;
+
+	//DEBUG 
+	//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
+	//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
+	//bitmap when I set the bit depth to 32 instead of 24.
+	//May require that I have an "alpha" to get byte alignment correct
+	HBITMAP newBitmap = CreateBitmap(
+		renderProps.resWidthInPixels,
+		renderProps.resHeightInPixels,
+		1,
+		32,
+		finalImageBuffer.get()
+	);
+
+	//newBitmap = (HBITMAP)LoadImage(NULL, ".\\high_photon_cornellbox.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+	HDC hdcRayTraceWindow;
+	HDC hdcBlitWindow;
+	
+	BITMAP bitmap;
+	HGDIOBJ currentBitmap;	
+
+	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
+
+	//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
+	hdcBlitWindow = CreateCompatibleDC(hdcRayTraceWindow);
+	//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
+	currentBitmap = SelectObject(hdcBlitWindow, newBitmap);
+
+	//get the properites of the newBitmap
+	GetObject(newBitmap, sizeof(bitmap), &bitmap);
+
+	//Bit blit the hdcBlitWindow to the hdcClientWindow
+	BitBlt(hdcRayTraceWindow, 300, 300, renderProps.resHeightInPixels, renderProps.resWidthInPixels, hdcBlitWindow, 0, 0, SRCCOPY);
+
+	//free memory associated with the "old" newBitmap aka, currentBitmap
+	SelectObject(hdcBlitWindow, currentBitmap);
+
+	DeleteDC(hdcBlitWindow);
+	
 #endif
 
 	delete[] world;
@@ -351,129 +362,7 @@ void configureScene(RenderProperties &renderProps) {
 #endif
 }
 
-// going to try and pass a buffer per thread and combine afterwards so as to avoid memory contention when using a mutex which may slow things down...
 void raytraceWorkerProcedure(
-	std::shared_ptr<WorkerThread> workerThreadStruct, 
-	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct, 	
-	RenderProperties renderProps, 
-	Camera sceneCamera, 
-	Hitable *world,
-	std::mutex *coutGuard) {
-
-	//DEBUG drowan(20190704): pretty sure this is not safe to have multiple threads accessing the canvas without a mutex
-	HDC hdcRayTraceWindow;
-
-	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
-
-	std::cout << "\nhwnd in ray thread: " << raytraceMSWindowHandle << "\n";
-
-	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();
-
-	std::unique_lock<std::mutex> coutLock(*coutGuard);
-
-	std::cout << "\nThread ID: " << workerThreadStruct->id  << "\n";
-	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
-	std::cout << "World hitable address:  " << world << "\n";
-	std::cout << "Image buffer address: " << &workerImageBufferStruct << " @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes << "\n";
-	std::cout << "Waiting for start...\n";
-
-	coutLock.unlock();
-
-	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
-	while (!workerThreadStruct->start) {
-		workerThreadStruct->startConditionVar.wait(startLock);
-	}
-
-	coutLock.lock();
-	std::cout << "Thread " << workerThreadStruct->id << " starting...\n";
-	coutLock.unlock();
-
-	uint32_t rowOffsetInPixels = 0;
-
-#if RUN_RAY_TRACE == 1
-	if (workerThreadStruct->id == numOfThreads - 1) {
-		rowOffsetInPixels = static_cast<uint32_t>(workerThreadStruct->id * (renderProps.resHeightInPixels / numOfThreads));		
-	}
-	else {
-		rowOffsetInPixels = workerThreadStruct->id * workerImageBufferStruct->resHeightInPixels;
-	}	
-
-	for (int row = workerImageBufferStruct->resHeightInPixels - 1; row >= 0; row--) {
-		for (int column = 0; column < workerImageBufferStruct->resWidthInPixels; column++) {
-
-			vec3 outputColor(0, 0, 0);
-			//loop to produce AA samples
-			for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
-
-				float u = (float)(column + unifRand(randomNumberGenerator)) / (float)workerImageBufferStruct->resWidthInPixels;
-				float v = ((float)row + rowOffsetInPixels + unifRand(randomNumberGenerator)) / (float)renderProps.resHeightInPixels;
-
-				//A, the origin of the ray (camera)
-				//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
-				ray rayCast = sceneCamera.getRay(u, v);
-
-				//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
-				vec3 pointAt = rayCast.pointAtParameter(2.0);
-				outputColor += color(rayCast, world, 0);
-			}
-
-			outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
-			outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
-			// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
-			// Probably related to me outputing to bitmap instead of the ppm format...
-			uint8_t ir = 0;
-			uint8_t ig = 0;
-			uint8_t ib = 0;
-
-			uint16_t irO = uint16_t(255.99 * outputColor[0]);
-			uint16_t igO = uint16_t(255.99 * outputColor[1]);
-			uint16_t ibO = uint16_t(255.99 * outputColor[2]);
-
-			// cap the values to 255 max
-			(irO > 255) ? ir = 255 : ir = uint8_t(irO);
-			(igO > 255) ? ig = 255 : ig = uint8_t(igO);
-			(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
-			
-			//Seems OK with multiple thread access. Or at least can't see any obvious issues.
-			// Look into replacing this since it is pretty slow:
-			// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
-#if DISPLAY_WINDOW == 1
-			SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - (row + rowOffsetInPixels), RGB(ir, ig, ib));		
-#endif
-
-#if 1
-			//also store values into tempBuffer
-			uint32_t bufferIndex = row * renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel);
-			workerImageBufferStruct->buffer.get()[bufferIndex] = ib;
-			workerImageBufferStruct->buffer.get()[bufferIndex + 1] = ig;
-			workerImageBufferStruct->buffer.get()[bufferIndex + 2] = ir;
-#endif
-		}
-	}
-#endif
-
-	//indicate that ray tracing is complete	
-	std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
-	workerThreadStruct->workIsDone = true;
-	workerThreadStruct->workIsDoneConditionVar.notify_all();
-	doneLock.unlock();
-
-	coutLock.lock();
-	std::cout << "\nRaytracing worker " << workerThreadStruct->id << " finished!\n";
-	coutLock.unlock();
-
-	//wait for exit
-	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
-	while (!workerThreadStruct->exit) {
-		workerThreadStruct->exitConditionVar.wait(exitLock);
-	}
-
-	DeleteDC(hdcRayTraceWindow);
-
-	return;
-}
-
-void raytraceWorkerProcedureX(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
 	RenderProperties renderProps,
@@ -562,7 +451,7 @@ void raytraceWorkerProcedureX(
 				// Look into replacing this since it is pretty slow:
 				// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
 #if DISPLAY_WINDOW == 1
-				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));
+				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1

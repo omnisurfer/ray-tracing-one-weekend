@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <stdlib.h>
 
 #include "vec3.h"
@@ -36,9 +37,13 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 
 		float tempPointAtParameterT = 0.5*(unit_direction.y() + 1.0);
 
-		return (1.0 - tempPointAtParameterT)*vec3(1.0, 1.0, 1.0) + tempPointAtParameterT * vec3(0.5, 0.7, 1.0);
+		//Need to see how this works again but it seems that the first parameters color the "skybox" (things far away??) while the
+		//second paramater colors closer things
+		//as the pointAtParameter becomes larger (i.e. hit something close) it attenuates the first portion of the equation and
+		//amplifies the second portion.
+		return (1.0 - tempPointAtParameterT)*vec3(0.02, 0.02, 0.5) + tempPointAtParameterT * vec3(0.01, 0.01, 0.01);
 #else
-		return vec3(0, 0, 0);
+		return vec3(0.0, 0.0, 0.0);
 #endif
 	}
 }
