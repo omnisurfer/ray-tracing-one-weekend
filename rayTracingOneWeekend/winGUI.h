@@ -145,11 +145,15 @@ LRESULT CALLBACK WndProc(
 
 	switch (uMsg) {
 
+	/*
+	- Maybe use this to pass a pointer to the image buffer
+	https://stackoverflow.com/questions/19761167/winapi-c-how-to-pass-data-from-window-to-window-without-globals
+	*/
 	case WM_CREATE:
 	{
 		return 0L;
 	}
-#if 0
+#if 1
 	case WM_ERASEBKGND:
 	{
 		RECT rctBrush;
@@ -184,8 +188,8 @@ LRESULT CALLBACK WndProc(
 #endif
 	case WM_PAINT:
 	{
-
-#if 0	
+		std::cout << "\nWM_PAINT\n";
+#if 1	
 		PAINTSTRUCT ps;
 		HDC hdcClientWindow;
 		BITMAP bitmap;
@@ -256,6 +260,34 @@ LRESULT CALLBACK WndProc(
 		std::cout << "\nLeft Mouse Button Click " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
 
 		return 0L;
+	}
+
+	case WM_SIZE: {
+		//std::cout << "\nWindow resized!\n";
+#if 0
+		PAINTSTRUCT ps;
+		HDC hdcClientWindow;
+
+		hdcClientWindow = GetDC(raytraceMSWindowHandle);
+
+		//figure out how big to make the whole window
+		RECT rect;
+		LONG windowWidth = 0, windowHeight = 0;
+		rect = { 0, 0, windowWidth, windowHeight };
+
+		bool result = GetClientRect(raytraceMSWindowHandle, &rect);
+
+		std::cout << "Calling resize...\n";
+
+		hdcClientWindow = BeginPaint(hwnd, &ps);
+		
+		//Bit blit the hdcClientWindow with itself
+		BitBlt(hdcClientWindow, 0, 0, windowWidth, windowHeight, hdcClientWindow, 0, 0, SRCCOPY);
+
+		EndPaint(hwnd, &ps);
+
+		DeleteDC(hdcClientWindow);
+#endif
 	}
 
 	default:

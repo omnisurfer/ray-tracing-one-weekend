@@ -9,7 +9,7 @@
 #define DEFAULT_RENDER_AA 1
 #define DEBUG_RUN_THREADS 8
 
-#define OUTPUT_BMP_EN 1
+#define OUTPUT_BMP_EN 0
 #define RUN_RAY_TRACE 1
 #define BYPASS_SCENE_CONFIG 1
 

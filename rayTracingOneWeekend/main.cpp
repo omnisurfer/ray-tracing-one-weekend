@@ -40,19 +40,16 @@ void raytraceWorkerProcedure(
 	std::mutex *coutGuard
 );
 
-void raytraceWorkerProcedure(
-	std::shared_ptr<WorkerThread> workerThread,
-	std::shared_ptr<WorkerImageBuffer> workerImageBuffer,
-	RenderProperties renderProps,
-	Camera sceneCamera,
-	Hitable *world,
-	std::mutex *coutGuard
+void configureScene(RenderProperties &renderProps);
+
+void bitBlitWorkerProcedure(
+	std::shared_ptr<WorkerThread> workerThreadstruct,
+	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
+	RenderProperties renderProps
 );
 
 Hitable *randomScene();
 Hitable *cornellBox();
-
-void configureScene(RenderProperties &renderProps);
 
 int main() {
 
@@ -142,6 +139,23 @@ int main() {
 	std::shared_ptr<uint8_t> _workingImageBuffer(new uint8_t[workerImageBufferStruct->sizeInBytes]);
 
 	workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
+
+#if 1
+
+	std::shared_ptr<WorkerThread> bitBlitWorkerThread(new WorkerThread);
+
+	bitBlitWorkerThread->id = 0;
+	bitBlitWorkerThread->workIsDone = false;
+	bitBlitWorkerThread->start = false;
+	bitBlitWorkerThread->exit = false;
+	bitBlitWorkerThread->handle = std::thread(bitBlitWorkerProcedure, bitBlitWorkerThread, workerImageBufferStruct, renderProps);
+
+	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
+	bitBlitWorkerThread->start = true;
+	bitBlitWorkerThread->startConditionVar.notify_all();
+	startBitBlitLock.unlock();
+
+#endif
 
 	for (int i = 0; i < numOfThreads; i++) {				
 
@@ -254,6 +268,14 @@ int main() {
 	//std::cout.flush();
 	//std::cin.ignore(INT_MAX, '\n');
 	std::cin.get();
+
+	/*
+	//exit the bitblit thread
+	std::unique_lock<std::mutex> bitBlitExitLock(bitBlitWorkerThread->exitMutex);
+	bitBlitWorkerThread->exit = true;
+	bitBlitWorkerThread->exitConditionVar.notify_all();
+	bitBlitExitLock.unlock();
+	/**/
 
 #if DISPLAY_WINDOW == 1
 	//exit the GUI
@@ -451,7 +473,7 @@ void raytraceWorkerProcedure(
 				// Look into replacing this since it is pretty slow:
 				// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
 #if DISPLAY_WINDOW == 1
-				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
+				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1
@@ -488,4 +510,58 @@ void raytraceWorkerProcedure(
 	DeleteDC(hdcRayTraceWindow);
 
 	return;
+}
+
+void bitBlitWorkerProcedure(
+	std::shared_ptr<WorkerThread> workerThreadstruct,
+	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
+	RenderProperties renderProps
+) {
+
+	DEBUG_MSG_L0(__func__, "");
+
+	//DEBUG drowan(20190704): pretty sure this is not safe to have multiple threads accessing the canvas without a mutex
+	HDC hdcRaytraceWindow;
+
+	hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
+	
+#if 0
+	HDC hdcBlitWindow;
+	HGDIOBJ currentBitmap;
+	HBITMAP newBitmap;
+	BITMAP bitmap;	
+
+	std::cout << "Loading background...\n";
+	newBitmap = (HBITMAP)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+	//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
+	hdcBlitWindow = CreateCompatibleDC(hdcRaytraceWindow);
+	//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
+	currentBitmap = SelectObject(hdcBlitWindow, newBitmap);
+
+	//get the properites of the newBitmap
+	GetObject(newBitmap, sizeof(bitmap), &bitmap);
+
+	//Bit blit the hdcBlitWindow to the hdcClientWindow
+	BitBlt(hdcRaytraceWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
+
+	//free memory associated with the "old" newBitmap aka, currentBitmap
+	SelectObject(hdcBlitWindow, currentBitmap);
+
+	DeleteDC(hdcBlitWindow);
+
+#endif
+
+	UpdateWindow(raytraceMSWindowHandle);
+
+	//Seems OK with multiple thread access. Or at least can't see any obvious issues.
+// Look into replacing this since it is pretty slow:
+// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
+#if DISPLAY_WINDOW == 1
+	for (int i = 0; i < renderProps.resWidthInPixels; i++) {
+		SetPixel(hdcRaytraceWindow, i, renderProps.resHeightInPixels - i, RGB(i, i, i));
+	}
+#endif
+
+	DeleteDC(hdcRaytraceWindow);
 }
