@@ -194,14 +194,9 @@ int main() {
 			thread->handle.join();
 		}
 	}
-	
-#if OUTPUT_BMP_EN == 1
-	std::cout << "Writing to bmp file...\n";
-
-	uint32_t finalBufferIndex = 0;
-	// copy contents from worker Buffers into final Image buffer	
-	//for (std::shared_ptr<WorkerImageBuffer> &workerImageBuffer : workerImageBufferVector) {
 		
+	uint32_t finalBufferIndex = 0;
+
 	//get the buffer size from renderprops.		
 	for (int i = 0; i < workerImageBufferStruct->sizeInBytes;  i++) {
 		if (finalBufferIndex < renderProps.finalImageBufferSizeInBytes) {
@@ -209,56 +204,31 @@ int main() {
 			finalBufferIndex++;
 		}
 	}
-	//}
 
-	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
-
-	byte *bufferTest = new byte[4];
-
-	bufferTest[0] = 0;
-	bufferTest[1] = 0;
-	bufferTest[2] = 0;
-	bufferTest[3] = 255;
-
-	//DEBUG 
+	//DEBUG - THIS TAKES THE BITMAP IMAGE AND RENDERS IT TO THE CLIENT WINDOW
 	//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
 	//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
 	//bitmap when I set the bit depth to 32 instead of 24.
-	//May require that I have an "alpha" to get byte alignment correct
+	//May require that I have an "alpha" to get byte alignment correct	
 	HBITMAP newBitmap = CreateBitmap(
 		renderProps.resWidthInPixels,
 		renderProps.resHeightInPixels,
 		1,
-		32,
+		winDIBBmp.getBitsPerPixel(),
 		finalImageBuffer.get()
 	);
 
-	//newBitmap = (HBITMAP)LoadImage(NULL, ".\\high_photon_cornellbox.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	if (!newBitmap) {
+		std::cout << "Bitmap failed!\n";
+	}
 
-	HDC hdcRayTraceWindow;
-	HDC hdcBlitWindow;
-	
-	BITMAP bitmap;
-	HGDIOBJ currentBitmap;	
+	PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
 
-	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
+#if OUTPUT_BMP_EN == 1
+	std::cout << "Writing to bmp file...\n";
 
-	//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
-	hdcBlitWindow = CreateCompatibleDC(hdcRayTraceWindow);
-	//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
-	currentBitmap = SelectObject(hdcBlitWindow, newBitmap);
+	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
 
-	//get the properites of the newBitmap
-	GetObject(newBitmap, sizeof(bitmap), &bitmap);
-
-	//Bit blit the hdcBlitWindow to the hdcClientWindow
-	BitBlt(hdcRayTraceWindow, 300, 300, renderProps.resHeightInPixels, renderProps.resWidthInPixels, hdcBlitWindow, 0, 0, SRCCOPY);
-
-	//free memory associated with the "old" newBitmap aka, currentBitmap
-	SelectObject(hdcBlitWindow, currentBitmap);
-
-	DeleteDC(hdcBlitWindow);
-	
 #endif
 
 	delete[] world;
@@ -473,7 +443,7 @@ void raytraceWorkerProcedure(
 				// Look into replacing this since it is pretty slow:
 				// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
 #if DISPLAY_WINDOW == 1
-				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
+				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1

@@ -4,7 +4,7 @@
 
 //Setup screen and output image
 //4K 3840x2160, 2K 2560x1440
-#define DEFAULT_RENDER_WIDTH 600
+#define DEFAULT_RENDER_WIDTH 800
 #define DEFAULT_RENDER_HEIGHT 600
 #define DEFAULT_RENDER_AA 1
 #define DEBUG_RUN_THREADS 8

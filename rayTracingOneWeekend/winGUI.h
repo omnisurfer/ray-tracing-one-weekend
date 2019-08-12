@@ -6,6 +6,8 @@
 
 HWND raytraceMSWindowHandle;
 
+HBITMAP *global_newBitmap = 0;
+
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
 	uint32_t windowWidth,
@@ -151,11 +153,20 @@ LRESULT CALLBACK WndProc(
 	*/
 	case WM_CREATE:
 	{
+		std::cout << "\nWM_CREATE\n";
+		/*
+		if (global_newBitmap == NULL) {
+			std::cout << "Loading background...\n";
+			global_newBitmap = (HBITMAP*)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		}
+		/**/
 		return 0L;
 	}
-#if 1
+
 	case WM_ERASEBKGND:
 	{
+		std::cout << "\nWM_ERASEBKGND\n";
+#if 1
 		RECT rctBrush;
 		HBRUSH hBrushWhite, hBrushGray;
 
@@ -184,12 +195,9 @@ LRESULT CALLBACK WndProc(
 
 		DeleteDC(hdcRaytraceWindow);
 		return 0L;
-	}
 #endif
-	case WM_PAINT:
-	{
-		std::cout << "\nWM_PAINT\n";
-#if 1	
+
+#if 0
 		PAINTSTRUCT ps;
 		HDC hdcClientWindow;
 		BITMAP bitmap;
@@ -220,12 +228,45 @@ LRESULT CALLBACK WndProc(
 
 		EndPaint(hwnd, &ps);
 #endif
+	}
+
+	case WM_PAINT:
+	{
+		std::cout << "\nWM_PAINT\n";
+#if 1			
+		PAINTSTRUCT ps;
+		HDC hdcClientWindow;
+		HDC hdcBlitWindow;
+
+		BITMAP bitmap;
+		HGDIOBJ currentBitmap;
+
+		hdcClientWindow = BeginPaint(hwnd, &ps);
+
+		//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
+		hdcBlitWindow = CreateCompatibleDC(hdcClientWindow);
+		//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
+		currentBitmap = SelectObject(hdcBlitWindow, global_newBitmap);
+
+		//get the properites of the newBitmap
+		GetObject(global_newBitmap, sizeof(bitmap), &bitmap);
+
+		//Bit blit the hdcBlitWindow to the hdcClientWindow
+		BitBlt(hdcClientWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
+
+		//free memory associated with the "old" newBitmap aka, currentBitmap
+		SelectObject(hdcBlitWindow, currentBitmap);
+
+		DeleteDC(hdcBlitWindow);
+
+		EndPaint(hwnd, &ps);
+#endif
 		return 0L;
 	}
 
 	case WM_DESTROY:
 	{
-		std::cout << "\nClosing window...\n";
+		std::cout << "\nWM_DESTROY\n";
 
 		PostQuitMessage(0);
 
@@ -234,7 +275,7 @@ LRESULT CALLBACK WndProc(
 
 	case WM_LBUTTONDOWN:
 	{
-		std::cout << "\nLeft Mouse Button Down " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
+		std::cout << "\nWM_LBUTTONDOWN: " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
 
 #if 1
 		HDC hdcRaytraceWindow;
@@ -257,13 +298,13 @@ LRESULT CALLBACK WndProc(
 	}
 
 	case WM_LBUTTONDBLCLK: {
-		std::cout << "\nLeft Mouse Button Click " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
+		std::cout << "\nWM_LBUTTODBLCLK " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
 
 		return 0L;
 	}
 
 	case WM_SIZE: {
-		//std::cout << "\nWindow resized!\n";
+		std::cout << "\nWM_SIZE\n";
 #if 0
 		PAINTSTRUCT ps;
 		HDC hdcClientWindow;
@@ -288,6 +329,22 @@ LRESULT CALLBACK WndProc(
 
 		DeleteDC(hdcClientWindow);
 #endif
+		return 0L;
+	}
+
+	case WM_USER: {
+		std::cout << "\nWM_USER\n";
+
+		global_newBitmap = (HBITMAP*)lParam;
+
+		//https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-redrawwindow
+		RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
+
+		return 0L;
+	}
+
+	case WM_USER + 1: {
+		std::wcout << "test\n";
 	}
 
 	default:

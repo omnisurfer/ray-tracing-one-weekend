@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define BMP_BITS_PER_PIXEL 24
+#define BMP_BITS_PER_PIXEL 32
 
 /*
 	My quickly thrown together WinDIB BMP writer. Just enough to work but not really tested beyond that.
