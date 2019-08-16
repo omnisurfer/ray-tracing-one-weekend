@@ -19,3 +19,4 @@
 
 #define OUTPUT_RANDOM_SCENE 0
 #define DISPLAY_WINDOW 1
+#define DEBUG_BITBLIT 0

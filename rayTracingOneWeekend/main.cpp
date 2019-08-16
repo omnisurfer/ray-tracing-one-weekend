@@ -140,23 +140,6 @@ int main() {
 
 	workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
 
-#if 1
-
-	std::shared_ptr<WorkerThread> bitBlitWorkerThread(new WorkerThread);
-
-	bitBlitWorkerThread->id = 0;
-	bitBlitWorkerThread->workIsDone = false;
-	bitBlitWorkerThread->start = false;
-	bitBlitWorkerThread->exit = false;
-	bitBlitWorkerThread->handle = std::thread(bitBlitWorkerProcedure, bitBlitWorkerThread, workerImageBufferStruct, renderProps);
-
-	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
-	bitBlitWorkerThread->start = true;
-	bitBlitWorkerThread->startConditionVar.notify_all();
-	startBitBlitLock.unlock();
-
-#endif
-
 	for (int i = 0; i < numOfThreads; i++) {				
 
 		std::shared_ptr<WorkerThread> workerThread(new WorkerThread);
@@ -194,36 +177,34 @@ int main() {
 			thread->handle.join();
 		}
 	}
-		
+
+#if DEBUG_BITBLIT == 1
+
+	std::shared_ptr<WorkerThread> bitBlitWorkerThread(new WorkerThread);
+
+	bitBlitWorkerThread->id = 0;
+	bitBlitWorkerThread->workIsDone = false;
+	bitBlitWorkerThread->start = false;
+	bitBlitWorkerThread->exit = false;
+	bitBlitWorkerThread->handle = std::thread(bitBlitWorkerProcedure, bitBlitWorkerThread, workerImageBufferStruct, renderProps);
+
+	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
+	bitBlitWorkerThread->start = true;
+	bitBlitWorkerThread->startConditionVar.notify_all();
+	startBitBlitLock.unlock();
+
+#endif
+
 	uint32_t finalBufferIndex = 0;
 
 	//get the buffer size from renderprops.		
-	for (int i = 0; i < workerImageBufferStruct->sizeInBytes;  i++) {
+	for (int i = 0; i < workerImageBufferStruct->sizeInBytes; i++) {
 		if (finalBufferIndex < renderProps.finalImageBufferSizeInBytes) {
 			finalImageBuffer.get()[finalBufferIndex] = workerImageBufferStruct->buffer.get()[i];
 			finalBufferIndex++;
 		}
 	}
-
-	//DEBUG - THIS TAKES THE BITMAP IMAGE AND RENDERS IT TO THE CLIENT WINDOW
-	//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
-	//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
-	//bitmap when I set the bit depth to 32 instead of 24.
-	//May require that I have an "alpha" to get byte alignment correct	
-	HBITMAP newBitmap = CreateBitmap(
-		renderProps.resWidthInPixels,
-		renderProps.resHeightInPixels,
-		1,
-		winDIBBmp.getBitsPerPixel(),
-		finalImageBuffer.get()
-	);
-
-	if (!newBitmap) {
-		std::cout << "Bitmap failed!\n";
-	}
-
-	PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
-
+		
 #if OUTPUT_BMP_EN == 1
 	std::cout << "Writing to bmp file...\n";
 
@@ -239,13 +220,13 @@ int main() {
 	//std::cin.ignore(INT_MAX, '\n');
 	std::cin.get();
 
-	/*
+#if DEBUG_BITBLIT == 1
 	//exit the bitblit thread
 	std::unique_lock<std::mutex> bitBlitExitLock(bitBlitWorkerThread->exitMutex);
 	bitBlitWorkerThread->exit = true;
 	bitBlitWorkerThread->exitConditionVar.notify_all();
 	bitBlitExitLock.unlock();
-	/**/
+#endif
 
 #if DISPLAY_WINDOW == 1
 	//exit the GUI
@@ -443,7 +424,7 @@ void raytraceWorkerProcedure(
 				// Look into replacing this since it is pretty slow:
 				// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
 #if DISPLAY_WINDOW == 1
-				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
+				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1
@@ -489,49 +470,23 @@ void bitBlitWorkerProcedure(
 ) {
 
 	DEBUG_MSG_L0(__func__, "");
-
-	//DEBUG drowan(20190704): pretty sure this is not safe to have multiple threads accessing the canvas without a mutex
-	HDC hdcRaytraceWindow;
-
-	hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
 	
-#if 0
-	HDC hdcBlitWindow;
-	HGDIOBJ currentBitmap;
-	HBITMAP newBitmap;
-	BITMAP bitmap;	
+	//DEBUG - THIS TAKES THE BITMAP IMAGE AND RENDERS IT TO THE CLIENT WINDOW
+	//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
+	//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
+	//bitmap when I set the bit depth to 32 instead of 24.
+	//May require that I have an "alpha" to get byte alignment correct	
+	HBITMAP newBitmap = CreateBitmap(
+		renderProps.resWidthInPixels,
+		renderProps.resHeightInPixels,
+		1,
+		renderProps.bytesPerPixel * 8,
+		workerImageBufferStruct->buffer.get()
+	);
 
-	std::cout << "Loading background...\n";
-	newBitmap = (HBITMAP)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-
-	//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
-	hdcBlitWindow = CreateCompatibleDC(hdcRaytraceWindow);
-	//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
-	currentBitmap = SelectObject(hdcBlitWindow, newBitmap);
-
-	//get the properites of the newBitmap
-	GetObject(newBitmap, sizeof(bitmap), &bitmap);
-
-	//Bit blit the hdcBlitWindow to the hdcClientWindow
-	BitBlt(hdcRaytraceWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
-
-	//free memory associated with the "old" newBitmap aka, currentBitmap
-	SelectObject(hdcBlitWindow, currentBitmap);
-
-	DeleteDC(hdcBlitWindow);
-
-#endif
-
-	UpdateWindow(raytraceMSWindowHandle);
-
-	//Seems OK with multiple thread access. Or at least can't see any obvious issues.
-// Look into replacing this since it is pretty slow:
-// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
-#if DISPLAY_WINDOW == 1
-	for (int i = 0; i < renderProps.resWidthInPixels; i++) {
-		SetPixel(hdcRaytraceWindow, i, renderProps.resHeightInPixels - i, RGB(i, i, i));
+	if (!newBitmap) {
+		std::cout << "Bitmap failed!\n";
 	}
-#endif
 
-	DeleteDC(hdcRaytraceWindow);
+	PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
 }
