@@ -195,20 +195,10 @@ int main() {
 
 #endif
 
-	uint32_t finalBufferIndex = 0;
-
-	//get the buffer size from renderprops.		
-	for (int i = 0; i < workerImageBufferStruct->sizeInBytes; i++) {
-		if (finalBufferIndex < renderProps.finalImageBufferSizeInBytes) {
-			finalImageBuffer.get()[finalBufferIndex] = workerImageBufferStruct->buffer.get()[i];
-			finalBufferIndex++;
-		}
-	}
-		
 #if OUTPUT_BMP_EN == 1
 	std::cout << "Writing to bmp file...\n";
 
-	winDIBBmp.writeBMPToFile(finalImageBuffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
+	winDIBBmp.writeBMPToFile(workerImageBufferStruct->buffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
 
 #endif
 
@@ -426,7 +416,7 @@ void raytraceWorkerProcedure(
 #if DISPLAY_WINDOW == 1 && DEBUG_SET_PIXEL == 1
 				//SetPixel is really slow on my laptop. Maybe GPU bound as CPU only loads to ~40%. Without it, can reach 100%
 				//For WinAPI look into Lockbits
-				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
+				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1			
