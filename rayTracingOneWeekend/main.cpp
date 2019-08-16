@@ -423,16 +423,21 @@ void raytraceWorkerProcedure(
 				//Seems OK with multiple thread access. Or at least can't see any obvious issues.
 				// Look into replacing this since it is pretty slow:
 				// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
-#if DISPLAY_WINDOW == 1
+#if DISPLAY_WINDOW == 1 && DEBUG_SET_PIXEL == 1
+				//SetPixel is really slow on my laptop. Maybe GPU bound as CPU only loads to ~40%. Without it, can reach 100%
+				//For WinAPI look into Lockbits
 				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
-#if 1
-				//also store values into tempBuffer
-				uint32_t bufferIndex = row * renderProps.resWidthInPixels * renderProps.bytesPerPixel + (column * renderProps.bytesPerPixel);
+#if 1			
+				uint32_t rowIndex = row * renderProps.resWidthInPixels * renderProps.bytesPerPixel;
+				uint32_t columnIndex = (renderProps.resWidthInPixels * renderProps.bytesPerPixel) - column * renderProps.bytesPerPixel;
+				uint32_t bufferIndex = workerImageBufferStruct->sizeInBytes - (rowIndex + columnIndex);
 				workerImageBufferStruct->buffer.get()[bufferIndex] = ib;
 				workerImageBufferStruct->buffer.get()[bufferIndex + 1] = ig;
 				workerImageBufferStruct->buffer.get()[bufferIndex + 2] = ir;
+				//alpha channel for now is just 0
+				workerImageBufferStruct->buffer.get()[bufferIndex + 3] = 0;
 #endif
 			}
 			else {
