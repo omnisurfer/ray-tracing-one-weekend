@@ -36,14 +36,13 @@ void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerImageBuffer> workerImageBuffer,
 	RenderProperties renderProps,
 	Camera sceneCamera,
-	Hitable *world,
-	std::mutex *coutGuard
+	Hitable *world
 );
 
 void configureScene(RenderProperties &renderProps);
 
 void bitBlitWorkerProcedure(
-	std::shared_ptr<WorkerThread> workerThreadstruct,
+	std::shared_ptr<WorkerThread> workerThreadStruct,
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
 	RenderProperties renderProps
 );
@@ -51,7 +50,18 @@ void bitBlitWorkerProcedure(
 Hitable *randomScene();
 Hitable *cornellBox();
 
+/*
+Start -> 
+Render scene -> spawn or unpause worker threads > wait until done > pause worker threads
+Blit to GUI -> spawn or unpause worker thread > wait until done > pause worker thread
+Wait for input -> ?
+Return to [Render scene]
+*/
+
 int main() {
+
+	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
+	coutLock.unlock();
 
 	DEBUG_MSG_L0(__func__, "");
 
@@ -62,13 +72,13 @@ int main() {
 			uint32_t(timeSeed >> 32)
 	};
 
-	randomNumberGenerator.seed(seedSequence);
+	randomNumberGenerator.seed(seedSequence);	
+	
+	uint32_t numOfRenderThreads = DEBUG_RUN_THREADS; // std::thread::hardware_concurrency();
+	DEBUG_MSG_L0(__func__ << ":", "used hardware threads: " << numOfRenderThreads << "\n");
 
 	WINDIBBitmap winDIBBmp;
 	RenderProperties renderProps;
-	
-	uint32_t numOfThreads = DEBUG_RUN_THREADS; // std::thread::hardware_concurrency();
-	std::cout << "Used hardware threads: " << numOfThreads << "\n";
 
 	configureScene(renderProps);
 
@@ -86,25 +96,6 @@ int main() {
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
-#if DISPLAY_WINDOW == 1
-
-	std::shared_ptr<WorkerThread> guiWorkerThread(new WorkerThread);
-
-	guiWorkerThread->id = 0;
-	guiWorkerThread->workIsDone = false;
-	guiWorkerThread->start = false;
-	guiWorkerThread->exit = false;
-	guiWorkerThread->handle = std::thread(guiWorkerProcedure, guiWorkerThread, renderProps.resWidthInPixels, renderProps.resHeightInPixels);
-	
-	std::unique_lock<std::mutex> startLock(guiWorkerThread->startMutex);
-	guiWorkerThread->start = true;
-	guiWorkerThread->startConditionVar.notify_all();
-	startLock.unlock();
-
-	//debug wait for the gui to start
-	Sleep(3000);
-#endif
-
 	// TODO: drowan(20190607) - should I make a way to select this programatically?
 #if OUTPUT_RANDOM_SCENE == 1
 	//random scene
@@ -119,15 +110,8 @@ int main() {
 	mainCamera.setLookAt(vec3(278, 278, 0));
 
 	Hitable *world = cornellBox();
-#endif	
+#endif
 
-	std::vector<std::shared_ptr<WorkerImageBuffer>> workerImageBufferVector;
-	std::vector<std::shared_ptr<WorkerThread>> workerThreadVector;
-	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.finalImageBufferSizeInBytes]);
-
-	//drowan(20190607): maybe look into this: https://stackoverflow.com/questions/9332263/synchronizing-std-cout-output-multi-thread	
-	std::mutex coutGuard;
-	
 	// Each thread will have a handle to this shared buffer but will access the memory with a thread specific memory offset which will hopefully mitigate concurrent access issues.
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct(new WorkerImageBuffer);
 
@@ -135,23 +119,69 @@ int main() {
 	workerImageBufferStruct->resHeightInPixels = renderProps.resHeightInPixels;
 	workerImageBufferStruct->resWidthInPixels = renderProps.resWidthInPixels;
 	workerImageBufferStruct->sizeInBytes = workerImageBufferStruct->resHeightInPixels * workerImageBufferStruct->resWidthInPixels * renderProps.bytesPerPixel;
-	
+
 	std::shared_ptr<uint8_t> _workingImageBuffer(new uint8_t[workerImageBufferStruct->sizeInBytes]);
 
 	workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
 
-	for (int i = 0; i < numOfThreads; i++) {				
+#pragma region Init_Threads	
+	//	gui
+#if DISPLAY_WINDOW == 1
+
+	std::shared_ptr<WorkerThread> guiWorkerThread(new WorkerThread);
+
+	guiWorkerThread->id = 0;
+	guiWorkerThread->workIsDone = false;
+	guiWorkerThread->start = false;
+	guiWorkerThread->continueWork = false;
+	guiWorkerThread->exit = false;
+	guiWorkerThread->handle = std::thread(guiWorkerProcedure, guiWorkerThread, renderProps.resWidthInPixels, renderProps.resHeightInPixels);
+#endif
+	//	bitblit
+#if DEBUG_BITBLIT == 1
+
+	std::shared_ptr<WorkerThread> bitBlitWorkerThread(new WorkerThread);
+
+	bitBlitWorkerThread->id = 0;
+	bitBlitWorkerThread->workIsDone = false;
+	bitBlitWorkerThread->start = false;
+	bitBlitWorkerThread->continueWork = false;
+	bitBlitWorkerThread->exit = false;
+	bitBlitWorkerThread->handle = std::thread(bitBlitWorkerProcedure, bitBlitWorkerThread, workerImageBufferStruct, renderProps);
+#endif
+
+	//	render
+	std::vector<std::shared_ptr<WorkerImageBuffer>> workerImageBufferVector;
+	std::vector<std::shared_ptr<WorkerThread>> workerThreadVector;
+	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.finalImageBufferSizeInBytes]);
+
+	for (int i = 0; i < numOfRenderThreads; i++) {
 
 		std::shared_ptr<WorkerThread> workerThread(new WorkerThread);
-		
+
 		workerThread->id = i;
 		workerThread->workIsDone = false;
-		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, mainCamera, world, &coutGuard);
+		workerThread->start = false;
+		workerThread->continueWork = false;
+		workerThread->exit = false;
+		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, mainCamera, world);
 
 		workerThreadVector.push_back(workerThread);
 	}
 
-	//start the threads
+#pragma endregion Init_Threads
+
+#if DISPLAY_WINDOW == 1
+	std::unique_lock<std::mutex> startLock(guiWorkerThread->startMutex);
+	guiWorkerThread->start = true;
+	guiWorkerThread->startConditionVar.notify_all();
+	startLock.unlock();
+
+	//debug wait for the gui to start
+	Sleep(4000);
+#endif
+
+	//star the render threads
 	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 		std::unique_lock<std::mutex> startLock(thread->startMutex);
 		thread->start = true;
@@ -159,15 +189,28 @@ int main() {
 		startLock.unlock();
 	}
 	
-	// join threads	
+	//wait for the threads
 	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
-		
+
 		std::unique_lock<std::mutex> doneLock(thread->workIsDoneMutex);
 		while (!thread->workIsDone) {
-			thread->workIsDoneConditionVar.wait(doneLock);
-		}
+			thread->workIsDoneConditionVar.wait(doneLock);			
+		}		
+		doneLock.unlock();
 
-		//signal to the thread to exit
+		std::cout << "thread " << thread->id << " signals done\n";
+
+		std::unique_lock<std::mutex> continueLock(thread->continueWorkMutex);
+		thread->continueWork = false;
+		thread->continueWorkConditionVar.notify_all();
+		std::cout << "!!!Sent continue notice!!!\n";
+		continueLock.unlock();
+	}
+
+	//join threads
+	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
+		//signal to the thread to exit		
+
 		std::unique_lock<std::mutex> threadExitLock(thread->exitMutex);
 		thread->exit = true;
 		thread->exitConditionVar.notify_all();
@@ -178,21 +221,13 @@ int main() {
 		}
 	}
 
+
+
 #if DEBUG_BITBLIT == 1
-
-	std::shared_ptr<WorkerThread> bitBlitWorkerThread(new WorkerThread);
-
-	bitBlitWorkerThread->id = 0;
-	bitBlitWorkerThread->workIsDone = false;
-	bitBlitWorkerThread->start = false;
-	bitBlitWorkerThread->exit = false;
-	bitBlitWorkerThread->handle = std::thread(bitBlitWorkerProcedure, bitBlitWorkerThread, workerImageBufferStruct, renderProps);
-
 	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
 	bitBlitWorkerThread->start = true;
 	bitBlitWorkerThread->startConditionVar.notify_all();
 	startBitBlitLock.unlock();
-
 #endif
 
 #if OUTPUT_BMP_EN == 1
@@ -200,9 +235,7 @@ int main() {
 
 	winDIBBmp.writeBMPToFile(workerImageBufferStruct->buffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
 
-#endif
-
-	delete[] world;
+#endif	
 
 	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels)
 	std::cout << "Hit any key to exit...";
@@ -234,6 +267,8 @@ int main() {
 		guiWorkerThread->handle.join();
 	}
 #endif
+
+	delete[] world;
 
 	return 0;
 }
@@ -330,128 +365,158 @@ void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
 	RenderProperties renderProps,
 	Camera sceneCamera,
-	Hitable *world,
-	std::mutex *coutGuard) {
+	Hitable *world
+) {
 
-	//DEBUG drowan(20190704): pretty sure this is not safe to have multiple threads accessing the canvas without a mutex
-	HDC hdcRayTraceWindow;
+	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
+	exitLock.unlock();
 
-	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
+	std::unique_lock<std::mutex> continueLock(workerThreadStruct->continueWorkMutex);
+	continueLock.unlock();
 
-	std::cout << "\nhwnd in ray thread: " << raytraceMSWindowHandle << "\n";
-
-	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();
-
-	std::unique_lock<std::mutex> coutLock(*coutGuard);
-
-	std::cout << "\nThread ID: " << workerThreadStruct->id << "\n";
-	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
-	std::cout << "World hitable address:  " << world << "\n";
-	std::cout << "Image buffer address: " << &workerImageBufferStruct << " @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes << "\n";
-	std::cout << "Waiting for start...\n";
-
+	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
 	coutLock.unlock();
 
 	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
 	while (!workerThreadStruct->start) {
 		workerThreadStruct->startConditionVar.wait(startLock);
 	}
+	startLock.unlock();
+
+	//DEBUG drowan(20190704): pretty sure this is not safe to have multiple threads accessing the canvas without a mutex
+	HDC hdcRayTraceWindow;
+
+	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
 
 	coutLock.lock();
+	std::cout << "\nhwnd in ray thread: " << raytraceMSWindowHandle << "\n";
+
+	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();	
+
+	std::cout << "\nThread ID: " << workerThreadStruct->id << "\n";
+	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
+	std::cout << "World hitable address:  " << world << "\n";
+	std::cout << "Image buffer address: " << &workerImageBufferStruct << " @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes << "\n";
+	std::cout << "Waiting for start...\n";
+	
 	std::cout << "Thread " << workerThreadStruct->id << " starting...\n";
 	coutLock.unlock();
 
 	uint32_t rowOffsetInPixels = 0;
 
 #if RUN_RAY_TRACE == 1
-	/* # of Threads = 4
-	T1 (n + t*i):		0, 4, 8
-	T2 (n+1 + t*i):		1, 5, 9
-	T3 (n+2 + t*i):		2, 6, 10
-	T4 (n+3 + t*i):		3, 7, 11
-*/
-	for (int row = workerImageBufferStruct->resHeightInPixels - 1; row >= 0; row--) {
-	//for (int row = 0; row < workerImageBufferStruct->resHeightInPixels; row++) {
-		for (int i = 0; i < workerImageBufferStruct->resWidthInPixels; i++) {
+	while (true) {
+		/* # of Threads = 4
+		T1 (n + t*i):		0, 4, 8
+		T2 (n+1 + t*i):		1, 5, 9
+		T3 (n+2 + t*i):		2, 6, 10
+		T4 (n+3 + t*i):		3, 7, 11
+	*/
+		for (int row = workerImageBufferStruct->resHeightInPixels - 1; row >= 0; row--) {
+			//for (int row = 0; row < workerImageBufferStruct->resHeightInPixels; row++) {
+			for (int i = 0; i < workerImageBufferStruct->resWidthInPixels; i++) {
 
-			int column = workerThreadStruct->id + numOfThreads * i;
+				int column = workerThreadStruct->id + numOfThreads * i;
 
-			if (column < workerImageBufferStruct->resWidthInPixels) {
-				vec3 outputColor(0, 0, 0);
-				//loop to produce AA samples
-				for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
+				if (column < workerImageBufferStruct->resWidthInPixels) {
+					vec3 outputColor(0, 0, 0);
+					//loop to produce AA samples
+					for (int sample = 0; sample < renderProps.antiAliasingSamplesPerPixel; sample++) {
 
-					float u = (float)(column + unifRand(randomNumberGenerator)) / (float)workerImageBufferStruct->resWidthInPixels;
-					float v = (float)(row + unifRand(randomNumberGenerator)) / (float)workerImageBufferStruct->resHeightInPixels;
+						float u = (float)(column + unifRand(randomNumberGenerator)) / (float)workerImageBufferStruct->resWidthInPixels;
+						float v = (float)(row + unifRand(randomNumberGenerator)) / (float)workerImageBufferStruct->resHeightInPixels;
 
-					//A, the origin of the ray (camera)
-					//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
-					ray rayCast = sceneCamera.getRay(u, v);
+						//A, the origin of the ray (camera)
+						//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
+						ray rayCast = sceneCamera.getRay(u, v);
 
-					//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
-					vec3 pointAt = rayCast.pointAtParameter(2.0);
-					outputColor += color(rayCast, world, 0);
-				}
+						//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
+						vec3 pointAt = rayCast.pointAtParameter(2.0);
+						outputColor += color(rayCast, world, 0);
+					}
 
-				outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
-				outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
-				// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
-				// Probably related to me outputing to bitmap instead of the ppm format...
-				uint8_t ir = 0;
-				uint8_t ig = 0;
-				uint8_t ib = 0;
+					outputColor /= float(renderProps.antiAliasingSamplesPerPixel);
+					outputColor = vec3(sqrt(outputColor[0]), sqrt(outputColor[1]), sqrt(outputColor[2]));
+					// drowan(20190602): This seems to perform a modulo remap of the value. 362 becomes 106 maybe remap to 255? Does not seem to work right.
+					// Probably related to me outputing to bitmap instead of the ppm format...
+					uint8_t ir = 0;
+					uint8_t ig = 0;
+					uint8_t ib = 0;
 
-				uint16_t irO = uint16_t(255.99 * outputColor[0]);
-				uint16_t igO = uint16_t(255.99 * outputColor[1]);
-				uint16_t ibO = uint16_t(255.99 * outputColor[2]);
+					uint16_t irO = uint16_t(255.99 * outputColor[0]);
+					uint16_t igO = uint16_t(255.99 * outputColor[1]);
+					uint16_t ibO = uint16_t(255.99 * outputColor[2]);
 
-				// cap the values to 255 max
-				(irO > 255) ? ir = 255 : ir = uint8_t(irO);
-				(igO > 255) ? ig = 255 : ig = uint8_t(igO);
-				(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
+					// cap the values to 255 max
+					(irO > 255) ? ir = 255 : ir = uint8_t(irO);
+					(igO > 255) ? ig = 255 : ig = uint8_t(igO);
+					(ibO > 255) ? ib = 255 : ib = uint8_t(ibO);
 
-				//Seems OK with multiple thread access. Or at least can't see any obvious issues.
-				// Look into replacing this since it is pretty slow:
-				// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
+					//Seems OK with multiple thread access. Or at least can't see any obvious issues.
+					// Look into replacing this since it is pretty slow:
+					// https://stackoverflow.com/questions/26005744/how-to-display-pixels-on-screen-directly-from-a-raw-array-of-rgb-values-faster-t
 #if DISPLAY_WINDOW == 1 && DEBUG_SET_PIXEL == 1
 				//SetPixel is really slow on my laptop. Maybe GPU bound as CPU only loads to ~40%. Without it, can reach 100%
 				//For WinAPI look into Lockbits
-				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
+				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1			
-				uint32_t rowIndex = row * renderProps.resWidthInPixels * renderProps.bytesPerPixel;
-				uint32_t columnIndex = (renderProps.resWidthInPixels * renderProps.bytesPerPixel) - column * renderProps.bytesPerPixel;
-				uint32_t bufferIndex = workerImageBufferStruct->sizeInBytes - (rowIndex + columnIndex);
-				workerImageBufferStruct->buffer.get()[bufferIndex] = ib;
-				workerImageBufferStruct->buffer.get()[bufferIndex + 1] = ig;
-				workerImageBufferStruct->buffer.get()[bufferIndex + 2] = ir;
-				//alpha channel for now is just 0
-				workerImageBufferStruct->buffer.get()[bufferIndex + 3] = 0;
+					uint32_t rowIndex = row * renderProps.resWidthInPixels * renderProps.bytesPerPixel;
+					uint32_t columnIndex = (renderProps.resWidthInPixels * renderProps.bytesPerPixel) - column * renderProps.bytesPerPixel;
+					uint32_t bufferIndex = workerImageBufferStruct->sizeInBytes - (rowIndex + columnIndex);
+					workerImageBufferStruct->buffer.get()[bufferIndex] = ib;
+					workerImageBufferStruct->buffer.get()[bufferIndex + 1] = ig;
+					workerImageBufferStruct->buffer.get()[bufferIndex + 2] = ir;
+					//alpha channel for now is just 0
+					workerImageBufferStruct->buffer.get()[bufferIndex + 3] = 0;
 #endif
+				}
+				else {
+					break;
+				}
 			}
-			else {
-				break;
-			}
+		}
+
+		//indicate that ray tracing is complete	
+		std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
+		workerThreadStruct->workIsDone = true;
+		workerThreadStruct->workIsDoneConditionVar.notify_all();
+		doneLock.unlock();
+
+		//coutLock.lock();
+		//std::cout << "\nRaytracing worker " << workerThreadStruct->id << " finished...\n";
+		//coutLock.unlock();
+
+		//check if we need to continue rendering
+		continueLock.lock();
+		coutLock.lock();
+		std::cout << "Thread " << workerThreadStruct->id << " waiting for continue notice\n";
+		coutLock.unlock();
+		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
+		coutLock.lock();
+		std::cout << "Thread " << workerThreadStruct->id << " got continue notice\n";
+		coutLock.unlock();
+		if (workerThreadStruct->continueWork) {
+			//continue
+			continueLock.unlock();
+		}
+		else {	
+			continueLock.unlock();
+			break;
 		}
 	}
 #endif
-
-	//indicate that ray tracing is complete	
-	std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
-	workerThreadStruct->workIsDone = true;
-	workerThreadStruct->workIsDoneConditionVar.notify_all();
-	doneLock.unlock();
-
+	
+	//check for exit
+	exitLock.lock();
 	coutLock.lock();
-	std::cout << "\nRaytracing worker " << workerThreadStruct->id << " finished!\n";
+	std::cout << "Thread " << __func__ << " " << workerThreadStruct->id << " waiting for exit notice\n";
 	coutLock.unlock();
-
-	//wait for exit
-	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
-	while (!workerThreadStruct->exit) {
-		workerThreadStruct->exitConditionVar.wait(exitLock);
-	}
+	workerThreadStruct->exitConditionVar.wait(exitLock);
+	coutLock.lock();
+	std::cout << "Thread " << workerThreadStruct->id << " got exit notice\n";
+	coutLock.unlock();
 
 	DeleteDC(hdcRayTraceWindow);
 
@@ -459,29 +524,83 @@ void raytraceWorkerProcedure(
 }
 
 void bitBlitWorkerProcedure(
-	std::shared_ptr<WorkerThread> workerThreadstruct,
+	std::shared_ptr<WorkerThread> workerThreadStruct,
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
 	RenderProperties renderProps
 ) {
+	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
+	coutLock.unlock();
 
-	DEBUG_MSG_L0(__func__, "");
-	
-	//DEBUG - THIS TAKES THE BITMAP IMAGE AND RENDERS IT TO THE CLIENT WINDOW
-	//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
-	//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
-	//bitmap when I set the bit depth to 32 instead of 24.
-	//May require that I have an "alpha" to get byte alignment correct	
-	HBITMAP newBitmap = CreateBitmap(
-		renderProps.resWidthInPixels,
-		renderProps.resHeightInPixels,
-		1,
-		renderProps.bytesPerPixel * 8,
-		workerImageBufferStruct->buffer.get()
-	);
+	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
+	exitLock.unlock();
 
-	if (!newBitmap) {
-		std::cout << "Bitmap failed!\n";
+	std::unique_lock<std::mutex> continueLock(workerThreadStruct->continueWorkMutex);
+	continueLock.unlock();
+
+	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
+	while (!workerThreadStruct->start) {
+		workerThreadStruct->startConditionVar.wait(startLock);
+	}
+	startLock.unlock();	
+
+	DEBUG_MSG_L0(__func__, "starting...");
+
+	while (true) {
+
+		//DEBUG - THIS TAKES THE BITMAP IMAGE AND RENDERS IT TO THE CLIENT WINDOW
+		//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
+		//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
+		//bitmap when I set the bit depth to 32 instead of 24.
+		//May require that I have an "alpha" to get byte alignment correct	
+		HBITMAP newBitmap = CreateBitmap(
+			renderProps.resWidthInPixels,
+			renderProps.resHeightInPixels,
+			1,
+			renderProps.bytesPerPixel * 8,
+			workerImageBufferStruct->buffer.get()
+		);
+
+		if (!newBitmap) {
+			std::cout << "Bitmap failed!\n";
+			break;
+		}
+
+		PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
+
+		//indicate that ray tracing is complete	
+		std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
+		workerThreadStruct->workIsDone = true;
+		workerThreadStruct->workIsDoneConditionVar.notify_all();
+		doneLock.unlock();		
+
+		//check if we need to continue rendering
+		continueLock.lock();
+		//coutLock.lock();
+		std::cout << "Thread " << workerThreadStruct->id << " waiting for continue notice\n";
+		//coutLock.unlock();
+		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
+		//coutLock.lock();
+		std::cout << "Thread " << workerThreadStruct->id << " got continue notice\n";
+		//coutLock.unlock();
+		if (workerThreadStruct->continueWork) {
+			//continue
+			continueLock.unlock();
+		}
+		else {
+			continueLock.unlock();
+			break;
+		}
 	}
 
-	PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
+	//check for exit
+	exitLock.lock();
+	//coutLock.lock();
+	std::cout << "Thread " << workerThreadStruct->id << " waiting for exit notice\n";
+	//coutLock.unlock();
+	workerThreadStruct->exitConditionVar.wait(exitLock);
+	//coutLock.lock();
+	std::cout << "Thread " << workerThreadStruct->id << " got exit notice\n";
+	//coutLock.unlock();
+
+	DEBUG_MSG_L0(__func__, "exiting...");
 }
