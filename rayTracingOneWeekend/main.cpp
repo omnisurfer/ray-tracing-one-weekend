@@ -59,7 +59,7 @@ Return to [Render scene]
 */
 
 int main() {
-
+	
 	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
 	coutLock.unlock();
 
@@ -75,7 +75,7 @@ int main() {
 	randomNumberGenerator.seed(seedSequence);	
 	
 	uint32_t numOfRenderThreads = DEBUG_RUN_THREADS; // std::thread::hardware_concurrency();
-	DEBUG_MSG_L0(__func__ << ":", "used hardware threads: " << numOfRenderThreads << "\n");
+	DEBUG_MSG_L0("\t", "used hardware threads: " << numOfRenderThreads << "\n");
 
 	WINDIBBitmap winDIBBmp;
 	RenderProperties renderProps;
@@ -125,7 +125,7 @@ int main() {
 	workerImageBufferStruct->buffer = std::move(_workingImageBuffer);
 
 #pragma region Init_Threads	
-	//	gui
+	//gui
 #if DISPLAY_WINDOW == 1
 
 	std::shared_ptr<WorkerThread> guiWorkerThread(new WorkerThread);
@@ -137,7 +137,7 @@ int main() {
 	guiWorkerThread->exit = false;
 	guiWorkerThread->handle = std::thread(guiWorkerProcedure, guiWorkerThread, renderProps.resWidthInPixels, renderProps.resHeightInPixels);
 #endif
-	//	bitblit
+	//bitblit
 #if DEBUG_BITBLIT == 1
 
 	std::shared_ptr<WorkerThread> bitBlitWorkerThread(new WorkerThread);
@@ -150,7 +150,7 @@ int main() {
 	bitBlitWorkerThread->handle = std::thread(bitBlitWorkerProcedure, bitBlitWorkerThread, workerImageBufferStruct, renderProps);
 #endif
 
-	//	render
+	//render
 	std::vector<std::shared_ptr<WorkerImageBuffer>> workerImageBufferVector;
 	std::vector<std::shared_ptr<WorkerThread>> workerThreadVector;
 	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.finalImageBufferSizeInBytes]);
@@ -171,6 +171,8 @@ int main() {
 
 #pragma endregion Init_Threads
 
+#pragma region Start_Threads
+	//gui
 #if DISPLAY_WINDOW == 1
 	std::unique_lock<std::mutex> startLock(guiWorkerThread->startMutex);
 	guiWorkerThread->start = true;
@@ -181,14 +183,20 @@ int main() {
 	Sleep(4000);
 #endif
 
-	//star the render threads
+	//render
 	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 		std::unique_lock<std::mutex> startLock(thread->startMutex);
 		thread->start = true;
 		thread->startConditionVar.notify_all();
 		startLock.unlock();
-	}
-	
+	}	
+	//bitblit
+	//DEBUG told to start after render is done
+
+#pragma endregion Start_Threads
+
+#pragma region Stop_Threads
+	//gui
 	//wait for the threads
 	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 
@@ -196,14 +204,11 @@ int main() {
 		while (!thread->workIsDone) {
 			thread->workIsDoneConditionVar.wait(doneLock);			
 		}		
-		doneLock.unlock();
-
-		std::cout << "thread " << thread->id << " signals done\n";
+		doneLock.unlock();		
 
 		std::unique_lock<std::mutex> continueLock(thread->continueWorkMutex);
 		thread->continueWork = false;
-		thread->continueWorkConditionVar.notify_all();
-		std::cout << "!!!Sent continue notice!!!\n";
+		thread->continueWorkConditionVar.notify_all();		
 		continueLock.unlock();
 	}
 
@@ -216,13 +221,13 @@ int main() {
 		thread->exitConditionVar.notify_all();
 		threadExitLock.unlock();
 
-		if (thread->handle.joinable()) {
-			thread->handle.join();
+		while(!thread->handle.joinable()) {
+			//sit and spin
 		}
+		thread->handle.join();
 	}
 
-
-
+	//DEBUG now tell the bitblit to run
 #if DEBUG_BITBLIT == 1
 	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
 	bitBlitWorkerThread->start = true;
@@ -230,25 +235,30 @@ int main() {
 	startBitBlitLock.unlock();
 #endif
 
-#if OUTPUT_BMP_EN == 1
-	std::cout << "Writing to bmp file...\n";
-
-	winDIBBmp.writeBMPToFile(workerImageBufferStruct->buffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
-
-#endif	
-
-	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels)
-	std::cout << "Hit any key to exit...";
-	//std::cout.flush();
-	//std::cin.ignore(INT_MAX, '\n');
-	std::cin.get();
-
+	//bitblit
 #if DEBUG_BITBLIT == 1
 	//exit the bitblit thread
+	std::unique_lock<std::mutex> bitBlitDoneLock(bitBlitWorkerThread->workIsDoneMutex);
+	while (!bitBlitWorkerThread->workIsDone) {
+		bitBlitWorkerThread->workIsDoneConditionVar.wait(bitBlitDoneLock);
+	}
+	bitBlitDoneLock.unlock();
+
+	std::unique_lock<std::mutex> bitBlitContinueLock(bitBlitWorkerThread->continueWorkMutex);
+	bitBlitWorkerThread->continueWork = false;
+	bitBlitWorkerThread->continueWorkConditionVar.notify_all();
+	bitBlitContinueLock.unlock();
+
 	std::unique_lock<std::mutex> bitBlitExitLock(bitBlitWorkerThread->exitMutex);
 	bitBlitWorkerThread->exit = true;
 	bitBlitWorkerThread->exitConditionVar.notify_all();
 	bitBlitExitLock.unlock();
+	
+	while (!bitBlitWorkerThread->handle.joinable()) {
+		//sit and spin
+	}
+	bitBlitWorkerThread->handle.join();
+
 #endif
 
 #if DISPLAY_WINDOW == 1
@@ -262,11 +272,28 @@ int main() {
 	while (!guiWorkerThread->workIsDone) {
 		guiWorkerThread->workIsDoneConditionVar.wait(guiDoneLock);
 	}
+	guiDoneLock.unlock();
 
-	if (guiWorkerThread->handle.joinable()) {
-		guiWorkerThread->handle.join();
+	while(!guiWorkerThread->handle.joinable()) {
+		//sit and spin
 	}
+	guiWorkerThread->handle.join();
 #endif
+
+#pragma endregion Stop_Threads
+
+#if OUTPUT_BMP_EN == 1
+	std::cout << "Writing to bmp file...\n";
+
+	winDIBBmp.writeBMPToFile(workerImageBufferStruct->buffer.get(), renderProps.finalImageBufferSizeInBytes, renderProps.resWidthInPixels, renderProps.resHeightInPixels, BMP_BITS_PER_PIXEL);
+
+#endif	
+
+	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels)
+	std::cout << "Hit any key to exit...";
+	//std::cout.flush();
+	//std::cin.ignore(INT_MAX, '\n');
+	std::cin.get();
 
 	delete[] world;
 
@@ -379,7 +406,7 @@ void raytraceWorkerProcedure(
 
 	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
 	while (!workerThreadStruct->start) {
-		workerThreadStruct->startConditionVar.wait(startLock);
+		workerThreadStruct->startConditionVar.wait(startLock, [workerThreadStruct] {return workerThreadStruct->start == true; });
 	}
 	startLock.unlock();
 
@@ -387,20 +414,18 @@ void raytraceWorkerProcedure(
 	HDC hdcRayTraceWindow;
 
 	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
-
-	coutLock.lock();
-	std::cout << "\nhwnd in ray thread: " << raytraceMSWindowHandle << "\n";
-
+		
 	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();	
-
-	std::cout << "\nThread ID: " << workerThreadStruct->id << "\n";
-	std::cout << "Lookat: " << sceneCamera.getLookAt() << "\n";
-	std::cout << "World hitable address:  " << world << "\n";
-	std::cout << "Image buffer address: " << &workerImageBufferStruct << " @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes << "\n";
-	std::cout << "Waiting for start...\n";
 	
-	std::cout << "Thread " << workerThreadStruct->id << " starting...\n";
-	coutLock.unlock();
+	DEBUG_MSG_L0(__func__, 
+		"worker " << workerThreadStruct->id <<
+		"\n\tHwnd: " << raytraceMSWindowHandle <<
+		"\n\tThread ID: " << workerThreadStruct->id <<
+		"\n\tLookat: " << sceneCamera.getLookAt() << 
+		"\n\tWorld hitable address:  " << world <<
+		"\n\tImage buffer address: " << &workerImageBufferStruct << 
+		" @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes		
+	);
 
 	uint32_t rowOffsetInPixels = 0;
 
@@ -458,7 +483,7 @@ void raytraceWorkerProcedure(
 #if DISPLAY_WINDOW == 1 && DEBUG_SET_PIXEL == 1
 				//SetPixel is really slow on my laptop. Maybe GPU bound as CPU only loads to ~40%. Without it, can reach 100%
 				//For WinAPI look into Lockbits
-				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
+				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1			
@@ -484,19 +509,11 @@ void raytraceWorkerProcedure(
 		workerThreadStruct->workIsDoneConditionVar.notify_all();
 		doneLock.unlock();
 
-		//coutLock.lock();
-		//std::cout << "\nRaytracing worker " << workerThreadStruct->id << " finished...\n";
-		//coutLock.unlock();
-
 		//check if we need to continue rendering
 		continueLock.lock();
-		coutLock.lock();
-		std::cout << "Thread " << workerThreadStruct->id << " waiting for continue notice\n";
-		coutLock.unlock();
+		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
-		coutLock.lock();
-		std::cout << "Thread " << workerThreadStruct->id << " got continue notice\n";
-		coutLock.unlock();
+		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got continue notice...");
 		if (workerThreadStruct->continueWork) {
 			//continue
 			continueLock.unlock();
@@ -510,13 +527,9 @@ void raytraceWorkerProcedure(
 	
 	//check for exit
 	exitLock.lock();
-	coutLock.lock();
-	std::cout << "Thread " << __func__ << " " << workerThreadStruct->id << " waiting for exit notice\n";
-	coutLock.unlock();
-	workerThreadStruct->exitConditionVar.wait(exitLock);
-	coutLock.lock();
-	std::cout << "Thread " << workerThreadStruct->id << " got exit notice\n";
-	coutLock.unlock();
+	DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for exit notice");
+	workerThreadStruct->exitConditionVar.wait(exitLock, [workerThreadStruct] {return workerThreadStruct->exit == true; });
+	DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " exiting...");
 
 	DeleteDC(hdcRayTraceWindow);
 
@@ -537,9 +550,12 @@ void bitBlitWorkerProcedure(
 	std::unique_lock<std::mutex> continueLock(workerThreadStruct->continueWorkMutex);
 	continueLock.unlock();
 
+	std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
+	doneLock.unlock();
+
 	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
 	while (!workerThreadStruct->start) {
-		workerThreadStruct->startConditionVar.wait(startLock);
+		workerThreadStruct->startConditionVar.wait(startLock, [workerThreadStruct] {return workerThreadStruct->start == true; });
 	}
 	startLock.unlock();	
 
@@ -561,27 +577,23 @@ void bitBlitWorkerProcedure(
 		);
 
 		if (!newBitmap) {
-			std::cout << "Bitmap failed!\n";
+			DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " bitmap creation failed");
 			break;
 		}
 
 		PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
 
 		//indicate that ray tracing is complete	
-		std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
+		doneLock.lock();
 		workerThreadStruct->workIsDone = true;
 		workerThreadStruct->workIsDoneConditionVar.notify_all();
 		doneLock.unlock();		
 
 		//check if we need to continue rendering
 		continueLock.lock();
-		//coutLock.lock();
-		std::cout << "Thread " << workerThreadStruct->id << " waiting for continue notice\n";
-		//coutLock.unlock();
+		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");		
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
-		//coutLock.lock();
-		std::cout << "Thread " << workerThreadStruct->id << " got continue notice\n";
-		//coutLock.unlock();
+		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " continuing...");		
 		if (workerThreadStruct->continueWork) {
 			//continue
 			continueLock.unlock();
@@ -591,16 +603,13 @@ void bitBlitWorkerProcedure(
 			break;
 		}
 	}
-
-	//check for exit
+		
 	exitLock.lock();
-	//coutLock.lock();
-	std::cout << "Thread " << workerThreadStruct->id << " waiting for exit notice\n";
-	//coutLock.unlock();
-	workerThreadStruct->exitConditionVar.wait(exitLock);
-	//coutLock.lock();
-	std::cout << "Thread " << workerThreadStruct->id << " got exit notice\n";
-	//coutLock.unlock();
-
-	DEBUG_MSG_L0(__func__, "exiting...");
+	/*
+		https://en.cppreference.com/w/cpp/thread/condition_variable/wait
+		https://stackoverflow.com/questions/30217956/error-variable-cannot-be-implicitly-captured-because-no-default-capture-mode-h
+	*/	
+	DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for exit notice");	
+	workerThreadStruct->exitConditionVar.wait(exitLock, [workerThreadStruct]{return workerThreadStruct->exit == true; });
+	DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " exiting...");
 }

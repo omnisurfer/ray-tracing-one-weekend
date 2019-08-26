@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "common.h"
+#include "debug.h"
 
 HWND raytraceMSWindowHandle;
 
@@ -25,10 +26,17 @@ int guiWorkerProcedure(
 	uint32_t windowWidth,
 	uint32_t windowHeight) {
 
+	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
+	coutLock.unlock();
+
+	//wait for exit
+	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
+	exitLock.unlock();
+
 	//wait to be told to run
 	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
 	while (!workerThreadStruct->start) {
-		workerThreadStruct->startConditionVar.wait(startLock);
+		workerThreadStruct->startConditionVar.wait(startLock, [workerThreadStruct] {return workerThreadStruct->start == true; });
 	}
 	/*
 - https://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
@@ -61,7 +69,7 @@ int guiWorkerProcedure(
 		BOOL result = AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
 
 		if (result) {
-			std::cout << "X Adj: " << rect.right << " Y Adj: " << rect.bottom << "\n";
+			DEBUG_MSG_L0(__func__, " X Adj: " << rect.right << " Y Adj: " << rect.bottom);
 		}
 
 		//maybe use lParam to pass a handle to the image buffer?
@@ -84,35 +92,37 @@ int guiWorkerProcedure(
 			ShowWindow(raytraceMSWindowHandle, SW_SHOWDEFAULT);
 
 			MSG msg;
-			bool status;
-			//wait for exit
-			std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
-			while (status = GetMessage(&msg, 0, 0, 0) != 0 && workerThreadStruct->exit == false) {
-				exitLock.unlock();
+			bool status;			
+			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
+							
 
 				if (status == -1) {
 					//TODO: something went wrong (i.e. invalid memory read for message??), so throw an error and exit
-					std::cout << "An error occured when calling GetMessage()\n";
+					DEBUG_MSG_L0(__func__, " An error occured when calling GetMessage()");
 					return -1;
 				}
 				else {
 					DispatchMessage(&msg);
-				}
-				exitLock.lock();
-			}
+				}				
+			}			
 		}
 
 		DestroyWindow(raytraceMSWindowHandle);
 	}
-
-	//coutLock.lock();
-	std::cout << "\nGui worker " << workerThreadStruct->id << " finished!\n";
-	//coutLock.unlock();
-
+	
 	std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
 	workerThreadStruct->workIsDone = true;
 	workerThreadStruct->workIsDoneConditionVar.notify_all();
 	doneLock.unlock();
+
+	DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " done");
+
+	exitLock.lock();
+	DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for exit notice");
+	workerThreadStruct->exitConditionVar.wait(exitLock, [workerThreadStruct] {return workerThreadStruct->exit == true; });
+	DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " exiting...");
+
+	return 0;
 }
 
 /*
