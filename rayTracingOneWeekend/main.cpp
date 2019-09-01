@@ -89,7 +89,7 @@ int main() {
 	vec3 lookFrom(0, 0, 0);
 	vec3 lookAt(0, 1, 0);
 	vec3 worldUp(0, 1, 0);
-	float distToFocus = 1000.0; //(lookFrom - lookAt).length(); //10
+	float distToFocus = 1000;//(lookFrom - lookAt).length(); //1000
 	float aperture = 2.0;
 	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
 	float vFoV = 60.0;
@@ -203,14 +203,14 @@ int main() {
 
 #pragma region Manage_Threads
 
-	while(true) {
-		//std::cout << i << "\n";
+	while(true) {	
+
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 
-			std::unique_lock<std::mutex> doneLock(thread->workIsDoneMutex);
+			std::unique_lock<std::mutex> doneLock(thread->workIsDoneMutex);			
 			while (!thread->workIsDone) {
-				thread->workIsDoneConditionVar.wait(doneLock);
+				thread->workIsDoneConditionVar.wait(doneLock);				
 			}
 			//reset the workIsDone indicator to acknowledge
 			thread->workIsDone = false;
@@ -232,16 +232,15 @@ int main() {
 		bitBlitWorkerThread->workIsDone = false;
 		bitBlitDoneLock.unlock();
 #endif
-
+		
 		//start the render threads again
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
-		
+
 			std::unique_lock<std::mutex> continueLock(thread->continueWorkMutex);
 			thread->continueWork = true;
 			thread->continueWorkConditionVar.notify_all();
 			continueLock.unlock();
 		}
-
 	}	
 
 
@@ -475,6 +474,7 @@ void raytraceWorkerProcedure(
 
 #if RUN_RAY_TRACE == 1
 	while (true) {
+
 		/* # of Threads = 4
 		T1 (n + t*i):		0, 4, 8
 		T2 (n+1 + t*i):		1, 5, 9
@@ -562,7 +562,7 @@ void raytraceWorkerProcedure(
 			//continue
 			continueLock.unlock();
 		}
-		else {	
+		else {
 			continueLock.unlock();
 			break;
 		}
@@ -582,8 +582,8 @@ void raytraceWorkerProcedure(
 
 void bitBlitWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
-	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
-	RenderProperties renderProps
+	const std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
+	const RenderProperties renderProps
 ) {
 	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
 	coutLock.unlock();
@@ -607,37 +607,11 @@ void bitBlitWorkerProcedure(
 
 	while (true) {
 
-		//DEBUG - THIS TAKES THE BITMAP IMAGE AND RENDERS IT TO THE CLIENT WINDOW
-		//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
-		//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
-		//bitmap when I set the bit depth to 32 instead of 24.
-		//May require that I have an "alpha" to get byte alignment correct	
-		HBITMAP newBitmap = CreateBitmap(
-			renderProps.resWidthInPixels,
-			renderProps.resHeightInPixels,
-			1,
-			renderProps.bytesPerPixel * 8,
-			workerImageBufferStruct->buffer.get()
-		);
-
-		if (!newBitmap) {
-			DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " bitmap creation failed");
-			break;
-		}
-
-		PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
-
-		//indicate that ray tracing is complete	
-		doneLock.lock();
-		workerThreadStruct->workIsDone = true;
-		workerThreadStruct->workIsDoneConditionVar.notify_all();
-		doneLock.unlock();		
-
-		//check if we need to continue rendering
+		//check if we need to continue blitting
 		continueLock.lock();
-		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");		
+		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
-		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " continuing...");		
+		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " continuing...");
 		if (workerThreadStruct->continueWork) {
 			//continue			
 			continueLock.unlock();
@@ -646,6 +620,35 @@ void bitBlitWorkerProcedure(
 			continueLock.unlock();
 			break;
 		}
+		
+		//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
+		//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
+		//bitmap when I set the bit depth to 32 instead of 24.
+		//May require that I have an "alpha" to get byte alignment correct	
+
+		//2019-09-01: Check this out about color bitmaps:
+		//https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createbitmap
+		HBITMAP newBitmap = CreateBitmap(
+			renderProps.resWidthInPixels,
+			renderProps.resHeightInPixels,
+			1,
+			renderProps.bytesPerPixel * 8,
+			workerImageBufferStruct->buffer.get()
+		);
+
+		//DEBUG! Sometimes bitmap creation fails and the system stalls
+		if (!newBitmap) {
+			DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " bitmap creation failed");
+			break;
+		}
+
+		PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
+
+		//indicate that blitting is complete	
+		doneLock.lock();
+		workerThreadStruct->workIsDone = true;
+		workerThreadStruct->workIsDoneConditionVar.notify_all();
+		doneLock.unlock();		
 	}
 		
 	exitLock.lock();
