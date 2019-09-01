@@ -189,11 +189,63 @@ int main() {
 		thread->start = true;
 		thread->startConditionVar.notify_all();
 		startLock.unlock();
-	}	
+	}
+	
 	//bitblit
-	//DEBUG told to start after render is done
+#if DEBUG_BITBLIT == 1
+	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
+	bitBlitWorkerThread->start = true;
+	bitBlitWorkerThread->startConditionVar.notify_all();
+	startBitBlitLock.unlock();
+#endif
 
 #pragma endregion Start_Threads
+
+#pragma region Manage_Threads
+
+	while(true) {
+		//std::cout << i << "\n";
+		//check if render is done
+		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
+
+			std::unique_lock<std::mutex> doneLock(thread->workIsDoneMutex);
+			while (!thread->workIsDone) {
+				thread->workIsDoneConditionVar.wait(doneLock);
+			}
+			//reset the workIsDone indicator to acknowledge
+			thread->workIsDone = false;
+			doneLock.unlock();			
+		}
+
+		//bitblit
+#if DEBUG_BITBLIT == 1		
+		std::unique_lock<std::mutex> bitBlitContinueLock(bitBlitWorkerThread->continueWorkMutex);
+		bitBlitWorkerThread->continueWork = true;
+		bitBlitWorkerThread->continueWorkConditionVar.notify_all();
+		bitBlitContinueLock.unlock();
+
+		std::unique_lock<std::mutex> bitBlitDoneLock(bitBlitWorkerThread->workIsDoneMutex);
+		while (!bitBlitWorkerThread->workIsDone) {
+			bitBlitWorkerThread->workIsDoneConditionVar.wait(bitBlitDoneLock);
+		}
+		//reset the workdIsDone indicator to acknowledge
+		bitBlitWorkerThread->workIsDone = false;
+		bitBlitDoneLock.unlock();
+#endif
+
+		//start the render threads again
+		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
+		
+			std::unique_lock<std::mutex> continueLock(thread->continueWorkMutex);
+			thread->continueWork = true;
+			thread->continueWorkConditionVar.notify_all();
+			continueLock.unlock();
+		}
+
+	}	
+
+
+#pragma endregion Manage_Threads
 
 #pragma region Stop_Threads
 	//gui
@@ -226,14 +278,6 @@ int main() {
 		}
 		thread->handle.join();
 	}
-
-	//DEBUG now tell the bitblit to run
-#if DEBUG_BITBLIT == 1
-	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
-	bitBlitWorkerThread->start = true;
-	bitBlitWorkerThread->startConditionVar.notify_all();
-	startBitBlitLock.unlock();
-#endif
 
 	//bitblit
 #if DEBUG_BITBLIT == 1
@@ -595,7 +639,7 @@ void bitBlitWorkerProcedure(
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
 		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " continuing...");		
 		if (workerThreadStruct->continueWork) {
-			//continue
+			//continue			
 			continueLock.unlock();
 		}
 		else {

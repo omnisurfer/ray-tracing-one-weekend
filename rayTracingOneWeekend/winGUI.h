@@ -140,6 +140,9 @@ LRESULT CALLBACK WndProc(
 	_In_ LPARAM lParam
 ) {
 
+	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
+	coutLock.unlock();
+
 	/*
 	- https://docs.microsoft.com/en-us/windows/win32/gdi/using-brushes
 	- https://docs.microsoft.com/en-us/windows/win32/gdi/drawing-a-custom-window-background
@@ -163,7 +166,7 @@ LRESULT CALLBACK WndProc(
 	*/
 	case WM_CREATE:
 	{
-		std::cout << "\nWM_CREATE\n";
+		DEBUG_MSG_L0(__func__, "WM_CREATE");
 		/*
 		if (global_newBitmap == NULL) {
 			std::cout << "Loading background...\n";
@@ -175,7 +178,7 @@ LRESULT CALLBACK WndProc(
 
 	case WM_ERASEBKGND:
 	{
-		std::cout << "\nWM_ERASEBKGND\n";
+		DEBUG_MSG_L0(__func__, "WM_ERASEBKGND");
 #if 1
 		RECT rctBrush;
 		HBRUSH hBrushWhite, hBrushGray;
@@ -242,7 +245,7 @@ LRESULT CALLBACK WndProc(
 
 	case WM_PAINT:
 	{
-		std::cout << "\nWM_PAINT\n";
+		DEBUG_MSG_L0(__func__, "WM_PAINT");
 #if 1			
 		PAINTSTRUCT ps;
 		HDC hdcClientWindow;
@@ -276,7 +279,7 @@ LRESULT CALLBACK WndProc(
 
 	case WM_DESTROY:
 	{
-		std::cout << "\nWM_DESTROY\n";
+		DEBUG_MSG_L0(__func__, "WM_DESTROY");
 
 		PostQuitMessage(0);
 
@@ -285,7 +288,7 @@ LRESULT CALLBACK WndProc(
 
 	case WM_LBUTTONDOWN:
 	{
-		std::cout << "\nWM_LBUTTONDOWN: " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
+		DEBUG_MSG_L0(__func__, "WM_LBUTTONDOWN: " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n");
 
 #if 1
 		HDC hdcRaytraceWindow;
@@ -308,13 +311,13 @@ LRESULT CALLBACK WndProc(
 	}
 
 	case WM_LBUTTONDBLCLK: {
-		std::cout << "\nWM_LBUTTODBLCLK " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n";
+		DEBUG_MSG_L0(__func__, "WM_LBUTTODBLCLK " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n");
 
 		return 0L;
 	}
 
 	case WM_SIZE: {
-		std::cout << "\nWM_SIZE\n";
+		DEBUG_MSG_L0(__func__, "WM_SIZE");
 #if 0
 		PAINTSTRUCT ps;
 		HDC hdcClientWindow;
@@ -343,7 +346,7 @@ LRESULT CALLBACK WndProc(
 	}
 
 	case WM_USER: {
-		std::cout << "\nWM_USER\n";
+		DEBUG_MSG_L0(__func__, "WM_USER");
 
 		global_newBitmap = (HBITMAP*)lParam;
 
@@ -354,7 +357,7 @@ LRESULT CALLBACK WndProc(
 	}
 
 	case WM_USER + 1: {
-		std::wcout << "test\n";
+		DEBUG_MSG_L0(__func__, "WM_USER + 1");
 	}
 
 	default:
