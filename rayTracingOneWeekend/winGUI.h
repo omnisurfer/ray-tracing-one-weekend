@@ -8,6 +8,7 @@
 HWND raytraceMSWindowHandle;
 
 HBITMAP *global_newBitmap = 0;
+HBITMAP workingBitmap;
 
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
@@ -259,10 +260,12 @@ LRESULT CALLBACK WndProc(
 		//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
 		hdcBlitWindow = CreateCompatibleDC(hdcClientWindow);
 		//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
-		currentBitmap = SelectObject(hdcBlitWindow, global_newBitmap);
+		//currentBitmap = SelectObject(hdcBlitWindow, global_newBitmap);
+		currentBitmap = SelectObject(hdcBlitWindow, workingBitmap);
 
 		//get the properites of the newBitmap
-		GetObject(global_newBitmap, sizeof(bitmap), &bitmap);
+		//GetObject(global_newBitmap, sizeof(bitmap), &bitmap);
+		GetObject(workingBitmap, sizeof(bitmap), &bitmap);
 
 		//Bit blit the hdcBlitWindow to the hdcClientWindow
 		BitBlt(hdcClientWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
@@ -349,6 +352,8 @@ LRESULT CALLBACK WndProc(
 		DEBUG_MSG_L0(__func__, "WM_USER");
 
 		global_newBitmap = (HBITMAP*)lParam;
+
+		workingBitmap = (HBITMAP)CopyImage((HBITMAP*)lParam, IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE);
 
 		//https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-redrawwindow
 		RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);

@@ -203,7 +203,7 @@ int main() {
 
 #pragma region Manage_Threads
 
-	while(true) {	
+	for (int i = 0; i < 100; i++) {
 
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
@@ -281,12 +281,13 @@ int main() {
 	//bitblit
 #if DEBUG_BITBLIT == 1
 	//exit the bitblit thread
+	/*
 	std::unique_lock<std::mutex> bitBlitDoneLock(bitBlitWorkerThread->workIsDoneMutex);
 	while (!bitBlitWorkerThread->workIsDone) {
 		bitBlitWorkerThread->workIsDoneConditionVar.wait(bitBlitDoneLock);
 	}
 	bitBlitDoneLock.unlock();
-
+	/**/
 	std::unique_lock<std::mutex> bitBlitContinueLock(bitBlitWorkerThread->continueWorkMutex);
 	bitBlitWorkerThread->continueWork = false;
 	bitBlitWorkerThread->continueWorkConditionVar.notify_all();
@@ -605,7 +606,13 @@ void bitBlitWorkerProcedure(
 
 	DEBUG_MSG_L0(__func__, "starting...");
 
+	uint64_t counter = 0;
+
+	HBITMAP newBitmap = 0;
+
 	while (true) {
+
+		counter++;
 
 		//check if we need to continue blitting
 		continueLock.lock();
@@ -613,14 +620,22 @@ void bitBlitWorkerProcedure(
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
 		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " continuing...");
 		if (workerThreadStruct->continueWork) {
-			//continue			
+			//continue						
 			continueLock.unlock();
+
+			//check if need to delete the bitmap
+			//helps a little. probably need to pass bytes and array length throuhg user LPARAM and leave
+			//bitmap stuff to the gui thread
+			if (newBitmap) {
+				DeleteObject(newBitmap);
+			}
 		}
 		else {
 			continueLock.unlock();
 			break;
 		}
-		
+
+#if 1		
 		//https://stackoverflow.com/questions/26011437/c-trouble-with-making-a-bitmap-from-scratch
 		//Attempting to get bitmap working. Noticed that my bufferTest will create a valid
 		//bitmap when I set the bit depth to 32 instead of 24.
@@ -628,7 +643,7 @@ void bitBlitWorkerProcedure(
 
 		//2019-09-01: Check this out about color bitmaps:
 		//https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createbitmap
-		HBITMAP newBitmap = CreateBitmap(
+		newBitmap = CreateBitmap(
 			renderProps.resWidthInPixels,
 			renderProps.resHeightInPixels,
 			1,
@@ -636,14 +651,16 @@ void bitBlitWorkerProcedure(
 			workerImageBufferStruct->buffer.get()
 		);
 
-		//DEBUG! Sometimes bitmap creation fails and the system stalls
+		//DEBUG! After about 10K iterations, bitmap creation fails and the system stalls
 		if (!newBitmap) {
-			DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " bitmap creation failed");
+			DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " bitmap creation failed@ " << counter);
+			DEBUG_MSG_L0(__func__, "last error: " << GetLastError());
 			break;
 		}
 
 		PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
 
+#endif		
 		//indicate that blitting is complete	
 		doneLock.lock();
 		workerThreadStruct->workIsDone = true;
