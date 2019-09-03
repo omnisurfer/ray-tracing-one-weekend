@@ -7,7 +7,7 @@
 
 HWND raytraceMSWindowHandle;
 
-HBITMAP *global_newBitmap = 0;
+//HBITMAP *global_newBitmap = 0;
 HBITMAP workingBitmap;
 
 int guiWorkerProcedure(
@@ -89,13 +89,17 @@ int guiWorkerProcedure(
 			0
 		);
 
+		/*
+			How to get mouse inputs from the GUI
+			https://docs.microsoft.com/en-us/windows/win32/inputdev/using-mouse-input
+		*/
+		
 		if (raytraceMSWindowHandle) {
 			ShowWindow(raytraceMSWindowHandle, SW_SHOWDEFAULT);
 
 			MSG msg;
 			bool status;			
 			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
-							
 
 				if (status == -1) {
 					//TODO: something went wrong (i.e. invalid memory read for message??), so throw an error and exit
@@ -351,7 +355,7 @@ LRESULT CALLBACK WndProc(
 	case WM_USER: {
 		DEBUG_MSG_L0(__func__, "WM_USER");
 
-		global_newBitmap = (HBITMAP*)lParam;
+		//global_newBitmap = (HBITMAP*)lParam;
 
 		workingBitmap = (HBITMAP)CopyImage((HBITMAP*)lParam, IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE);
 

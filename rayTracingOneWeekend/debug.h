@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#define DEBUG_MSG_EN 1
+#define DEBUG_MSG_EN 0
 #define DEBUG_MSG_LVL_0_EN 1
 #define DEBUG_MSG_FUNC_NAME_EN 1
 
@@ -28,5 +28,9 @@
 	#else
 	#define DEBUG_MSG_FUNC_NAME(functionName, coutLine)
 	#endif
+
+#else
+#define DEBUG_MSG_L0(functionName, coutLine)
+#define DEBUG_MSG_FUNC_NAME(functionName, coutLine)
 
 #endif
