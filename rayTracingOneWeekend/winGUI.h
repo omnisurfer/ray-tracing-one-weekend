@@ -11,6 +11,8 @@ HBITMAP workingBitmap;
 int globalMouseX = 0, globalMouseY = 0;
 std::mutex globalMouseCoordMutex;
 
+int globalWindowHeight = 0, globalWindowWidth = 0;
+
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
 	uint32_t windowWidth,
@@ -26,8 +28,8 @@ LRESULT CALLBACK WndProc(
 int getMouseCoord(int &x, int &y) {
 
 	std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
-	x = globalMouseX;
-	y = globalMouseY;
+	x = globalMouseX - globalWindowWidth/2;
+	y = globalMouseY - globalWindowHeight/2;
 
 	return 0;
 }
@@ -39,7 +41,7 @@ int guiWorkerProcedure(
 
 	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
 	coutLock.unlock();
-
+	
 	//wait for exit
 	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
 	exitLock.unlock();
@@ -76,6 +78,9 @@ int guiWorkerProcedure(
 		//figure out how big to make the whole window
 		RECT rect;
 		rect = { 0, 0, (LONG)windowWidth, (LONG)windowHeight };
+
+		globalWindowHeight = windowHeight;
+		globalWindowWidth = windowWidth;
 
 		BOOL result = AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
 
