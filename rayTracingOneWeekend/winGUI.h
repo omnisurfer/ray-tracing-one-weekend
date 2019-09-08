@@ -6,9 +6,10 @@
 #include "debug.h"
 
 HWND raytraceMSWindowHandle;
-
-//HBITMAP *global_newBitmap = 0;
 HBITMAP workingBitmap;
+
+int globalMouseX = 0, globalMouseY = 0;
+std::mutex globalMouseCoordMutex;
 
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
@@ -21,6 +22,15 @@ LRESULT CALLBACK WndProc(
 	_In_ WPARAM wParam,
 	_In_ LPARAM lParam
 );
+
+int getMouseCoord(int &x, int &y) {
+
+	std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
+	x = globalMouseX;
+	y = globalMouseY;
+
+	return 0;
+}
 
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
@@ -313,6 +323,10 @@ LRESULT CALLBACK WndProc(
 		//ask to redraw the window
 		//RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
 		RedrawWindow(hwnd, NULL, NULL, RDW_NOERASE);
+
+		std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
+		globalMouseX = p.x;
+		globalMouseY = p.y;
 
 		return 0L;
 	}

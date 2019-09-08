@@ -205,6 +205,11 @@ int main() {
 
 	for (int i = 0; i < 100; i++) {
 
+		//get the current mouse position
+		int x = 0, y = 0;
+		getMouseCoord(x, y);
+		std::cout << "x,y " << x << "," << y << "\n";		
+
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 
