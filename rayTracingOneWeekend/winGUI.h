@@ -407,6 +407,8 @@ LRESULT CALLBACK WndProc(
 
 			//global_newBitmap = (HBITMAP*)lParam;
 
+			//drowan_20190916: Freeing the used memory seems to get around the CopyImage call failing. 
+			//Seems to be OK handling a null workingBitmap when first called.
 			DeleteObject(workingBitmap);
 
 			workingBitmap = (HBITMAP)CopyImage((HBITMAP*)lParam, IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE);
