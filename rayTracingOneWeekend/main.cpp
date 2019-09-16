@@ -213,7 +213,7 @@ int main() {
 	//this is clunky but for now it works for testing.
 	vec3 initCameraLookAt = mainCamera.getLookAt();
 
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 80000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
@@ -642,9 +642,9 @@ void bitBlitWorkerProcedure(
 
 		//check if we need to continue blitting
 		continueLock.lock();
-		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");
+		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
-		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " continuing...");
+		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " continuing...");
 		if (workerThreadStruct->continueWork) {
 			//continue						
 			continueLock.unlock();
@@ -675,14 +675,14 @@ void bitBlitWorkerProcedure(
 			1,
 			renderProps.bytesPerPixel * 8,
 			workerImageBufferStruct->buffer.get()
-		);
+		);				
 
 		//DEBUG! After about 10K iterations, bitmap creation fails and the system stalls
 		if (!newBitmap) {
 			DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " bitmap creation failed@ " << counter);
 			DEBUG_MSG_L0(__func__, "last error: " << GetLastError());
 			break;
-		}
+		}				
 		
 		PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
 		//https://docs.microsoft.com/en-us/windows/win32/win7appqual/preventing-hangs-in-windows-applications
