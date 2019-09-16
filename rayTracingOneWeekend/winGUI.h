@@ -287,7 +287,7 @@ LRESULT CALLBACK WndProc(
 
 		case WM_PAINT:
 		{
-			DEBUG_MSG_L0(__func__, "WM_PAINT");
+			//DEBUG_MSG_L0(__func__, "WM_PAINT");
 	#if 1			
 			PAINTSTRUCT ps;
 			HDC hdcClientWindow;
@@ -403,9 +403,11 @@ LRESULT CALLBACK WndProc(
 		}
 
 		case WM_USER: {
-			DEBUG_MSG_L0(__func__, "WM_USER");
+			//DEBUG_MSG_L0(__func__, "WM_USER");
 
 			//global_newBitmap = (HBITMAP*)lParam;
+
+			DeleteObject(workingBitmap);
 
 			workingBitmap = (HBITMAP)CopyImage((HBITMAP*)lParam, IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE);
 
