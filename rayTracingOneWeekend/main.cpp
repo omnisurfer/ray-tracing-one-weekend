@@ -213,7 +213,7 @@ int main() {
 	//this is clunky but for now it works for testing.
 	vec3 initCameraLookAt = mainCamera.getLookAt();
 
-	for (int i = 0; i < 80000; i++) {
+	for (int i = 0; i < 1000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
@@ -225,8 +225,8 @@ int main() {
 		getMouseCoord(x, y);
 		//std::cout << "x,y " << x << "," << y << "\n";		
 
-		x = initCameraLookAt.x() - x;
-		y = initCameraLookAt.y() - y;
+		x = initCameraLookAt.x() - i*100;
+		y = initCameraLookAt.y();// -y;
 
 		mainCamera.setLookAt(vec3(x, y, 0));
 
