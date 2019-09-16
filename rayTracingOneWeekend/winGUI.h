@@ -13,6 +13,9 @@ std::mutex globalMouseCoordMutex;
 
 int globalWindowHeight = 0, globalWindowWidth = 0;
 
+bool globalGuiIsRunning = false;
+std::mutex globalGuiIsRunningMutex;
+
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
 	uint32_t windowWidth,
@@ -34,6 +37,16 @@ int getMouseCoord(int &x, int &y) {
 	return 0;
 }
 
+bool checkIfGuiIsRunning() {
+
+	bool lockState;
+
+	std::lock_guard<std::mutex> guiRunningLock(globalGuiIsRunningMutex);
+	lockState = globalGuiIsRunning;	
+
+	return lockState;
+}
+
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
 	uint32_t windowWidth,
@@ -41,10 +54,14 @@ int guiWorkerProcedure(
 
 	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
 	coutLock.unlock();
-	
-	//wait for exit
+		
 	std::unique_lock<std::mutex> exitLock(workerThreadStruct->exitMutex);
 	exitLock.unlock();
+
+	std::unique_lock<std::mutex> guiRunningLock(globalGuiIsRunningMutex);
+	globalGuiIsRunning = true;
+	guiRunningLock.unlock();
+
 
 	//wait to be told to run
 	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
@@ -115,7 +132,7 @@ int guiWorkerProcedure(
 			MSG msg;
 			bool status;			
 			while (status = GetMessage(&msg, 0, 0, 0) != 0) {
-
+				// drowan: the example I found promoted bool to an int...?
 				if (status == -1) {
 					//TODO: something went wrong (i.e. invalid memory read for message??), so throw an error and exit
 					DEBUG_MSG_L0(__func__, " An error occured when calling GetMessage()");
@@ -124,10 +141,15 @@ int guiWorkerProcedure(
 				else {
 					DispatchMessage(&msg);
 				}				
-			}			
+			}
+			DEBUG_MSG_L0(__func__, "Exiting Window message loop...");
 		}
 
 		DestroyWindow(raytraceMSWindowHandle);
+
+		guiRunningLock.lock();
+		globalGuiIsRunning = false;
+		guiRunningLock.unlock();
 	}
 	
 	std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
@@ -298,6 +320,15 @@ LRESULT CALLBACK WndProc(
 #endif
 		return 0L;
 	}
+
+	/* Ignored so default action taken (destorys window)
+	 * https://docs.microsoft.com/en-us/windows/win32/learnwin32/closing-the-window
+	case WM_CLOSE:
+	{
+		DEBUG_MSG_L0(__func__, "WM_CLOSE");
+		return 0L;
+	}
+	*/
 
 	case WM_DESTROY:
 	{

@@ -155,7 +155,7 @@ int main() {
 	std::vector<std::shared_ptr<WorkerThread>> workerThreadVector;
 	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.finalImageBufferSizeInBytes]);
 
-	for (int i = 0; i < numOfRenderThreads; i++) {
+	for (uint32_t i = 0; i < numOfRenderThreads; i++) {
 
 		std::shared_ptr<WorkerThread> workerThread(new WorkerThread);
 
@@ -207,7 +207,12 @@ int main() {
 	//this is clunky but for now it works for testing.
 	vec3 initCameraLookAt = mainCamera.getLookAt();
 
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < 40; i++) {
+
+		//check if the gui is running
+		if (!checkIfGuiIsRunning()) {
+			break;
+		}
 
 		//get the current mouse position
 		int x = 0, y = 0;
@@ -479,7 +484,7 @@ void raytraceWorkerProcedure(
 		"worker " << workerThreadStruct->id <<
 		"\n\tHwnd: " << raytraceMSWindowHandle <<
 		"\n\tThread ID: " << workerThreadStruct->id <<
-		"\n\tLookat: " << sceneCamera.getLookAt() << 
+		"\n\tLookat: " << sceneCamera->getLookAt() << 
 		"\n\tWorld hitable address:  " << world <<
 		"\n\tImage buffer address: " << &workerImageBufferStruct << 
 		" @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes		
