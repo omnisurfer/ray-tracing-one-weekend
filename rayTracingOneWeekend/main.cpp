@@ -31,6 +31,12 @@
 * http://iquilezles.org/index.html
 */
 
+/* Bugs?
+	Program hangs when double clicking console:
+	- https://stackoverflow.com/questions/33883530/why-is-my-command-prompt-freezing-on-windows-10
+
+*/
+
 void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThread,
 	std::shared_ptr<WorkerImageBuffer> workerImageBuffer,
@@ -679,6 +685,9 @@ void bitBlitWorkerProcedure(
 		}
 		
 		PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
+		//https://docs.microsoft.com/en-us/windows/win32/win7appqual/preventing-hangs-in-windows-applications
+		//SendNotifyMessage(...);
+		//SendMessageCallback(...);
 
 #endif		
 		//indicate that blitting is complete	
