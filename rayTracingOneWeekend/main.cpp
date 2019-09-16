@@ -31,6 +31,12 @@
 * http://iquilezles.org/index.html
 */
 
+/* Bugs?
+	Program hangs when double clicking console:
+	- https://stackoverflow.com/questions/33883530/why-is-my-command-prompt-freezing-on-windows-10
+
+*/
+
 void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThread,
 	std::shared_ptr<WorkerImageBuffer> workerImageBuffer,
@@ -207,7 +213,7 @@ int main() {
 	//this is clunky but for now it works for testing.
 	vec3 initCameraLookAt = mainCamera.getLookAt();
 
-	for (int i = 0; i < 40; i++) {
+	for (int i = 0; i < 4; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
@@ -242,6 +248,7 @@ int main() {
 		bitBlitWorkerThread->continueWork = true;
 		bitBlitWorkerThread->continueWorkConditionVar.notify_all();
 		bitBlitContinueLock.unlock();
+		//bitBlitWorkerThread->continueWorkConditionVar.notify_all();
 
 		std::unique_lock<std::mutex> bitBlitDoneLock(bitBlitWorkerThread->workIsDoneMutex);
 		while (!bitBlitWorkerThread->workIsDone) {
@@ -259,6 +266,7 @@ int main() {
 			thread->continueWork = true;
 			thread->continueWorkConditionVar.notify_all();
 			continueLock.unlock();
+			//thread->continueWorkConditionVar.notify_all();
 		}
 	}	
 
@@ -269,7 +277,7 @@ int main() {
 	//gui
 	//wait for the threads
 	for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
-
+		
 		std::unique_lock<std::mutex> doneLock(thread->workIsDoneMutex);
 		while (!thread->workIsDone) {
 			thread->workIsDoneConditionVar.wait(doneLock);			
@@ -279,7 +287,7 @@ int main() {
 		std::unique_lock<std::mutex> continueLock(thread->continueWorkMutex);
 		thread->continueWork = false;
 		thread->continueWorkConditionVar.notify_all();		
-		continueLock.unlock();
+		continueLock.unlock();		
 	}
 
 	//join threads
@@ -294,33 +302,32 @@ int main() {
 		while(!thread->handle.joinable()) {
 			//sit and spin
 		}
-		thread->handle.join();
+		thread->handle.join();		
 	}
 
 	//bitblit
 #if DEBUG_BITBLIT == 1
 	//exit the bitblit thread
-	/*
-	std::unique_lock<std::mutex> bitBlitDoneLock(bitBlitWorkerThread->workIsDoneMutex);
-	while (!bitBlitWorkerThread->workIsDone) {
-		bitBlitWorkerThread->workIsDoneConditionVar.wait(bitBlitDoneLock);
-	}
-	bitBlitDoneLock.unlock();
-	/**/
 	std::unique_lock<std::mutex> bitBlitContinueLock(bitBlitWorkerThread->continueWorkMutex);
 	bitBlitWorkerThread->continueWork = false;
 	bitBlitWorkerThread->continueWorkConditionVar.notify_all();
 	bitBlitContinueLock.unlock();
+	
+	std::unique_lock<std::mutex> bitBlitDoneLock(bitBlitWorkerThread->workIsDoneMutex);
+	while (!bitBlitWorkerThread->workIsDone) {		
+		bitBlitWorkerThread->workIsDoneConditionVar.wait(bitBlitDoneLock);
+	}
+	bitBlitDoneLock.unlock();
 
 	std::unique_lock<std::mutex> bitBlitExitLock(bitBlitWorkerThread->exitMutex);
 	bitBlitWorkerThread->exit = true;
 	bitBlitWorkerThread->exitConditionVar.notify_all();
 	bitBlitExitLock.unlock();
-	
+		
 	while (!bitBlitWorkerThread->handle.joinable()) {
 		//sit and spin
 	}
-	bitBlitWorkerThread->handle.join();
+	bitBlitWorkerThread->handle.join();	
 
 #endif
 
@@ -575,9 +582,9 @@ void raytraceWorkerProcedure(
 
 		//check if we need to continue rendering
 		continueLock.lock();
-		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");
+		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
-		DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got continue notice...");
+		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got continue notice...");
 		if (workerThreadStruct->continueWork) {
 			//continue
 			continueLock.unlock();
@@ -676,8 +683,11 @@ void bitBlitWorkerProcedure(
 			DEBUG_MSG_L0(__func__, "last error: " << GetLastError());
 			break;
 		}
-
+		
 		PostMessage(raytraceMSWindowHandle, WM_USER, 0, (LPARAM)newBitmap);
+		//https://docs.microsoft.com/en-us/windows/win32/win7appqual/preventing-hangs-in-windows-applications
+		//SendNotifyMessage(...);
+		//SendMessageCallback(...);
 
 #endif		
 		//indicate that blitting is complete	
@@ -687,6 +697,11 @@ void bitBlitWorkerProcedure(
 		doneLock.unlock();		
 	}
 		
+	doneLock.lock();
+	workerThreadStruct->workIsDone = true;
+	workerThreadStruct->workIsDoneConditionVar.notify_all();
+	doneLock.unlock();
+
 	exitLock.lock();
 	/*
 		https://en.cppreference.com/w/cpp/thread/condition_variable/wait

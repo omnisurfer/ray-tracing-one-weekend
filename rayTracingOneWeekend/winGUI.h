@@ -180,10 +180,10 @@ LRESULT CALLBACK WndProc(
 	_In_ UINT uMsg,
 	_In_ WPARAM wParam,
 	_In_ LPARAM lParam
-) {
-
+) {	
+	
 	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
-	coutLock.unlock();
+	coutLock.unlock();	
 
 	/*
 	- https://docs.microsoft.com/en-us/windows/win32/gdi/using-brushes
@@ -202,229 +202,230 @@ LRESULT CALLBACK WndProc(
 
 	switch (uMsg) {
 
-	/*
-	- Maybe use this to pass a pointer to the image buffer
-	https://stackoverflow.com/questions/19761167/winapi-c-how-to-pass-data-from-window-to-window-without-globals
-	*/
-	case WM_CREATE:
-	{
-		DEBUG_MSG_L0(__func__, "WM_CREATE");
 		/*
-		if (global_newBitmap == NULL) {
-			std::cout << "Loading background...\n";
-			global_newBitmap = (HBITMAP*)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-		}
-		/**/
-		return 0L;
-	}
-
-	case WM_ERASEBKGND:
-	{
-		DEBUG_MSG_L0(__func__, "WM_ERASEBKGND");
-#if 1
-		RECT rctBrush;
-		HBRUSH hBrushWhite, hBrushGray;
-
-		hBrushWhite = (HBRUSH)GetStockObject(WHITE_BRUSH);
-		hBrushGray = (HBRUSH)GetStockObject(GRAY_BRUSH);
-
-		HDC hdcRaytraceWindow;
-		hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
-
-		GetClientRect(hwnd, &rctBrush);
-		SetMapMode(hdcRaytraceWindow, MM_ANISOTROPIC);
-		SetWindowExtEx(hdcRaytraceWindow, 100, 100, NULL);
-		SetViewportExtEx(hdcRaytraceWindow, rctBrush.right, rctBrush.bottom, NULL);
-		FillRect(hdcRaytraceWindow, &rctBrush, hBrushWhite);
-
-		int x = 0;
-		int y = 0;
-
-		for (int i = 0; i < 13; i++)
+		- Maybe use this to pass a pointer to the image buffer
+		https://stackoverflow.com/questions/19761167/winapi-c-how-to-pass-data-from-window-to-window-without-globals
+		*/
+		case WM_CREATE:
 		{
-			x = (i * 40) % 100;
-			y = ((i * 40) / 100) * 20;
-			SetRect(&rctBrush, x, y, x + 20, y + 20);
-			FillRect(hdcRaytraceWindow, &rctBrush, hBrushGray);
-		}
-
-		DeleteDC(hdcRaytraceWindow);
-		return 0L;
-#endif
-
-#if 0
-		PAINTSTRUCT ps;
-		HDC hdcClientWindow;
-		BITMAP bitmap;
-		HDC hdcBlitWindow;
-		HGDIOBJ currentBitmap;
-		HBITMAP newBitmap;
-
-		std::cout << "Loading background...\n";
-		newBitmap = (HBITMAP)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-
-		hdcClientWindow = BeginPaint(hwnd, &ps);
-
-		//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
-		hdcBlitWindow = CreateCompatibleDC(hdcClientWindow);
-		//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
-		currentBitmap = SelectObject(hdcBlitWindow, newBitmap);
-
-		//get the properites of the newBitmap
-		GetObject(newBitmap, sizeof(bitmap), &bitmap);
-
-		//Bit blit the hdcBlitWindow to the hdcClientWindow
-		BitBlt(hdcClientWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
-
-		//free memory associated with the "old" newBitmap aka, currentBitmap
-		SelectObject(hdcBlitWindow, currentBitmap);
-
-		DeleteDC(hdcBlitWindow);
-
-		EndPaint(hwnd, &ps);
-#endif
-	}
-
-	case WM_PAINT:
-	{
-		DEBUG_MSG_L0(__func__, "WM_PAINT");
-#if 1			
-		PAINTSTRUCT ps;
-		HDC hdcClientWindow;
-		HDC hdcBlitWindow;
-
-		BITMAP bitmap;
-		HGDIOBJ currentBitmap;
-
-		hdcClientWindow = BeginPaint(hwnd, &ps);
-
-		//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
-		hdcBlitWindow = CreateCompatibleDC(hdcClientWindow);
-		//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
-		//currentBitmap = SelectObject(hdcBlitWindow, global_newBitmap);
-		currentBitmap = SelectObject(hdcBlitWindow, workingBitmap);
-
-		//get the properites of the newBitmap
-		//GetObject(global_newBitmap, sizeof(bitmap), &bitmap);
-		GetObject(workingBitmap, sizeof(bitmap), &bitmap);
-
-		//Bit blit the hdcBlitWindow to the hdcClientWindow
-		BitBlt(hdcClientWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
-
-		//free memory associated with the "old" newBitmap aka, currentBitmap
-		SelectObject(hdcBlitWindow, currentBitmap);
-
-		DeleteDC(hdcBlitWindow);
-
-		EndPaint(hwnd, &ps);
-#endif
-		return 0L;
-	}
-
-	/* Ignored so default action taken (destorys window)
-	 * https://docs.microsoft.com/en-us/windows/win32/learnwin32/closing-the-window
-	case WM_CLOSE:
-	{
-		DEBUG_MSG_L0(__func__, "WM_CLOSE");
-		return 0L;
-	}
-	*/
-
-	case WM_DESTROY:
-	{
-		DEBUG_MSG_L0(__func__, "WM_DESTROY");
-
-		PostQuitMessage(0);
-
-		return 0L;
-	}
-
-	case WM_LBUTTONDOWN:
-	{
-		DEBUG_MSG_L0(__func__, "WM_LBUTTONDOWN: " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n");
-
-#if 1
-		HDC hdcRaytraceWindow;
-		hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
-
-		for (int x = 0; x < 10; x++) {
-			for (int y = 0; y < 10; y++) {
-				SetPixel(hdcRaytraceWindow, x + p.x, y + p.y, RGB(255, 0, 0));
+			DEBUG_MSG_L0(__func__, "WM_CREATE");
+			/*
+			if (global_newBitmap == NULL) {
+				std::cout << "Loading background...\n";
+				global_newBitmap = (HBITMAP*)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 			}
+			/**/
+			return 0L;
 		}
 
-		DeleteDC(hdcRaytraceWindow);
-#endif
+		case WM_ERASEBKGND:
+		{
+			DEBUG_MSG_L0(__func__, "WM_ERASEBKGND");
+	#if 1
+			RECT rctBrush;
+			HBRUSH hBrushWhite, hBrushGray;
 
-		//ask to redraw the window
-		//RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
-		RedrawWindow(hwnd, NULL, NULL, RDW_NOERASE);
+			hBrushWhite = (HBRUSH)GetStockObject(WHITE_BRUSH);
+			hBrushGray = (HBRUSH)GetStockObject(GRAY_BRUSH);
 
-		std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
-		globalMouseX = p.x;
-		globalMouseY = p.y;
+			HDC hdcRaytraceWindow;
+			hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
 
-		return 0L;
-	}
+			GetClientRect(hwnd, &rctBrush);
+			SetMapMode(hdcRaytraceWindow, MM_ANISOTROPIC);
+			SetWindowExtEx(hdcRaytraceWindow, 100, 100, NULL);
+			SetViewportExtEx(hdcRaytraceWindow, rctBrush.right, rctBrush.bottom, NULL);
+			FillRect(hdcRaytraceWindow, &rctBrush, hBrushWhite);
 
-	case WM_LBUTTONDBLCLK: {
-		DEBUG_MSG_L0(__func__, "WM_LBUTTODBLCLK " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n");
+			int x = 0;
+			int y = 0;
 
-		return 0L;
-	}
+			for (int i = 0; i < 13; i++)
+			{
+				x = (i * 40) % 100;
+				y = ((i * 40) / 100) * 20;
+				SetRect(&rctBrush, x, y, x + 20, y + 20);
+				FillRect(hdcRaytraceWindow, &rctBrush, hBrushGray);
+			}
 
-	case WM_SIZE: {
-		DEBUG_MSG_L0(__func__, "WM_SIZE");
-#if 0
-		PAINTSTRUCT ps;
-		HDC hdcClientWindow;
+			DeleteDC(hdcRaytraceWindow);
+			return 0L;
+	#endif
 
-		hdcClientWindow = GetDC(raytraceMSWindowHandle);
+	#if 0
+			PAINTSTRUCT ps;
+			HDC hdcClientWindow;
+			BITMAP bitmap;
+			HDC hdcBlitWindow;
+			HGDIOBJ currentBitmap;
+			HBITMAP newBitmap;
 
-		//figure out how big to make the whole window
-		RECT rect;
-		LONG windowWidth = 0, windowHeight = 0;
-		rect = { 0, 0, windowWidth, windowHeight };
+			std::cout << "Loading background...\n";
+			newBitmap = (HBITMAP)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 
-		bool result = GetClientRect(raytraceMSWindowHandle, &rect);
+			hdcClientWindow = BeginPaint(hwnd, &ps);
 
-		std::cout << "Calling resize...\n";
+			//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
+			hdcBlitWindow = CreateCompatibleDC(hdcClientWindow);
+			//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
+			currentBitmap = SelectObject(hdcBlitWindow, newBitmap);
 
-		hdcClientWindow = BeginPaint(hwnd, &ps);
+			//get the properites of the newBitmap
+			GetObject(newBitmap, sizeof(bitmap), &bitmap);
+
+			//Bit blit the hdcBlitWindow to the hdcClientWindow
+			BitBlt(hdcClientWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
+
+			//free memory associated with the "old" newBitmap aka, currentBitmap
+			SelectObject(hdcBlitWindow, currentBitmap);
+
+			DeleteDC(hdcBlitWindow);
+
+			EndPaint(hwnd, &ps);
+	#endif
+		}
+
+		case WM_PAINT:
+		{
+			DEBUG_MSG_L0(__func__, "WM_PAINT");
+	#if 1			
+			PAINTSTRUCT ps;
+			HDC hdcClientWindow;
+			HDC hdcBlitWindow;
+
+			BITMAP bitmap;
+			HGDIOBJ currentBitmap;
+
+			hdcClientWindow = BeginPaint(hwnd, &ps);
+
+			//create a "clone" of the current hdcWindow that will have the "new" bitmap painted to it
+			hdcBlitWindow = CreateCompatibleDC(hdcClientWindow);
+			//put the newBitmap into the hdcBlitWindow context, returns a handle the device context
+			//currentBitmap = SelectObject(hdcBlitWindow, global_newBitmap);
+			currentBitmap = SelectObject(hdcBlitWindow, workingBitmap);
+
+			//get the properites of the newBitmap
+			//GetObject(global_newBitmap, sizeof(bitmap), &bitmap);
+			GetObject(workingBitmap, sizeof(bitmap), &bitmap);
+
+			//Bit blit the hdcBlitWindow to the hdcClientWindow
+			BitBlt(hdcClientWindow, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcBlitWindow, 0, 0, SRCCOPY);
+
+			//free memory associated with the "old" newBitmap aka, currentBitmap
+			SelectObject(hdcBlitWindow, currentBitmap);
+
+			DeleteDC(hdcBlitWindow);
+
+			EndPaint(hwnd, &ps);
+	#endif
+			return 0L;
+		}
+
+		/* Ignored so default action taken (destorys window)
+		 * https://docs.microsoft.com/en-us/windows/win32/learnwin32/closing-the-window
+		case WM_CLOSE:
+		{
+			DEBUG_MSG_L0(__func__, "WM_CLOSE");
+			return 0L;
+		}
+		*/
+
+		case WM_DESTROY:
+		{
+			DEBUG_MSG_L0(__func__, "WM_DESTROY");
+
+			PostQuitMessage(0);
+
+			return 0L;
+		}
+
+		case WM_LBUTTONDOWN:
+		{
+			DEBUG_MSG_L0(__func__, "WM_LBUTTONDOWN: " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n");
+
+	#if 1
+			HDC hdcRaytraceWindow;
+			hdcRaytraceWindow = GetDC(raytraceMSWindowHandle);
+
+			for (int x = 0; x < 10; x++) {
+				for (int y = 0; y < 10; y++) {
+					SetPixel(hdcRaytraceWindow, x + p.x, y + p.y, RGB(255, 0, 0));
+				}
+			}
+
+			DeleteDC(hdcRaytraceWindow);
+	#endif
+
+			//ask to redraw the window
+			//RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
+			RedrawWindow(hwnd, NULL, NULL, RDW_NOERASE);
+
+			std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
+			globalMouseX = p.x;
+			globalMouseY = p.y;
+
+			return 0L;
+		}
+
+		case WM_LBUTTONDBLCLK: {
+			DEBUG_MSG_L0(__func__, "WM_LBUTTODBLCLK " << LOWORD(lParam) << "," << HIWORD(lParam) << "\n");
+
+			return 0L;
+		}
+
+		case WM_SIZE: {
+			DEBUG_MSG_L0(__func__, "WM_SIZE");
+	#if 0
+			PAINTSTRUCT ps;
+			HDC hdcClientWindow;
+
+			hdcClientWindow = GetDC(raytraceMSWindowHandle);
+
+			//figure out how big to make the whole window
+			RECT rect;
+			LONG windowWidth = 0, windowHeight = 0;
+			rect = { 0, 0, windowWidth, windowHeight };
+
+			bool result = GetClientRect(raytraceMSWindowHandle, &rect);
+
+			std::cout << "Calling resize...\n";
+
+			hdcClientWindow = BeginPaint(hwnd, &ps);
 		
-		//Bit blit the hdcClientWindow with itself
-		BitBlt(hdcClientWindow, 0, 0, windowWidth, windowHeight, hdcClientWindow, 0, 0, SRCCOPY);
+			//Bit blit the hdcClientWindow with itself
+			BitBlt(hdcClientWindow, 0, 0, windowWidth, windowHeight, hdcClientWindow, 0, 0, SRCCOPY);
 
-		EndPaint(hwnd, &ps);
+			EndPaint(hwnd, &ps);
 
-		DeleteDC(hdcClientWindow);
-#endif
-		return 0L;
-	}
+			DeleteDC(hdcClientWindow);
+	#endif
+			return 0L;
+		}
 
-	case WM_USER: {
-		DEBUG_MSG_L0(__func__, "WM_USER");
+		case WM_USER: {
+			DEBUG_MSG_L0(__func__, "WM_USER");
 
-		//global_newBitmap = (HBITMAP*)lParam;
+			//global_newBitmap = (HBITMAP*)lParam;
 
-		workingBitmap = (HBITMAP)CopyImage((HBITMAP*)lParam, IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE);
+			workingBitmap = (HBITMAP)CopyImage((HBITMAP*)lParam, IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE);
 
-		//https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-redrawwindow
-		RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
+			//https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-redrawwindow
+			RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
 
-		return 0L;
-	}
+			return 0L;
+		}
 
-	case WM_USER + 1: {
-		DEBUG_MSG_L0(__func__, "WM_USER + 1");
-	}
+		case WM_USER + 1: {
+			DEBUG_MSG_L0(__func__, "WM_USER + 1");
+			return 0L;
+		}
 
-	default:
-	{
-		//std::cout << "\nUnhandled WM message\n";
+		default:
+		{
+			//DEBUG_MSG_L0(__func__, "3, umsg: " << uMsg);
 
-		return DefWindowProc(hwnd, uMsg, wParam, lParam);
-	}
-	}
+			return DefWindowProc(hwnd, uMsg, wParam, lParam);
+		}
+	}	
 }
 
