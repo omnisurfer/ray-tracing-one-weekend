@@ -35,7 +35,7 @@ void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThread,
 	std::shared_ptr<WorkerImageBuffer> workerImageBuffer,
 	RenderProperties renderProps,
-	Camera sceneCamera,
+	Camera *sceneCamera,
 	Hitable *world
 );
 
@@ -155,7 +155,7 @@ int main() {
 	std::vector<std::shared_ptr<WorkerThread>> workerThreadVector;
 	std::shared_ptr<uint8_t> finalImageBuffer(new uint8_t[renderProps.finalImageBufferSizeInBytes]);
 
-	for (int i = 0; i < numOfRenderThreads; i++) {
+	for (uint32_t i = 0; i < numOfRenderThreads; i++) {
 
 		std::shared_ptr<WorkerThread> workerThread(new WorkerThread);
 
@@ -164,7 +164,7 @@ int main() {
 		workerThread->start = false;
 		workerThread->continueWork = false;
 		workerThread->exit = false;
-		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, mainCamera, world);
+		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, &mainCamera, world);
 
 		workerThreadVector.push_back(workerThread);
 	}
@@ -203,7 +203,26 @@ int main() {
 
 #pragma region Manage_Threads
 
-	for (int i = 0; i < 100; i++) {
+	//temp holds the initial camera lookAt that is used as the 0,0 reference
+	//this is clunky but for now it works for testing.
+	vec3 initCameraLookAt = mainCamera.getLookAt();
+
+	for (int i = 0; i < 40; i++) {
+
+		//check if the gui is running
+		if (!checkIfGuiIsRunning()) {
+			break;
+		}
+
+		//get the current mouse position
+		int x = 0, y = 0;
+		getMouseCoord(x, y);
+		//std::cout << "x,y " << x << "," << y << "\n";		
+
+		x = initCameraLookAt.x() - x;
+		y = initCameraLookAt.y() - y;
+
+		mainCamera.setLookAt(vec3(x, y, 0));
 
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
@@ -435,7 +454,7 @@ void raytraceWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
 	std::shared_ptr<WorkerImageBuffer> workerImageBufferStruct,
 	RenderProperties renderProps,
-	Camera sceneCamera,
+	Camera *sceneCamera,
 	Hitable *world
 ) {
 
@@ -465,7 +484,7 @@ void raytraceWorkerProcedure(
 		"worker " << workerThreadStruct->id <<
 		"\n\tHwnd: " << raytraceMSWindowHandle <<
 		"\n\tThread ID: " << workerThreadStruct->id <<
-		"\n\tLookat: " << sceneCamera.getLookAt() << 
+		"\n\tLookat: " << sceneCamera->getLookAt() << 
 		"\n\tWorld hitable address:  " << world <<
 		"\n\tImage buffer address: " << &workerImageBufferStruct << 
 		" @[0]: " << workerImageBufferStruct->buffer.get()[0] << " Size in bytes: " << workerImageBufferStruct->sizeInBytes		
@@ -498,7 +517,7 @@ void raytraceWorkerProcedure(
 
 						//A, the origin of the ray (camera)
 						//rayCast stores a ray projected from the camera as it points into the scene that is swept across the uv "picture" frame.
-						ray rayCast = sceneCamera.getRay(u, v);
+						ray rayCast = sceneCamera->getRay(u, v);
 
 						//NOTE: not sure about magic number 2.0 in relation with my tweaks to the viewport frame
 						vec3 pointAt = rayCast.pointAtParameter(2.0);
