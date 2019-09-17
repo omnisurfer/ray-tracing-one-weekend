@@ -189,18 +189,23 @@ LRESULT CALLBACK WndProc(
 	- https://docs.microsoft.com/en-us/windows/win32/gdi/using-brushes
 	- https://docs.microsoft.com/en-us/windows/win32/gdi/drawing-a-custom-window-background
 	*/
+	
 	//TODO drowan(20190704): Reading the cursor here is probably not best practice. Look into how to do this.
 	POINT p;
 
 	if (GetCursorPos(&p)) {
-		if (ScreenToClient(hwnd, &p)) {
-			if (p.x >= 0 && p.y >= 0) {
-				//std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
-			}
-		}
+		if (ScreenToClient(hwnd, &p));
 	}
 
 	switch (uMsg) {
+
+		case WM_MOUSEMOVE: {			
+						
+			if (p.x >= 0 && p.y >= 0) {
+				std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
+			}			
+			return 0L;
+		}
 
 		/*
 		- Maybe use this to pass a pointer to the image buffer
