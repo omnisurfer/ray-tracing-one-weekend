@@ -122,8 +122,8 @@ protected:
 		_origin = _lookFrom;
 
 		_w = unit_vector(_lookFrom - _lookAt);
-		_u = unit_vector(cross(_upDirection, _w));
-		_v = cross(_w, _u);
+		_u = unit_vector(cross(_upDirection, _w));		
+		_v = cross(_w, _u);		
 
 		_lowerLeftCorner = _origin -
 			half_width * _focusDistance * _u -

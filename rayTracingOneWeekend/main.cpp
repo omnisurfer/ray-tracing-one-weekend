@@ -93,8 +93,9 @@ int main() {
 
 	//Setup camera
 	vec3 lookFrom(0, 0, 0);
-	vec3 lookAt(0, 1, 0);
-	vec3 worldUp(0, 1, 0);
+	vec3 lookAt(0, 0, 1);
+	//the negative 1 means y increases going down the screen from the top right corner of the window (the origin)
+	vec3 worldUp(0, -1, 0);
 	float distToFocus = 1000;//(lookFrom - lookAt).length(); //1000
 	float aperture = 2.0;
 	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
@@ -104,6 +105,19 @@ int main() {
 
 	// TODO: drowan(20190607) - should I make a way to select this programatically?
 #if OUTPUT_RANDOM_SCENE == 1
+	/* Not 100% sure about this but it seems to act this way
+
+	--------------------> (+X)
+	|  \
+	|   \
+	|    \
+	|     \
+	|      \
+
+	(+Y)       Z+ (into monitor)
+
+	*/
+
 	//random scene
 	mainCamera.setLookFrom(vec3(3, 3, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));
@@ -112,8 +126,12 @@ int main() {
 	Hitable *world = randomScene();
 #else
 	//cornell box
-	mainCamera.setLookFrom(vec3(278, 278, -500));
-	mainCamera.setLookAt(vec3(278, 278, 0));
+	//mainCamera.setLookFrom(vec3(278, 278, -500));
+	//mainCamera.setLookAt(vec3(278, 278, 0));
+
+
+	mainCamera.setLookFrom(vec3(0, 0, -500));
+	mainCamera.setLookAt(vec3(0, 0, 0));
 
 	Hitable *world = cornellBox();
 #endif
@@ -210,10 +228,7 @@ int main() {
 #pragma region Manage_Threads
 
 	//temp holds the initial camera lookAt that is used as the 0,0 reference
-	//this is clunky but for now it works for testing.
-	vec3 initCameraLookAt = mainCamera.getLookAt();
-
-	int lastX = 0, lastY = 0;
+	//this is clunky but for now it works for testing.		
 
 	for (int i = 0; i < 1000; i++) {
 
@@ -222,15 +237,23 @@ int main() {
 			break;
 		}
 
+		vec3 currentCameraLookAt = mainCamera.getLookAt();
+
 		//get the current mouse position
 		int x = 0, y = 0;
 		getMouseCoord(x, y);
-		//std::cout << "x,y " << x << "," << y << "\n";		
+		//std::cout << "x,y " << x << "," << y << "\n";
 
-		x = initCameraLookAt.x() - x;
-		y = initCameraLookAt.y() - y;
+		double angleDegrees = (10 * 3.14159265) / 180;
 
-		mainCamera.setLookAt(vec3(x, y, 0));
+		//std::cout << "i: " << i << " Angle(deg): " << angleDegrees << "\n";
+
+		x = currentCameraLookAt.x() * cos(angleDegrees) - currentCameraLookAt.y() * sin(angleDegrees);
+		y = 278;//currentCameraLookAt.x() * sin(angleDegrees) + currentCameraLookAt.y() * cos(angleDegrees);
+
+		//std::cout << "x, y: " << x << "," << y << "\n";
+
+		//mainCamera.setLookAt(vec3(x, y, 0));
 
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {

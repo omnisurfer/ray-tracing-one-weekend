@@ -8,8 +8,10 @@
 HWND raytraceMSWindowHandle;
 HBITMAP workingBitmap;
 
-int globalMouseX = 0, globalMouseY = 0;
-std::mutex globalMouseCoordMutex;
+int globalMouseCurrentX = 0, globalMouseCurrentY = 0;
+int globalMouseLastX = 0, globalMouseLastY = 0;
+int globalMouseDeltaX = 0, globalMouseDeltaY = 0;
+std::mutex globalMouseXYInputMutex;
 
 int globalWindowHeight = 0, globalWindowWidth = 0;
 
@@ -29,10 +31,10 @@ LRESULT CALLBACK WndProc(
 );
 
 int getMouseCoord(int &x, int &y) {
-
-	std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
-	x = globalMouseX - globalWindowWidth/2;
-	y = globalMouseY - globalWindowHeight/2;
+	
+	std::lock_guard<std::mutex> lock(globalMouseXYInputMutex);		
+	x = globalMouseCurrentX - globalWindowWidth / 2;
+	y = globalMouseCurrentY - globalWindowHeight / 2;
 
 	return 0;
 }
@@ -94,7 +96,7 @@ int guiWorkerProcedure(
 		//http://www.directxtutorial.com/Lesson.aspx?lessonid=11-1-4
 		//figure out how big to make the whole window
 		RECT rect;
-		rect = { 0, 0, (LONG)windowWidth, (LONG)windowHeight };
+		rect = { 0, 0, (LONG)windowWidth, (LONG)windowHeight };		
 
 		globalWindowHeight = windowHeight;
 		globalWindowWidth = windowWidth;
@@ -199,11 +201,25 @@ LRESULT CALLBACK WndProc(
 
 	switch (uMsg) {
 
-		case WM_MOUSEMOVE: {			
-						
+		case WM_MOUSEMOVE: {
+					
 			if (p.x >= 0 && p.y >= 0) {
 				std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
-			}			
+			}
+			
+			std::lock_guard<std::mutex> lock(globalMouseXYInputMutex);
+			globalMouseCurrentX = p.x;
+			globalMouseCurrentY = p.y;
+			
+			globalMouseDeltaX = p.x - globalMouseLastX;
+			std::cout << "\nGlobX: " << globalMouseDeltaX << "\n";			
+			
+			globalMouseDeltaY = p.y - globalMouseLastY;
+			std::cout << "\nGlobY: " << globalMouseDeltaY << "\n";
+
+			globalMouseLastX = p.x;
+			globalMouseLastY = p.y;			
+
 			return 0L;
 		}
 
@@ -365,9 +381,9 @@ LRESULT CALLBACK WndProc(
 			//RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
 			RedrawWindow(hwnd, NULL, NULL, RDW_NOERASE);
 
-			std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
-			globalMouseX = p.x;
-			globalMouseY = p.y;
+			std::lock_guard<std::mutex> lock(globalMouseXYInputMutex);
+			globalMouseCurrentX = p.x;
+			globalMouseCurrentY = p.y;
 
 			return 0L;
 		}
@@ -410,7 +426,33 @@ LRESULT CALLBACK WndProc(
 		case WM_USER: {
 			//DEBUG_MSG_L0(__func__, "WM_USER");
 
-			//global_newBitmap = (HBITMAP*)lParam;
+			//This code gets the current rectangle coords from the window space and then figures out where those points
+			//are relative to desktop coord space. This modified coord space gets passed onto the ClipCursor call to
+			//basically trap the cursor within the window. Not using raw input intentionally for now.
+			/*https://stackoverflow.com/questions/36779161/trap-cursor-in-window*/
+			RECT rect;
+			GetClientRect(hwnd, &rect);
+
+			POINT ul;
+			ul.x = rect.left;
+			ul.y = rect.top;
+
+			POINT lr;
+			lr.x = rect.right;
+			lr.y = rect.bottom;
+
+			MapWindowPoints(hwnd, nullptr, &ul, 1);
+			MapWindowPoints(hwnd, nullptr, &lr, 1);
+
+			rect.left = ul.x;
+			rect.top = ul.y;
+
+			rect.right = lr.x;
+			rect.bottom = lr.y;
+
+			//ClipCursor(&rect);
+
+			//SetCursorPos(rect.right - (rect.right - rect.left)/2, rect.top - (rect.top - rect.bottom)/2);
 
 			//drowan_20190916: Freeing the used memory seems to get around the CopyImage call failing. 
 			//Seems to be OK handling a null workingBitmap when first called.
