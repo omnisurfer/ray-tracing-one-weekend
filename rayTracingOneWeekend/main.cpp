@@ -119,19 +119,19 @@ int main() {
 	*/
 
 	//random scene
-	mainCamera.setLookFrom(vec3(3, 3, -10));
+	mainCamera.setLookFrom(vec3(0, 0, -10));
 	mainCamera.setLookAt(vec3(0, 0, 0));
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
 	Hitable *world = randomScene();
 #else
 	//cornell box
-	//mainCamera.setLookFrom(vec3(278, 278, -500));
-	//mainCamera.setLookAt(vec3(278, 278, 0));
+	mainCamera.setLookFrom(vec3(278, 278, -500));
+	mainCamera.setLookAt(vec3(278, 278, 0));
 
 
-	mainCamera.setLookFrom(vec3(0, 0, -500));
-	mainCamera.setLookAt(vec3(0, 0, 0));
+	//mainCamera.setLookFrom(vec3(0, 0, -500));
+	//mainCamera.setLookAt(vec3(0, 0, 0));
 
 	Hitable *world = cornellBox();
 #endif
@@ -294,7 +294,6 @@ int main() {
 			//thread->continueWorkConditionVar.notify_all();
 		}
 	}	
-
 
 #pragma endregion Manage_Threads
 

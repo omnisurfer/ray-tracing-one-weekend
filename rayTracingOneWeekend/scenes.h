@@ -41,7 +41,7 @@ Hitable *randomScene() {
 
 	Texture *constant = new ConstantTexture(vec3(0.0, 1.0, 0.0));
 
-	Material *emitterMat = new DiffuseLight(new ConstantTexture(vec3(4, 4, 4)));
+	Material *emitterMat = new DiffuseLight(new ConstantTexture(vec3(20 * 1, 20 * 0, 20 * 0)));
 
 	//read in an image for texture mapping
 	int nx, ny, nn;
@@ -50,7 +50,7 @@ Hitable *randomScene() {
 
 	Material *imageMat = new Lambertian(new ImageTexture(textureData, nx, ny));
 
-	list[0] = new Sphere(vec3(0, -1000, 0), 1000, new Lambertian(perlin));
+	list[0] = new Sphere(vec3(0, 1000, 0), 1000, new Lambertian(perlin));
 
 	int i = 1;
 
@@ -62,7 +62,7 @@ Hitable *randomScene() {
 	while (i < n - 3) {
 		float chooseMaterial = unifRand(randomNumberGenerator);
 
-		vec3 center(centerX + 0.9*unifRand(randomNumberGenerator), 0.2, centerY + 0.9*unifRand(randomNumberGenerator));
+		vec3 center(centerX + 0.9*unifRand(randomNumberGenerator), -0.2, centerY + 0.9*unifRand(randomNumberGenerator));
 
 		if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
 			if (chooseMaterial < 0.8) { //diffuse
@@ -103,15 +103,16 @@ Hitable *randomScene() {
 	}
 #endif
 	if (textureData != NULL) {
-		list[i++] = new Sphere(vec3(0, 2, 0), 2.0, imageMat);
+		list[i++] = new Sphere(vec3(0, -2.0, 0), 2.0, imageMat);
 	}
 	else {
-		list[i++] = new Sphere(vec3(0, 1, 0), 1.0, new Dielectric(1.5));
+		list[i++] = new Sphere(vec3(5, -1.0, 0), 1.0, new Dielectric(1.5));
 	}
 #if 1
-	list[i++] = new Sphere(vec3(-4, 1, 0), 1.0, new Lambertian(perlin));
-	list[i++] = new Sphere(vec3(4, 1, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
-	list[i++] = new XYRectangle(0, 2, 0, 2, -6, emitterMat);
+	list[i++] = new Sphere(vec3(-4, -1.0, 0), 1.0, new Lambertian(perlin));
+	list[i++] = new Sphere(vec3(4, -1.0, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));		
+	//basic "sun"?
+	list[i++] = new Sphere(vec3(0, -400, 10), 100.0, emitterMat);
 #endif
 
 	//std::cout << "n+1 = " << n << " i= " << i << "\n";
@@ -135,12 +136,15 @@ Hitable *cornellBox() {
 	int planeWidth = 500, planeHeight = 500, planeAxisDepthOffset = 500;
 	int xCoord = 0, yCoord = 0;
 
+	int x0 = (xCoord - (xCoord / 2));
+	int x0Off = (planeAxisDepthOffset / 4);
+
 	//light panel
 	list[i++] = new XZRectangle(
-		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 8),
-		((planeWidth/4 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 8),
+		x0 - x0Off,
+		((planeWidth/2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4),
 		(yCoord - (yCoord / 2)) + (planeAxisDepthOffset / 4),
-		((planeHeight/4 + yCoord) - (yCoord / 2)) + (planeAxisDepthOffset / 4),
+		((planeHeight/2 + yCoord) - (yCoord / 2)) + (planeAxisDepthOffset / 4),
 		(-planeAxisDepthOffset / 2) + 1,
 		light
 	);
@@ -148,7 +152,7 @@ Hitable *cornellBox() {
 	//light panel - does not seem to effect the left panel??
 	/*
 	list[i++] = new XZRectangle(
-		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 4),
+		x0 - (planeAxisDepthOffset / 4),
 		((planeWidth / 2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4),
 		(yCoord - (yCoord / 2)),
 		((planeHeight / 2 + yCoord) - (yCoord / 2)),
@@ -158,14 +162,16 @@ Hitable *cornellBox() {
 	/**/
 
 	//top panel
+	/**/
 	list[i++] = new XZRectangle(
-		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 2),
+		x0 - (planeAxisDepthOffset / 2),
 		((planeWidth + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 2),
 		(yCoord - (yCoord / 2)),
 		((planeHeight + yCoord) - (yCoord / 2)),
 		-(planeAxisDepthOffset / 2),
 		white
 	);
+	/**/
 
 	//left panel	
 	list[i++] = new FlipNormals(new YZRectangle(		
@@ -208,6 +214,13 @@ Hitable *cornellBox() {
 		(planeAxisDepthOffset / 2),
 		white
 	));
+#else
+	list[i++] = new FlipNormals(new YZRectangle(0, 555, 0, 555, 555, green));
+	list[i++] = new YZRectangle(0, 555, 0, 555, 0, red);
+	list[i++] = new XZRectangle(113, 443, 127, 432, 554, light);
+	list[i++] = new FlipNormals(new XZRectangle(0, 555, 0, 555, 555, white));
+	list[i++] = new XZRectangle(0, 555, 0, 555, 0, white);
+	list[i++] = new FlipNormals(new XYRectangle(0, 555, 0, 555, 555, white));
 #endif
 
 	//add boxes
@@ -223,25 +236,23 @@ Hitable *cornellBox() {
 	);
 	/**/
 	// make a smoke box
-	//Hitable *box
-		
-		list[i++] = new Translate(
+	Hitable *box = new Translate(
 		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 300, 160), blue), -25),
-		vec3(-125, -50, 250)
+		vec3(-125, -50, 200)
 	);	
 	
-	//list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.2, 0.6, 0.3)));
+	list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.0, 0.0, 1.0)));
 
 	/**/
 
 	Material *innerSpehereMat = new Lambertian(new ConstantTexture(vec3(0.1, 0.05, 0.60)));
 
-	Hitable *outerSphere = new Sphere(vec3(350, 120, 350), 150.0, new Dielectric(1.5));
-	Hitable *innerSphere = new Sphere(vec3(350, 120, 350), 149.0, innerSpehereMat);
+	Hitable *outerSphere = new Sphere(vec3(0, 0, 200), 80.0, new Dielectric(1.5));
+	Hitable *innerSphere = new Sphere(vec3(0, 0, 200), 79.0, innerSpehereMat);
 
-	//list[i++] = new ConstantMedium(innerSphere, 0.001, new ConstantTexture(vec3(0.4, 0.6, 0.4)));
-	//list[i++] = innerSphere;
-	//list[i++] = outerSphere;
+	list[i++] = new ConstantMedium(innerSphere, 0.001, new ConstantTexture(vec3(0.4, 0.6, 0.4)));
+	list[i++] = innerSphere;
+	list[i++] = outerSphere;
 
 #endif
 	return new HitableList(list, i);
