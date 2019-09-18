@@ -132,7 +132,7 @@ Hitable *cornellBox() {
 	Material *blueLight = new DiffuseLight(new ConstantTexture(vec3(0, 0, 4)));
 
 #if 1
-	int planeWidth = DEFAULT_RENDER_WIDTH, planeHeight = DEFAULT_RENDER_HEIGHT, planeAxisDepthOffset = DEFAULT_RENDER_WIDTH;
+	int planeWidth = 500, planeHeight = 500, planeAxisDepthOffset = 500;
 	int xCoord = 0, yCoord = 0;
 
 	//light panel
