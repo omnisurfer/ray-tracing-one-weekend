@@ -134,14 +134,11 @@ Hitable *cornellBox() {
 
 #if 1
 	int planeWidth = 500, planeHeight = 500, planeAxisDepthOffset = 500;
-	int xCoord = 0, yCoord = 0;
-
-	int x0 = (xCoord - (xCoord / 2));
-	int x0Off = (planeAxisDepthOffset / 4);
+	int xCoord = 0, yCoord = 0;	
 
 	//light panel
 	list[i++] = new XZRectangle(
-		x0 - x0Off,
+		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 4),
 		((planeWidth/2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4),
 		(yCoord - (yCoord / 2)) + (planeAxisDepthOffset / 4),
 		((planeHeight/2 + yCoord) - (yCoord / 2)) + (planeAxisDepthOffset / 4),
@@ -152,7 +149,7 @@ Hitable *cornellBox() {
 	//light panel - does not seem to effect the left panel??
 	/*
 	list[i++] = new XZRectangle(
-		x0 - (planeAxisDepthOffset / 4),
+		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 4),
 		((planeWidth / 2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4),
 		(yCoord - (yCoord / 2)),
 		((planeHeight / 2 + yCoord) - (yCoord / 2)),
@@ -164,7 +161,7 @@ Hitable *cornellBox() {
 	//top panel
 	/**/
 	list[i++] = new XZRectangle(
-		x0 - (planeAxisDepthOffset / 2),
+		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 2),
 		((planeWidth + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 2),
 		(yCoord - (yCoord / 2)),
 		((planeHeight + yCoord) - (yCoord / 2)),
