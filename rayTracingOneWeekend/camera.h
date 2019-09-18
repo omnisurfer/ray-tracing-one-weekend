@@ -109,6 +109,18 @@ public:
 		return _focusDistance;
 	}
 
+	void rotateCamera(float degrees) {		
+
+	}
+
+	void tiltCamera(float degrees) {
+
+	}
+
+	void pitchCamera(float deegrees) {
+
+	}
+
 protected:
 
 	void setCamera() {

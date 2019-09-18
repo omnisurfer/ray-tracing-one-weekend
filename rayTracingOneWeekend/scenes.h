@@ -134,14 +134,17 @@ Hitable *cornellBox() {
 
 #if 1
 	int planeWidth = 500, planeHeight = 500, planeAxisDepthOffset = 500;
-	int xCoord = 0, yCoord = 0;	
+	int xCoord = 0, yCoord = 0;
+
+	int x0 = (xCoord - (xCoord / 2));
+	int x0Off = (planeAxisDepthOffset / 4);
 
 	//light panel
 	list[i++] = new XZRectangle(
-		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 4),
-		((planeWidth/2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4),
+		x0 - x0Off,
+		((planeWidth / 2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4),
 		(yCoord - (yCoord / 2)) + (planeAxisDepthOffset / 4),
-		((planeHeight/2 + yCoord) - (yCoord / 2)) + (planeAxisDepthOffset / 4),
+		((planeHeight / 2 + yCoord) - (yCoord / 2)) + (planeAxisDepthOffset / 4),
 		(-planeAxisDepthOffset / 2) + 1,
 		light
 	);
@@ -149,7 +152,7 @@ Hitable *cornellBox() {
 	//light panel - does not seem to effect the left panel??
 	/*
 	list[i++] = new XZRectangle(
-		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 4),
+		x0 - (planeAxisDepthOffset / 4),
 		((planeWidth / 2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4),
 		(yCoord - (yCoord / 2)),
 		((planeHeight / 2 + yCoord) - (yCoord / 2)),
@@ -161,7 +164,7 @@ Hitable *cornellBox() {
 	//top panel
 	/**/
 	list[i++] = new XZRectangle(
-		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 2),
+		x0 - (planeAxisDepthOffset / 2),
 		((planeWidth + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 2),
 		(yCoord - (yCoord / 2)),
 		((planeHeight + yCoord) - (yCoord / 2)),
@@ -171,33 +174,33 @@ Hitable *cornellBox() {
 	/**/
 
 	//left panel	
-	list[i++] = new FlipNormals(new YZRectangle(		
+	list[i++] = new FlipNormals(new YZRectangle(
 		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 2),
 		((planeWidth + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 2),
 		(yCoord - (yCoord / 2)),
 		((planeHeight + yCoord) - (yCoord / 2)),
-		-planeAxisDepthOffset/2,
+		-planeAxisDepthOffset / 2,
 		red
 	));
 
 	//back panel
 	list[i++] = new FlipNormals(new XYRectangle(
-		xCoord - (planeWidth / 2), 
-		(planeWidth + xCoord) - (planeWidth / 2), 
-		yCoord - (planeHeight / 2), 
-		(planeHeight + yCoord) - (planeHeight / 2), 
-		planeAxisDepthOffset, 
+		xCoord - (planeWidth / 2),
+		(planeWidth + xCoord) - (planeWidth / 2),
+		yCoord - (planeHeight / 2),
+		(planeHeight + yCoord) - (planeHeight / 2),
+		planeAxisDepthOffset,
 		green
 	));
 
 	//right panel	
 	/**/
 	list[i++] = new FlipNormals(new YZRectangle(
-		(xCoord - (xCoord/2)) - (planeAxisDepthOffset / 2),
-		((planeWidth + xCoord) - (xCoord/2)) - (planeAxisDepthOffset / 2),
-		(yCoord - (yCoord/2)), 
-		((planeHeight + yCoord) - (yCoord/2)),
-		planeAxisDepthOffset/2, 
+		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 2),
+		((planeWidth + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 2),
+		(yCoord - (yCoord / 2)),
+		((planeHeight + yCoord) - (yCoord / 2)),
+		planeAxisDepthOffset / 2,
 		blue
 	));
 	/**/

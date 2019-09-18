@@ -126,12 +126,12 @@ int main() {
 	Hitable *world = randomScene();
 #else
 	//cornell box
-	mainCamera.setLookFrom(vec3(278, 278, -500));
-	mainCamera.setLookAt(vec3(278, 278, 0));
+	//mainCamera.setLookFrom(vec3(278, 278, -500));
+	//mainCamera.setLookAt(vec3(278, 278, 0));
 
 
-	//mainCamera.setLookFrom(vec3(0, 0, -500));
-	//mainCamera.setLookAt(vec3(0, 0, 0));
+	mainCamera.setLookFrom(vec3(0, 0, -500));
+	mainCamera.setLookAt(vec3(0, 0, 0));
 
 	Hitable *world = cornellBox();
 #endif
@@ -244,16 +244,18 @@ int main() {
 		getMouseCoord(x, y);
 		//std::cout << "x,y " << x << "," << y << "\n";
 
-		double angleDegrees = (10 * 3.14159265) / 180;
+		double angleDegrees = (i * 3.14159265) / 180;
 
 		//std::cout << "i: " << i << " Angle(deg): " << angleDegrees << "\n";
 
-		x = currentCameraLookAt.x() * cos(angleDegrees) - currentCameraLookAt.y() * sin(angleDegrees);
-		y = 278;//currentCameraLookAt.x() * sin(angleDegrees) + currentCameraLookAt.y() * cos(angleDegrees);
+		x = currentCameraLookAt.x() * cos(angleDegrees) - currentCameraLookAt.z() * sin(angleDegrees);
+		y = currentCameraLookAt.x() * sin(angleDegrees) + currentCameraLookAt.z() * cos(angleDegrees);
 
 		//std::cout << "x, y: " << x << "," << y << "\n";
 
-		//mainCamera.setLookAt(vec3(x, y, 0));
+		float z = currentCameraLookAt.z();
+
+		mainCamera.setLookAt(vec3(0.707 * 500, 0, 0.707 * 500));		
 
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
