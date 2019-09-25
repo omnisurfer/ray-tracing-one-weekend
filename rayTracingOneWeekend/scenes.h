@@ -234,7 +234,7 @@ Hitable *cornellBox() {
 		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 160, 160), red), 18.0),
 		vec3(0, 80, 100)
 	);
-	/**/
+	/*
 	// make a smoke box
 	Hitable *box = new Translate(
 		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 300, 160), blue), -25),

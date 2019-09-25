@@ -244,9 +244,10 @@ int main() {
 		getMouseCoord(x, y);
 		//std::cout << "x,y " << x << "," << y << "\n";
 
-		double angleDegrees = (i * 3.14159265) / 180;
+		int angle = i % 360;
+		double angleDegrees = angle * 2 * 3.14159 / 180.0f;
 
-		//std::cout << "i: " << i << " Angle(deg): " << angleDegrees << "\n";
+		//std::cout << "i: " << i << " sin(angleDeg): " << sin(angleDegrees) << "\n";
 
 		x = currentCameraLookAt.x() * cos(angleDegrees) - currentCameraLookAt.z() * sin(angleDegrees);
 		y = currentCameraLookAt.x() * sin(angleDegrees) + currentCameraLookAt.z() * cos(angleDegrees);
@@ -255,7 +256,7 @@ int main() {
 
 		float z = currentCameraLookAt.z();
 
-		mainCamera.setLookAt(vec3(0.707 * 500, 0, 0.707 * 500));		
+		mainCamera.setLookAt(vec3(sin(angleDegrees) * 500, 0, cos(angleDegrees) * 500));		
 
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {

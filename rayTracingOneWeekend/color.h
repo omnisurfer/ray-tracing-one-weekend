@@ -42,10 +42,10 @@ vec3 color(const ray &rayCast, Hitable *world, int depth) {
 			//second paramater colors closer things
 			//as the pointAtParameter becomes larger (i.e. hit something close) it attenuates the first portion of the equation and
 			//amplifies the second portion.
-			return (1.0 - tempPointAtParameterT)*vec3(unit_direction.y() * 1.0, unit_direction.y() * 1.0, 1.0) + tempPointAtParameterT * vec3(GLOBAL_ILLUM_GAIN, GLOBAL_ILLUM_GAIN, GLOBAL_ILLUM_GAIN);
+			return (1.0 - tempPointAtParameterT)*vec3(unit_direction.y() * 1.0, unit_direction.y() * 1.0, 1.0) + tempPointAtParameterT * vec3(SKY_ILLUM_GAIN, SKY_ILLUM_GAIN, SKY_ILLUM_GAIN);
 		}		
 		else {
-			return vec3(0.8, 0.8, 0.8);
+			return vec3(GLOBAL_ILLUM_GAIN, GLOBAL_ILLUM_GAIN, GLOBAL_ILLUM_GAIN);
 		}
 #else
 		return vec3(0.0, 0.0, 0.0);
