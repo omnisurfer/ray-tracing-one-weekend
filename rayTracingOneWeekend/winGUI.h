@@ -18,6 +18,11 @@ int globalWindowHeight = 0, globalWindowWidth = 0;
 bool globalGuiIsRunning = false;
 std::mutex globalGuiIsRunningMutex;
 
+//more sophisticated FPS method:
+//https://stackoverflow.com/questions/28530798/how-to-make-a-basic-fps-counter
+clock_t currentFrameTimeSample;
+clock_t lastFrameTimeSample;
+
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
 	uint32_t windowWidth,
@@ -64,6 +69,9 @@ int guiWorkerProcedure(
 	globalGuiIsRunning = true;
 	guiRunningLock.unlock();
 
+	//set the clock samples to the same time
+	currentFrameTimeSample = clock();
+	lastFrameTimeSample = currentFrameTimeSample;
 
 	//wait to be told to run
 	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
@@ -307,8 +315,7 @@ LRESULT CALLBACK WndProc(
 		}
 
 		case WM_PAINT:
-		{
-			//DEBUG_MSG_L0(__func__, "WM_PAINT");
+		{			
 	#if 1			
 			PAINTSTRUCT ps;
 			HDC hdcClientWindow;
@@ -336,6 +343,42 @@ LRESULT CALLBACK WndProc(
 			SelectObject(hdcBlitWindow, currentBitmap);
 
 			DeleteDC(hdcBlitWindow);
+
+			//draw some text
+			//https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-drawtext
+	#if DISPLAY_FPS == 1
+			//SetBkColor(hdcClientWindow, RGB(0, 0, 255));
+			SetBkMode(hdcClientWindow, TRANSPARENT);
+			SetTextColor(hdcClientWindow, RGB(255, 0, 0));
+			
+			//Create a basic FPS counter
+			lastFrameTimeSample = currentFrameTimeSample;
+			currentFrameTimeSample = clock();			
+
+			clock_t deltaTime = currentFrameTimeSample - lastFrameTimeSample;
+
+			float clocksPerSec = (float)deltaTime / CLOCKS_PER_SEC;
+			int instantaneousFPS = (int)1 / clocksPerSec;
+
+			//make sure it doesn't take more than four char positions
+			instantaneousFPS = instantaneousFPS % 1000;
+
+			//std::cout << "frame time (in seconds): " << clocksPerSec << "\n";
+			//std::cout << "FPS (instantaneous): " << instantaneousFPS << "\n";
+
+			RECT fpsRect;
+			fpsRect = { 0, 0, 100, 100 };
+
+			char fpsText[100] = "FPS: ";					
+
+			//convert int to string
+			char fpsIntText[4];
+			sprintf_s(fpsIntText, 4, "%d", instantaneousFPS);			
+
+			strcat_s(fpsText, 100, fpsIntText);						
+			
+			DrawText(hdcClientWindow, (LPCSTR)&fpsText, -1, &fpsRect, DT_CENTER);		
+	#endif
 
 			EndPaint(hwnd, &ps);
 	#endif

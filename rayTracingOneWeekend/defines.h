@@ -12,8 +12,9 @@
 #define OUTPUT_BMP_EN 0
 #define RUN_RAY_TRACE 1
 #define BYPASS_SCENE_CONFIG 1
+#define DISPLAY_FPS 1
 
-#define GLOBAL_ILLUM_EN 1
+#define GLOBAL_ILLUM_EN 0
 #define SKY_ILLUM_GAIN 0.3
 #define GLOBAL_ILLUM_GAIN 0.1
 #define CAMERA_DOF_EN 0
