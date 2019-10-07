@@ -256,7 +256,7 @@ int main() {
 		getMouseCoord(x, y);
 		//std::cout << "x,y (" << x << "," << y << ")\n";
 
-		int angle = i % 360;
+		int angle = i % 360 * 0;
 		double angleDegrees = angle * 2 * 3.14159 / 180.0f;
 
 		//std::cout << "i: " << i << " sin(angleDeg): " << sin(angleDegrees) << "\n";

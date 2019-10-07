@@ -126,10 +126,10 @@ Hitable *cornellBox() {
 
 	Material *red = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
 	Material *white = new Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
-	Material *green = new Lambertian(new ConstantTexture(vec3(0.12, 0.45, 0.15)));	
+	Material *green = new Lambertian(new ConstantTexture(vec3(0.12, 0.95, 0.15)));	
 	Material *blue = new Lambertian(new ConstantTexture(vec3(0.12, 0.12, 0.45)));
 
-	Material *light = new DiffuseLight(new ConstantTexture(vec3(10, 10, 10)));
+	Material *light = new DiffuseLight(new ConstantTexture(vec3(3, 3, 3)));
 	Material *blueLight = new DiffuseLight(new ConstantTexture(vec3(0, 0, 4)));
 
 #if 1
@@ -141,10 +141,10 @@ Hitable *cornellBox() {
 
 	//light panel
 	list[i++] = new XZRectangle(
-		x0 - x0Off,
-		((planeWidth / 2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4),
-		(yCoord - (yCoord / 2)) + (planeAxisDepthOffset / 4),
-		((planeHeight / 2 + yCoord) - (yCoord / 2)) + (planeAxisDepthOffset / 4),
+		x0 - x0Off - 50,
+		((planeWidth / 2 + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 4) + 50,
+		(yCoord - (yCoord / 2)) + (planeAxisDepthOffset / 4) - 50,
+		((planeHeight / 2 + yCoord) - (yCoord / 2)) + (planeAxisDepthOffset / 4) + 50,
 		(-planeAxisDepthOffset / 2) + 1,
 		light
 	);
@@ -180,7 +180,7 @@ Hitable *cornellBox() {
 		(yCoord - (yCoord / 2)),
 		((planeHeight + yCoord) - (yCoord / 2)),
 		-planeAxisDepthOffset / 2,
-		red
+		green
 	));
 
 	//back panel
@@ -190,7 +190,7 @@ Hitable *cornellBox() {
 		yCoord - (planeHeight / 2),
 		(planeHeight + yCoord) - (planeHeight / 2),
 		planeAxisDepthOffset,
-		green
+		white
 	));
 
 	//right panel	
@@ -201,7 +201,7 @@ Hitable *cornellBox() {
 		(yCoord - (yCoord / 2)),
 		((planeHeight + yCoord) - (yCoord / 2)),
 		planeAxisDepthOffset / 2,
-		blue
+		red
 	));
 	/**/
 
@@ -231,26 +231,26 @@ Hitable *cornellBox() {
 
 	/**/
 	list[i++] = new Translate(
-		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 160, 160), red), 18.0),
+		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 160, 160), blue), 18.0),
 		vec3(0, 80, 100)
 	);
-	/*
+	/**/
 	// make a smoke box
 	Hitable *box = new Translate(
-		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 300, 160), blue), -25),
-		vec3(-125, -50, 200)
+		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 300, 160), green), -25),
+		vec3(-100, -50, 200)
 	);	
 	
-	list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.0, 0.0, 1.0)));
+	list[i++] = new ConstantMedium(box, 0.01, new ConstantTexture(vec3(0.2, 0.9, 0.4)));
 
 	/**/
 
-	Material *innerSpehereMat = new Lambertian(new ConstantTexture(vec3(0.1, 0.05, 0.60)));
+	Material *innerSpehereMat = new Lambertian(new ConstantTexture(vec3(0.9, 0.05, 0.10)));
 
-	Hitable *outerSphere = new Sphere(vec3(0, 0, 200), 80.0, new Dielectric(1.5));
-	Hitable *innerSphere = new Sphere(vec3(0, 0, 200), 79.0, innerSpehereMat);
+	Hitable *outerSphere = new Sphere(vec3(-150, 150, 200), 100.0, new Dielectric(1.5));
+	Hitable *innerSphere = new Sphere(vec3(-150, 150, 200), 99.0, innerSpehereMat);
 
-	list[i++] = new ConstantMedium(innerSphere, 0.001, new ConstantTexture(vec3(0.4, 0.6, 0.4)));
+	list[i++] = new ConstantMedium(innerSphere, 0.001, new ConstantTexture(vec3(0.8, 0.2, 0.1)));
 	list[i++] = innerSphere;
 	list[i++] = outerSphere;
 
