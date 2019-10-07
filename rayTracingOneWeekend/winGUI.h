@@ -18,6 +18,8 @@ int globalWindowHeight = 0, globalWindowWidth = 0;
 bool globalGuiIsRunning = false;
 std::mutex globalGuiIsRunningMutex;
 
+GUIControlInputs _guiControlInputs;
+
 //more sophisticated FPS method:
 //https://stackoverflow.com/questions/28530798/how-to-make-a-basic-fps-counter
 clock_t currentFrameTimeSample;
@@ -42,6 +44,13 @@ int getMouseCoord(int &x, int &y) {
 	y = globalMouseCurrentY - globalWindowHeight / 2;
 
 	return 0;
+}
+
+bool getGUIControlInputs(GUIControlInputs &guiControlInputs) {
+
+	guiControlInputs = _guiControlInputs;
+
+	return true;
 }
 
 bool checkIfGuiIsRunning() {
@@ -209,6 +218,107 @@ LRESULT CALLBACK WndProc(
 
 	switch (uMsg) {
 
+		/**/
+		case WM_KEYDOWN: {			
+			
+			switch (wParam) {
+
+				case 'W': {
+					_guiControlInputs.forwardAsserted = true;
+					break;
+				}
+
+				case 'S': {
+					_guiControlInputs.reverseAsserted = true;
+					break;
+				}
+
+				case 'A': {
+					_guiControlInputs.leftAsserted = true;
+					break;
+				}
+
+				case 'D': {
+					_guiControlInputs.rightAsserted = true;
+					break;
+				}
+
+				case VK_ESCAPE: {
+					_guiControlInputs.escAsserted = true;
+					break;
+				}
+
+				default: {
+					break;
+				}
+
+			}
+
+			return 0L;
+		}
+
+		case WM_KEYUP: {
+
+			switch (wParam) {
+
+				case 'W': {
+					_guiControlInputs.forwardAsserted = false;
+					break;
+				}
+
+				case 'S': {
+					_guiControlInputs.reverseAsserted = false;
+					break;
+				}
+
+				case 'A': {
+					_guiControlInputs.leftAsserted = false;
+					break;
+				}
+
+				case 'D': {
+					_guiControlInputs.rightAsserted = false;
+					break;
+				}
+
+				case VK_ESCAPE: {
+					_guiControlInputs.escAsserted = false;
+					break;
+				}
+
+				default: {
+					break;
+				}
+
+			}
+
+			return 0L;
+		}
+		/**/
+		case WM_SYSKEYDOWN: {
+		
+			switch (wParam) {
+
+				default: {
+					break;
+				}
+
+			}
+			return 0L;
+		}
+
+		case WM_SYSKEYUP: {
+
+			switch (wParam) {
+
+				default: {
+					break;
+				}
+
+			}
+			return 0L;
+		}
+
 		case WM_MOUSEMOVE: {
 					
 			if (p.x >= 0 && p.y >= 0) {
@@ -219,10 +329,10 @@ LRESULT CALLBACK WndProc(
 			globalMouseCurrentX = p.x;
 			globalMouseCurrentY = p.y;
 			
-			globalMouseDeltaX = p.x - globalMouseLastX;
-			std::cout << "\nGlobX: " << globalMouseDeltaX << "\n";			
-			
+			globalMouseDeltaX = p.x - globalMouseLastX;							
 			globalMouseDeltaY = p.y - globalMouseLastY;
+
+			std::cout << "\nGlobX: " << globalMouseDeltaX << "\n";
 			std::cout << "\nGlobY: " << globalMouseDeltaY << "\n";
 
 			globalMouseLastX = p.x;

@@ -237,12 +237,24 @@ int main() {
 			break;
 		}
 
+		//check some keys
+		GUIControlInputs guiControlInputs;
+		getGUIControlInputs(guiControlInputs);
+
+		/*
+		std::cout << "W: " << guiControlInputs.forwardAsserted << "\n";
+		std::cout << "S: " << guiControlInputs.reverseAsserted << "\n";
+		std::cout << "A: " << guiControlInputs.leftAsserted << "\n";
+		std::cout << "D: " << guiControlInputs.rightAsserted << "\n";
+		std::cout << "ESC: " << guiControlInputs.escAsserted << "\n";
+		/**/
+
 		vec3 currentCameraLookAt = mainCamera.getLookAt();
 
 		//get the current mouse position
 		int x = 0, y = 0;
 		getMouseCoord(x, y);
-		//std::cout << "x,y " << x << "," << y << "\n";
+		//std::cout << "x,y (" << x << "," << y << ")\n";
 
 		int angle = i % 360;
 		double angleDegrees = angle * 2 * 3.14159 / 180.0f;

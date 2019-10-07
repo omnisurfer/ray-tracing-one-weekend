@@ -20,6 +20,14 @@ struct WorkerImageBuffer {
 	std::shared_ptr<uint8_t> buffer;
 };
 
+struct GUIControlInputs {
+	bool forwardAsserted = false;
+	bool reverseAsserted = false;
+	bool leftAsserted = false;
+	bool rightAsserted = false;
+	bool escAsserted = false;
+};
+
 struct WorkerThread {
 	uint32_t id;
 
