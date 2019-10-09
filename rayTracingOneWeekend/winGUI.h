@@ -603,10 +603,11 @@ LRESULT CALLBACK WndProc(
 			rect.right = lr.x;
 			rect.bottom = lr.y;
 
-			//ClipCursor(&rect);
+	#if CAPTURE_MOUSE == 1
+			ClipCursor(&rect);
 
-			//SetCursorPos(rect.right - (rect.right - rect.left)/2, rect.top - (rect.top - rect.bottom)/2);
-
+			SetCursorPos(rect.right - (rect.right - rect.left)/2, rect.top - (rect.top - rect.bottom)/2);
+	#endif
 			//drowan_20190916: Freeing the used memory seems to get around the CopyImage call failing. 
 			//Seems to be OK handling a null workingBitmap when first called.
 			DeleteObject(workingBitmap);
