@@ -16,6 +16,7 @@
 #define DISPLAY_FPS 1
 #define OUTPUT_RANDOM_SCENE 0
 #define DISPLAY_WINDOW 1
+#define CAPTURE_MOUSE 1
 
 #define GLOBAL_ILLUM_EN 0
 #define SKY_ILLUM_GAIN 0.3

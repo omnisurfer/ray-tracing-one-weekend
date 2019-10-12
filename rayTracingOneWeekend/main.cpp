@@ -230,6 +230,8 @@ int main() {
 	//temp holds the initial camera lookAt that is used as the 0,0 reference
 	//this is clunky but for now it works for testing.		
 
+	float horizontalMovementAccumulator = 0;
+	float verticalMovementAccumulator = 0;
 	for (int i = 0; i < 1000; i++) {
 
 		//check if the gui is running
@@ -256,19 +258,27 @@ int main() {
 		getMouseCoord(x, y);
 		//std::cout << "x,y (" << x << "," << y << ")\n";
 
-		int angle = i % 360 * 0;
-		double angleDegrees = angle * 2 * 3.14159 / 180.0f;
+		//window width - x/ window width * 90 degrees
+		float modX = (x / 250.0f) * 20.0f;
+		//std::cout << "modX: " << modX << "\n";
+		horizontalMovementAccumulator += (int)modX % 360;
 
-		//std::cout << "i: " << i << " sin(angleDeg): " << sin(angleDegrees) << "\n";
+		float modY = (y / 250.0f) * 20.0f;		
+		verticalMovementAccumulator += (int)modY % 360;
 
-		x = currentCameraLookAt.x() * cos(angleDegrees) - currentCameraLookAt.z() * sin(angleDegrees);
-		y = currentCameraLookAt.x() * sin(angleDegrees) + currentCameraLookAt.z() * cos(angleDegrees);
+		int horizontalAngle = horizontalMovementAccumulator;
+		double angleDegreesAboutZ = horizontalAngle * 2 * 3.14159 / 180.0f;
 
-		//std::cout << "x, y: " << x << "," << y << "\n";
+		int verticalAngle = verticalMovementAccumulator;
+		double angleDegreesAboutX = verticalAngle * 2 * 3.14159 / 180.0f;
 
 		float z = currentCameraLookAt.z();
 
-		mainCamera.setLookAt(vec3(sin(angleDegrees) * 500, 0, cos(angleDegrees) * 500));		
+		mainCamera.setLookAt(vec3(
+			sin(angleDegreesAboutZ) * 500, 
+			0, 
+			cos(angleDegreesAboutZ) * 500)
+		);		
 
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
