@@ -322,7 +322,7 @@ LRESULT CALLBACK WndProc(
 		case WM_MOUSEMOVE: {
 					
 			if (p.x >= 0 && p.y >= 0) {
-				std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
+				//std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
 			}
 			
 			std::lock_guard<std::mutex> lock(globalMouseXYInputMutex);
@@ -332,8 +332,8 @@ LRESULT CALLBACK WndProc(
 			globalMouseDeltaX = p.x - globalMouseLastX;							
 			globalMouseDeltaY = p.y - globalMouseLastY;
 
-			std::cout << "\nGlobX: " << globalMouseDeltaX << "\n";
-			std::cout << "\nGlobY: " << globalMouseDeltaY << "\n";
+			//std::cout << "\nGlobX: " << globalMouseDeltaX << "\n";
+			//std::cout << "\nGlobY: " << globalMouseDeltaY << "\n";
 
 			globalMouseLastX = p.x;
 			globalMouseLastY = p.y;			

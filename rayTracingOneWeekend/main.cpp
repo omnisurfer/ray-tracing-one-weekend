@@ -80,8 +80,15 @@ int main() {
 
 	randomNumberGenerator.seed(seedSequence);	
 	
-	uint32_t numOfRenderThreads = DEBUG_RUN_THREADS; // std::thread::hardware_concurrency();
+#if DEBUG_RUN_THREADS > 0
+	int numOfRenderThreads = DEBUG_RUN_THREADS;
+#else
+	int numOfRenderThreads = std::thread::hardware_concurrency();	//DEBUG_RUN_THREADS;
+#endif
+
 	DEBUG_MSG_L0("\t", "used hardware threads: " << numOfRenderThreads << "\n");
+
+	std::cout << "Threads: " << numOfRenderThreads << "\n";
 
 	WINDIBBitmap winDIBBmp;
 	RenderProperties renderProps;
@@ -162,7 +169,7 @@ int main() {
 	guiWorkerThread->handle = std::thread(guiWorkerProcedure, guiWorkerThread, renderProps.resWidthInPixels, renderProps.resHeightInPixels);
 #endif
 	//bitblit
-#if DEBUG_BITBLIT == 1
+#if ENABLE_BITBLIT == 1
 
 	std::shared_ptr<WorkerThread> bitBlitWorkerThread(new WorkerThread);
 
@@ -189,6 +196,7 @@ int main() {
 		workerThread->continueWork = false;
 		workerThread->exit = false;
 		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, &mainCamera, world);
+		workerThread->configuredMaxThreads = numOfRenderThreads;
 
 		workerThreadVector.push_back(workerThread);
 	}
@@ -216,7 +224,7 @@ int main() {
 	}
 	
 	//bitblit
-#if DEBUG_BITBLIT == 1
+#if ENABLE_BITBLIT == 1
 	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
 	bitBlitWorkerThread->start = true;
 	bitBlitWorkerThread->startConditionVar.notify_all();
@@ -230,9 +238,9 @@ int main() {
 	//temp holds the initial camera lookAt that is used as the 0,0 reference
 	//this is clunky but for now it works for testing.		
 
-	float horizontalMovementAccumulator = 0;
-	float verticalMovementAccumulator = 0;
-	for (int i = 0; i < 1000; i++) {
+	float yawMovementAccumulator = 0;
+	float pitchMovementAccumulator = 0;
+	for (int i = 0; i < 10000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
@@ -261,25 +269,47 @@ int main() {
 		//window width - x/ window width * 90 degrees
 		float modX = (x / 250.0f) * 20.0f;
 		//std::cout << "modX: " << modX << "\n";
-		horizontalMovementAccumulator += (int)modX % 360;
+		yawMovementAccumulator += (int)modX % 360;
 
 		float modY = (y / 250.0f) * 20.0f;		
-		verticalMovementAccumulator += (int)modY % 360;
+		pitchMovementAccumulator += (int)modY % 360;
 
-		int horizontalAngle = horizontalMovementAccumulator;
-		double angleDegreesAboutZ = horizontalAngle * 2 * 3.14159 / 180.0f;
+		int horizontalAngle = yawMovementAccumulator;
+		double angleDegreesAboutY = horizontalAngle * 2 * 3.14159 / 180.0f;
 
-		int verticalAngle = verticalMovementAccumulator;
+		int verticalAngle = pitchMovementAccumulator;
 		double angleDegreesAboutX = verticalAngle * 2 * 3.14159 / 180.0f;
 
 		float z = currentCameraLookAt.z();
 
+#if ENABLE_CONTROLS == 1
+		//TODO: use rotation matrix stuff?
+		/*
+		//rotate about y
 		mainCamera.setLookAt(vec3(
-			sin(angleDegreesAboutZ) * 500, 
-			0, 
-			cos(angleDegreesAboutZ) * 500)
-		);		
+			sin(angleDegreesAboutY) * 500,
+			0,
+			cos(angleDegreesAboutY) * 500)
+		);
 
+		//rotate about x axis
+		mainCamera.setLookAt(vec3(
+			0,
+			sin(angleDegreesAboutX) * 500,
+			cos(angleDegreesAboutX) * 500
+			)
+		);
+		/**/
+		//rotate about x and y axis
+		//May be encountering gimbal lock if I try to look at corners of the canvas beyond the "edges". I can't rotate about
+		//a "tiltled" basis???
+		mainCamera.setLookAt(vec3(
+				sin(angleDegreesAboutY) * 500,
+				sin(angleDegreesAboutX) * 500,
+				cos(angleDegreesAboutY) * 100 + cos(angleDegreesAboutX) * 100
+			)
+		);
+#endif
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 
@@ -293,7 +323,7 @@ int main() {
 		}
 
 		//bitblit
-#if DEBUG_BITBLIT == 1		
+#if ENABLE_BITBLIT == 1		
 		std::unique_lock<std::mutex> bitBlitContinueLock(bitBlitWorkerThread->continueWorkMutex);
 		bitBlitWorkerThread->continueWork = true;
 		bitBlitWorkerThread->continueWorkConditionVar.notify_all();
@@ -355,7 +385,7 @@ int main() {
 	}
 
 	//bitblit
-#if DEBUG_BITBLIT == 1
+#if ENABLE_BITBLIT == 1
 	//exit the bitblit thread
 	std::unique_lock<std::mutex> bitBlitContinueLock(bitBlitWorkerThread->continueWorkMutex);
 	bitBlitWorkerThread->continueWork = false;
@@ -534,8 +564,9 @@ void raytraceWorkerProcedure(
 
 	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
 		
-	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();	
-	
+
+	int numOfThreads = workerThreadStruct->configuredMaxThreads;
+
 	DEBUG_MSG_L0(__func__, 
 		"worker " << workerThreadStruct->id <<
 		"\n\tHwnd: " << raytraceMSWindowHandle <<
@@ -548,6 +579,8 @@ void raytraceWorkerProcedure(
 
 	uint32_t rowOffsetInPixels = 0;
 
+	clock_t endWorkerTime = 0, startWorkerTime = 0;
+
 #if RUN_RAY_TRACE == 1
 	while (true) {
 
@@ -556,7 +589,9 @@ void raytraceWorkerProcedure(
 		T2 (n+1 + t*i):		1, 5, 9
 		T3 (n+2 + t*i):		2, 6, 10
 		T4 (n+3 + t*i):		3, 7, 11
-	*/
+	*/		
+		startWorkerTime = clock();
+
 		for (int row = workerImageBufferStruct->resHeightInPixels - 1; row >= 0; row--) {
 			//for (int row = 0; row < workerImageBufferStruct->resHeightInPixels; row++) {
 			for (int i = 0; i < workerImageBufferStruct->resWidthInPixels; i++) {
@@ -603,7 +638,7 @@ void raytraceWorkerProcedure(
 #if DISPLAY_WINDOW == 1 && DEBUG_SET_PIXEL == 1
 				//SetPixel is really slow on my laptop. Maybe GPU bound as CPU only loads to ~40%. Without it, can reach 100%
 				//For WinAPI look into Lockbits
-				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
+				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1			
@@ -623,25 +658,32 @@ void raytraceWorkerProcedure(
 			}
 		}
 
+		clock_t workerProcessTime = clock() - startWorkerTime;
+
+		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " proc time (sec): " << (float)workerProcessTime/CLOCKS_PER_SEC);
+
+		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " signaling done!");
 		//indicate that ray tracing is complete	
 		std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
 		workerThreadStruct->workIsDone = true;
 		workerThreadStruct->workIsDoneConditionVar.notify_all();
-		doneLock.unlock();
+		doneLock.unlock();		
 
 		//check if we need to continue rendering
-		continueLock.lock();
 		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");
+		continueLock.lock();
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
-		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got continue notice...");
+		
 		if (workerThreadStruct->continueWork) {
 			//continue
 			continueLock.unlock();
+			//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got continue notice...");
 		}
 		else {
 			continueLock.unlock();
+			//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got stop work notice...");
 			break;
-		}
+		}		
 	}
 #endif
 	

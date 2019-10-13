@@ -44,4 +44,5 @@ struct WorkerThread {
 	std::mutex exitMutex;
 	std::condition_variable exitConditionVar;		
 	std::thread handle;
+	int configuredMaxThreads = std::thread::hardware_concurrency();;
 };
