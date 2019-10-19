@@ -303,12 +303,16 @@ int main() {
 		//rotate about x and y axis
 		//May be encountering gimbal lock if I try to look at corners of the canvas beyond the "edges". I can't rotate about
 		//a "tiltled" basis???
+		//multiplying the result of the two z values seems to allow for full rotations but any 
+		//mouse movement towards the corners causes the rotation to loop back on itself.
+		/**/
 		mainCamera.setLookAt(vec3(
 				sin(angleDegreesAboutY) * 500,
 				sin(angleDegreesAboutX) * 500,
-				cos(angleDegreesAboutY) * 100 + cos(angleDegreesAboutX) * 100
+				cos(angleDegreesAboutY) * cos(angleDegreesAboutX) * 500
 			)
 		);
+		/**/
 #endif
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
