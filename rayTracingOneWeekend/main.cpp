@@ -238,9 +238,11 @@ int main() {
 	//temp holds the initial camera lookAt that is used as the 0,0 reference
 	//this is clunky but for now it works for testing.		
 
-	float yawMovementAccumulator = 0;
-	float pitchMovementAccumulator = 0;
-	for (int i = 0; i < 10000; i++) {
+	float yawMovementFromXDisplacement = 0;
+	float pitchMovementFromYDisplacement = 0;
+	int horizontalAngle = 0;
+	int verticalAngle = 0;
+	for (int i = 0; i < 1000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
@@ -264,23 +266,39 @@ int main() {
 		//get the current mouse position
 		int x = 0, y = 0;
 		getMouseCoord(x, y);
-		//std::cout << "x,y (" << x << "," << y << ")\n";
+		std::cout << "x,y (" << x << "," << y << ")\n";
 
-		//window width - x/ window width * 90 degrees
-		float modX = (x / 250.0f) * 20.0f;
-		//std::cout << "modX: " << modX << "\n";
-		yawMovementAccumulator += (int)modX % 360;
+		//Yaw Angle, rotates on the Y axis but displacement is taken from movement in X axis.
+		//X displacement from zero as a percentage of max displacement (half screend width) multiplied
+		//by the maximum anglular rotation I want that to represent (i.e. 45 degrees)
+		yawMovementFromXDisplacement = ((float)x / 250.0f) * 45.0f;
 
-		float modY = (y / 250.0f) * 20.0f;		
-		pitchMovementAccumulator += (int)modY % 360;
+		std::cout << "yM: " << yawMovementFromXDisplacement << "\n";
 
-		int horizontalAngle = yawMovementAccumulator;
-		double angleDegreesAboutY = horizontalAngle * 2 * 3.14159 / 180.0f;
+		horizontalAngle += (int)yawMovementFromXDisplacement;
+		horizontalAngle = horizontalAngle % 360;
 
-		int verticalAngle = pitchMovementAccumulator;
-		double angleDegreesAboutX = verticalAngle * 2 * 3.14159 / 180.0f;
+		std::cout << "horzAngle: " << horizontalAngle << "\n";
 
-		float z = currentCameraLookAt.z();
+		double angleDegreesAboutY = horizontalAngle * (3.14159 / 180.0f);
+
+		std::cout << " aY: " << angleDegreesAboutY << "\n";
+		std::cout << "sinY: " << sin(angleDegreesAboutY) << " cosY: " << cos(angleDegreesAboutY) << "\n";
+
+		//Pitch Angle
+		pitchMovementFromYDisplacement = ((float)y / 250.0f) * 45.0f;
+
+		std::cout << "pM: " << pitchMovementFromYDisplacement << "\n";
+
+		verticalAngle += (int)pitchMovementFromYDisplacement;
+		verticalAngle = verticalAngle % 360;
+
+		std::cout << "vertAngle: " << verticalAngle << "\n";
+
+		double angleDegreesAboutX = verticalAngle * (3.14159 / 180.0f);
+
+		std::cout << " aX: " << angleDegreesAboutX << "\n";
+		std::cout << "sinX: " << sin(angleDegreesAboutX) << " cosX: " << cos(angleDegreesAboutX) << "\n";
 
 #if ENABLE_CONTROLS == 1
 		//TODO: use rotation matrix stuff?
@@ -292,6 +310,7 @@ int main() {
 			cos(angleDegreesAboutY) * 500)
 		);
 
+		/*
 		//rotate about x axis
 		mainCamera.setLookAt(vec3(
 			0,
