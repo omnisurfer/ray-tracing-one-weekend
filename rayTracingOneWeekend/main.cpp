@@ -126,8 +126,8 @@ int main() {
 	*/
 
 	//random scene
-	mainCamera.setLookFrom(vec3(0, 0, -10));
-	mainCamera.setLookAt(vec3(0, 0, 0));
+	mainCamera.setLookFrom(vec3(0, 0, 0));
+	mainCamera.setLookAt(vec3(0, 0, 1));
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
 	Hitable *world = randomScene();

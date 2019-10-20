@@ -103,7 +103,7 @@ Hitable *randomScene() {
 	}
 #endif
 	if (textureData != NULL) {
-		list[i++] = new Sphere(vec3(0, -2.0, 0), 2.0, imageMat);
+		list[i++] = new Sphere(vec3(0, -2.0, 20), 2.0, imageMat);
 	}
 	else {
 		list[i++] = new Sphere(vec3(5, -1.0, 0), 1.0, new Dielectric(1.5));

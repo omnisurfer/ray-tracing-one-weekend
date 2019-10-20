@@ -19,7 +19,7 @@
 #define CAPTURE_MOUSE 1
 #define ENABLE_CONTROLS 1
 
-#define GLOBAL_ILLUM_EN 0
+#define GLOBAL_ILLUM_EN 1
 #define SKY_ILLUM_GAIN 0.3
 #define GLOBAL_ILLUM_GAIN 0.3
 #define CAMERA_DOF_EN 0
