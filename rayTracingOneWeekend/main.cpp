@@ -136,9 +136,9 @@ int main() {
 	//mainCamera.setLookFrom(vec3(278, 278, -500));
 	//mainCamera.setLookAt(vec3(278, 278, 0));
 
-
-	mainCamera.setLookFrom(vec3(0, 0, -500));
-	mainCamera.setLookAt(vec3(0, 0, 0));
+	//Need to account for look from displacement from origin to be able to rotate around any point not at origin.
+	mainCamera.setLookFrom(vec3(0, 0, 0));
+	mainCamera.setLookAt(vec3(0, 0, 1));
 
 	Hitable *world = cornellBox();
 #endif
@@ -238,10 +238,11 @@ int main() {
 	//temp holds the initial camera lookAt that is used as the 0,0 reference
 	//this is clunky but for now it works for testing.		
 
-	float yawMovementFromXDisplacement = 0;
-	float pitchMovementFromYDisplacement = 0;
-	int horizontalAngle = 0;
-	int verticalAngle = 0;
+	float rollMovementFromXCartesianDisplacement = 0;
+	float pitchMovementFromYCartesianDisplacement = 0;
+	float yawMovementFromXCartesianDisplacement = 0;
+	float horizontalAngleDegreesToRotateBy = 0;
+	float verticleAngleDegreesToRotateBy = 0;
 	for (int i = 0; i < 1000; i++) {
 
 		//check if the gui is running
@@ -264,10 +265,71 @@ int main() {
 		vec3 currentCameraLookAt = mainCamera.getLookAt();
 
 		//get the current mouse position
-		int x = 0, y = 0;
-		getMouseCoord(x, y);
-		std::cout << "x,y (" << x << "," << y << ")\n";
+		int xCartesian = 0, yCartesian = 0;
+		getMouseCoord(xCartesian, yCartesian);
+		std::cout << "xCart,yCart (" << xCartesian << "," << yCartesian << ")\n";
 
+		//look into this:
+		//https://stackoverflow.com/questions/14607640/rotating-a-vector-in-3d-space
+		//Get the Pitch Vector
+		//map the amount of Y cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
+		pitchMovementFromYCartesianDisplacement = ((float)yCartesian / 250.0f) * 45.0f;
+
+		verticleAngleDegreesToRotateBy = (int)pitchMovementFromYCartesianDisplacement;
+		verticleAngleDegreesToRotateBy = (int)verticleAngleDegreesToRotateBy % 360;
+
+		std::cout << "vertAngleDegPitch: " << verticleAngleDegreesToRotateBy << "\n";
+
+		double angleRadiansRotateAboutX = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
+
+		std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";
+
+		//rotate about 'X' axis (Pitch)
+		float yPrimePitch = currentCameraLookAt.y() * cos(angleRadiansRotateAboutX) - currentCameraLookAt.z() * sin(angleRadiansRotateAboutX);
+		float zPrimePitch = currentCameraLookAt.y() * sin(angleRadiansRotateAboutX) + currentCameraLookAt.z() * cos(angleRadiansRotateAboutX);
+
+		vec3 pitchVector = vec3(currentCameraLookAt.x(), yPrimePitch, zPrimePitch);
+
+		/*
+		mainCamera.setLookAt(vec3(
+			currentCameraLookAt.x(),
+			yPrimePitch,
+			zPrimePitch
+		)
+		);
+		/**/
+
+		std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
+
+	#if 1
+		//drowan_20191020_TODO: remove hard coded window width of 250pixels
+		//map the amount of X cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
+		yawMovementFromXCartesianDisplacement = ((float)xCartesian / 250.0f) * 45.0f;
+
+		horizontalAngleDegreesToRotateBy = (int)yawMovementFromXCartesianDisplacement;
+		horizontalAngleDegreesToRotateBy = (int)horizontalAngleDegreesToRotateBy % 360;
+
+		std::cout << "horzAngleDegYaw: " << horizontalAngleDegreesToRotateBy << "\n";
+
+		double angleRadiansRotateAboutY = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
+
+		std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
+
+		vec3 newLookAtVector = vec3(
+			pitchVector.x() * cos(angleRadiansRotateAboutY) - pitchVector.z() * sin(angleRadiansRotateAboutY),
+			pitchVector.y(),
+			pitchVector.x() * sin(angleRadiansRotateAboutY) + pitchVector.z() * cos(angleRadiansRotateAboutY)
+		);
+
+		/**/
+		mainCamera.setLookAt(newLookAtVector);
+		/**/
+
+		std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
+	#endif
+
+		//old rotation code.
+#if 0
 		//Yaw Angle, rotates on the Y axis but displacement is taken from movement in X axis.
 		//X displacement from zero as a percentage of max displacement (half screend width) multiplied
 		//by the maximum anglular rotation I want that to represent (i.e. 45 degrees)
@@ -300,7 +362,7 @@ int main() {
 		std::cout << " aX: " << angleDegreesAboutX << "\n";
 		std::cout << "sinX: " << sin(angleDegreesAboutX) << " cosX: " << cos(angleDegreesAboutX) << "\n";
 
-#if ENABLE_CONTROLS == 1
+	#if ENABLE_CONTROLS == 1
 		//TODO: use rotation matrix stuff?
 		/*
 		//rotate about y
@@ -325,8 +387,6 @@ int main() {
 		//multiplying the result of the two z values seems to allow for full rotations but any 
 		//mouse movement towards the corners causes the rotation to loop back on itself.
 		/**/
-		//look into this:
-		//https://stackoverflow.com/questions/14607640/rotating-a-vector-in-3d-space
 		mainCamera.setLookAt(vec3(
 				sin(angleDegreesAboutY) * 500,
 				sin(angleDegreesAboutX) * 500,
@@ -334,6 +394,7 @@ int main() {
 			)
 		);
 		/**/
+	#endif
 #endif
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
