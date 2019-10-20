@@ -354,6 +354,9 @@ LRESULT CALLBACK WndProc(
 				global_newBitmap = (HBITMAP*)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 			}
 			/**/
+
+			//disable mouse cursor
+			ShowCursor(false);
 			return 0L;
 		}
 
@@ -509,6 +512,8 @@ LRESULT CALLBACK WndProc(
 			DEBUG_MSG_L0(__func__, "WM_DESTROY");
 
 			PostQuitMessage(0);
+
+			ShowCursor(true);
 
 			return 0L;
 		}

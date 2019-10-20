@@ -184,14 +184,15 @@ Hitable *cornellBox() {
 	));
 
 	//back panel
-	list[i++] = new FlipNormals(new XYRectangle(
+	list[i++] = new Translate(
+			new FlipNormals(new XYRectangle(
 		xCoord - (planeWidth / 2),
 		(planeWidth + xCoord) - (planeWidth / 2),
 		yCoord - (planeHeight / 2),
 		(planeHeight + yCoord) - (planeHeight / 2),
 		planeAxisDepthOffset,
 		white
-	));
+	)), vec3(0,0,250));
 
 	//right panel	
 	/**/
@@ -234,7 +235,7 @@ Hitable *cornellBox() {
 		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 160, 160), blue), 18.0),
 		vec3(0, 80, 100)
 	);
-	/**/
+	/*
 	// make a smoke box
 	Hitable *box = new Translate(
 		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 300, 160), green), -25),

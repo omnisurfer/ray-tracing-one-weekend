@@ -99,8 +99,8 @@ int main() {
 	renderProps.finalImageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
 
 	//Setup camera
-	vec3 lookFrom(0, 0, 0);
-	vec3 lookAt(0, 0, 1);
+	vec3 lookFrom(0, 0, -500);
+	vec3 lookAt(0, 0, 500);
 	//the negative 1 means y increases going down the screen from the top right corner of the window (the origin)
 	vec3 worldUp(0, -1, 0);
 	float distToFocus = 1000;//(lookFrom - lookAt).length(); //1000
@@ -137,6 +137,9 @@ int main() {
 	//mainCamera.setLookAt(vec3(278, 278, 0));
 
 	//Need to account for look from displacement from origin to be able to rotate around any point not at origin.
+	//Some of the weird corner lookAt vector issues seem to be related to having the origin not exactly zero'd...
+	//When the camera is setup with LookFrom@0,0,0 and LookAt@0,0,1 it seems to work properly
+	//Maybe should consider moving the world/objects and keeping camera at 0,0,0?
 	mainCamera.setLookFrom(vec3(0, 0, 0));
 	mainCamera.setLookAt(vec3(0, 0, 1));
 
@@ -267,22 +270,22 @@ int main() {
 		//get the current mouse position
 		int xCartesian = 0, yCartesian = 0;
 		getMouseCoord(xCartesian, yCartesian);
-		std::cout << "xCart,yCart (" << xCartesian << "," << yCartesian << ")\n";
+		//std::cout << "xCart,yCart (" << xCartesian << "," << yCartesian << ")\n";
 
 		//look into this:
 		//https://stackoverflow.com/questions/14607640/rotating-a-vector-in-3d-space
 		//Get the Pitch Vector
 		//map the amount of Y cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
-		pitchMovementFromYCartesianDisplacement = ((float)yCartesian / 250.0f) * 45.0f;
+		pitchMovementFromYCartesianDisplacement = ((float)-1 * yCartesian / 250.0f) * 45.0f;
 
 		verticleAngleDegreesToRotateBy = (int)pitchMovementFromYCartesianDisplacement;
 		verticleAngleDegreesToRotateBy = (int)verticleAngleDegreesToRotateBy % 360;
 
-		std::cout << "vertAngleDegPitch: " << verticleAngleDegreesToRotateBy << "\n";
+		//std::cout << "vertAngleDegPitch: " << verticleAngleDegreesToRotateBy << "\n";
 
 		double angleRadiansRotateAboutX = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
-		std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";
+		//std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";
 
 		//rotate about 'X' axis (Pitch)
 		float yPrimePitch = currentCameraLookAt.y() * cos(angleRadiansRotateAboutX) - currentCameraLookAt.z() * sin(angleRadiansRotateAboutX);
@@ -299,21 +302,21 @@ int main() {
 		);
 		/**/
 
-		std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
+		//std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
 
 	#if 1
 		//drowan_20191020_TODO: remove hard coded window width of 250pixels
 		//map the amount of X cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
-		yawMovementFromXCartesianDisplacement = ((float)xCartesian / 250.0f) * 45.0f;
+		yawMovementFromXCartesianDisplacement = ((float)-1 * xCartesian / 250.0f) * 45.0f;
 
 		horizontalAngleDegreesToRotateBy = (int)yawMovementFromXCartesianDisplacement;
 		horizontalAngleDegreesToRotateBy = (int)horizontalAngleDegreesToRotateBy % 360;
 
-		std::cout << "horzAngleDegYaw: " << horizontalAngleDegreesToRotateBy << "\n";
+		//std::cout << "horzAngleDegYaw: " << horizontalAngleDegreesToRotateBy << "\n";
 
 		double angleRadiansRotateAboutY = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
-		std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
+		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
 
 		vec3 newLookAtVector = vec3(
 			pitchVector.x() * cos(angleRadiansRotateAboutY) - pitchVector.z() * sin(angleRadiansRotateAboutY),
@@ -325,7 +328,7 @@ int main() {
 		mainCamera.setLookAt(newLookAtVector);
 		/**/
 
-		std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
+		//std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
 	#endif
 
 		//old rotation code.
