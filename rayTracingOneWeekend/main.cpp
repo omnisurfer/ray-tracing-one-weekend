@@ -325,6 +325,8 @@ int main() {
 		//multiplying the result of the two z values seems to allow for full rotations but any 
 		//mouse movement towards the corners causes the rotation to loop back on itself.
 		/**/
+		//look into this:
+		//https://stackoverflow.com/questions/14607640/rotating-a-vector-in-3d-space
 		mainCamera.setLookAt(vec3(
 				sin(angleDegreesAboutY) * 500,
 				sin(angleDegreesAboutX) * 500,
