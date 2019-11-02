@@ -127,5 +127,8 @@
     <ClInclude Include="common.h">
       <Filter>Header Files\coreEngine</Filter>
     </ClInclude>
+    <ClInclude Include="matrix.h">
+      <Filter>Header Files\coreEngine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

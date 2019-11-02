@@ -3,6 +3,7 @@
 
 #include "defines.h"
 #include "vec3.h"
+#include "matrix.h"
 #include "hitableList.h"
 #include "camera.h"
 #include "color.h"
@@ -293,18 +294,9 @@ int main() {
 
 		vec3 pitchVector = vec3(currentCameraLookAt.x(), yPrimePitch, zPrimePitch);
 
-		/*
-		mainCamera.setLookAt(vec3(
-			currentCameraLookAt.x(),
-			yPrimePitch,
-			zPrimePitch
-		)
-		);
-		/**/
-
 		//std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
 
-	#if 1
+	#if 0
 		//drowan_20191020_TODO: remove hard coded window width of 250pixels
 		//map the amount of X cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
 		yawMovementFromXCartesianDisplacement = ((float)-1 * xCartesian / 250.0f) * 45.0f;
@@ -331,74 +323,37 @@ int main() {
 		//std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
 	#endif
 
-		//old rotation code.
-#if 0
-		//Yaw Angle, rotates on the Y axis but displacement is taken from movement in X axis.
-		//X displacement from zero as a percentage of max displacement (half screend width) multiplied
-		//by the maximum anglular rotation I want that to represent (i.e. 45 degrees)
-		yawMovementFromXDisplacement = ((float)x / 250.0f) * 45.0f;
+		vec3 matrix[3] = {
+			{0.0f,0.0f,1.0f},
+			{0.0f,1.0f,0.0f},
+			{1.0f,0.0f,0.0f}
+		};
 
-		std::cout << "yM: " << yawMovementFromXDisplacement << "\n";
+		vec3 testM[3] = {
+			{3.0f,2.0f,1.0f},
+			{5.0f,4.0f,3.0f},
+			{9.0f,8.0f,7.0f}
+		};
 
-		horizontalAngle += (int)yawMovementFromXDisplacement;
-		horizontalAngle = horizontalAngle % 360;
+		mat3x3 mA(matrix);
+		mat3x3 mB(testM);
 
-		std::cout << "horzAngle: " << horizontalAngle << "\n";
+		mat3x3 mC = mA * mB;
 
-		double angleDegreesAboutY = horizontalAngle * (3.14159 / 180.0f);
+		/* mB * mA
+		1 2 3
+		3 4 5
+		7 8 9
+		*/
 
-		std::cout << " aY: " << angleDegreesAboutY << "\n";
-		std::cout << "sinY: " << sin(angleDegreesAboutY) << " cosY: " << cos(angleDegreesAboutY) << "\n";
+		/* mA * mB
+		1 3 7
+		2 4 8
+		3 5 9
+		*/
 
-		//Pitch Angle
-		pitchMovementFromYDisplacement = ((float)y / 250.0f) * 45.0f;
+		std::cout << mC.m[0] << "\n" << mC.m[1] << "\n" << mC.m[2] << "\n\n";
 
-		std::cout << "pM: " << pitchMovementFromYDisplacement << "\n";
-
-		verticalAngle += (int)pitchMovementFromYDisplacement;
-		verticalAngle = verticalAngle % 360;
-
-		std::cout << "vertAngle: " << verticalAngle << "\n";
-
-		double angleDegreesAboutX = verticalAngle * (3.14159 / 180.0f);
-
-		std::cout << " aX: " << angleDegreesAboutX << "\n";
-		std::cout << "sinX: " << sin(angleDegreesAboutX) << " cosX: " << cos(angleDegreesAboutX) << "\n";
-
-	#if ENABLE_CONTROLS == 1
-		//TODO: use rotation matrix stuff?
-		/*
-		//rotate about y
-		mainCamera.setLookAt(vec3(
-			sin(angleDegreesAboutY) * 500,
-			0,
-			cos(angleDegreesAboutY) * 500)
-		);
-
-		/*
-		//rotate about x axis
-		mainCamera.setLookAt(vec3(
-			0,
-			sin(angleDegreesAboutX) * 500,
-			cos(angleDegreesAboutX) * 500
-			)
-		);
-		/**/
-		//rotate about x and y axis
-		//May be encountering gimbal lock if I try to look at corners of the canvas beyond the "edges". I can't rotate about
-		//a "tiltled" basis???
-		//multiplying the result of the two z values seems to allow for full rotations but any 
-		//mouse movement towards the corners causes the rotation to loop back on itself.
-		/**/
-		mainCamera.setLookAt(vec3(
-				sin(angleDegreesAboutY) * 500,
-				sin(angleDegreesAboutX) * 500,
-				cos(angleDegreesAboutY) * cos(angleDegreesAboutX) * 500
-			)
-		);
-		/**/
-	#endif
-#endif
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 
