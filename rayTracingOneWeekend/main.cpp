@@ -246,7 +246,7 @@ int main() {
 	float yawMovementFromXCartesianDisplacement = 0;
 	float horizontalAngleDegreesToRotateBy = 0;
 	float verticleAngleDegreesToRotateBy = 0;
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < 10000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
@@ -328,7 +328,7 @@ int main() {
 		mainCamera.setLookAt(newLookAtVector);
 		/**/
 
-		//std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
+		std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
 	#endif
 
 		//old rotation code.
