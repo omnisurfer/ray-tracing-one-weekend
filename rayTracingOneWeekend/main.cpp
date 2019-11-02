@@ -323,36 +323,26 @@ int main() {
 		std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
 	#endif
 
-		vec3 matrix[3] = {
+		vec3 matrixA[3] = {
 			{0.0f,0.0f,1.0f},
 			{0.0f,1.0f,0.0f},
 			{1.0f,0.0f,0.0f}
 		};
 
-		vec3 testM[3] = {
+		vec3 matrixB[3] = {
 			{3.0f,2.0f,1.0f},
 			{5.0f,4.0f,3.0f},
 			{9.0f,8.0f,7.0f}
 		};
 
-		mat3x3 mA(matrix);
-		mat3x3 mB(testM);
+		mat3x3 mA(matrixA);
+		mat3x3 mB(matrixB);
 
 		mat3x3 mC = mA * mB;
 
-		/* mB * mA
-		1 2 3
-		3 4 5
-		7 8 9
-		*/
-
-		/* mA * mB
-		1 3 7
-		2 4 8
-		3 5 9
-		*/
-
-		std::cout << mC.m[0] << "\n" << mC.m[1] << "\n" << mC.m[2] << "\n\n";
+		std::cout << "mA: \n" << mA.m[0] << "\n" << mA.m[1] << "\n" << mA.m[2] << "\n\n";
+		std::cout << "mB: \n" << mB.m[0] << "\n" << mB.m[1] << "\n" << mB.m[2] << "\n\n";
+		std::cout << "mC: \n" << mC.m[0] << "\n" << mC.m[1] << "\n" << mC.m[2] << "\n\n";
 
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
