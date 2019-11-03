@@ -277,7 +277,7 @@ int main() {
 		//https://stackoverflow.com/questions/14607640/rotating-a-vector-in-3d-space
 		//Get the Pitch Vector
 		//map the amount of Y cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
-		pitchMovementFromYCartesianDisplacement = ((float)-1 * yCartesian / 250.0f) * 45.0f;
+		pitchMovementFromYCartesianDisplacement = ((float)-1.0f * yCartesian / 250.0f) * 45.0f;
 
 		verticleAngleDegreesToRotateBy = (int)pitchMovementFromYCartesianDisplacement;
 		verticleAngleDegreesToRotateBy = (int)verticleAngleDegreesToRotateBy % 360;
@@ -295,11 +295,10 @@ int main() {
 		vec3 pitchVector = vec3(currentCameraLookAt.x(), yPrimePitch, zPrimePitch);
 
 		//std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
-
-	#if 0
+	
 		//drowan_20191020_TODO: remove hard coded window width of 250pixels
 		//map the amount of X cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
-		yawMovementFromXCartesianDisplacement = ((float)-1 * xCartesian / 250.0f) * 45.0f;
+		yawMovementFromXCartesianDisplacement = ((float)xCartesian / 250.0f) * 45.0f;
 
 		horizontalAngleDegreesToRotateBy = (int)yawMovementFromXCartesianDisplacement;
 		horizontalAngleDegreesToRotateBy = (int)horizontalAngleDegreesToRotateBy % 360;
@@ -309,7 +308,7 @@ int main() {
 		double angleRadiansRotateAboutY = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
 		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
-
+#if 0
 		vec3 newLookAtVector = vec3(
 			pitchVector.x() * cos(angleRadiansRotateAboutY) - pitchVector.z() * sin(angleRadiansRotateAboutY),
 			pitchVector.y(),
@@ -323,10 +322,29 @@ int main() {
 		std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
 	#endif
 
+#if 1
 		vec3 matrixA[3] = {
 			{0.0f,0.0f,1.0f},
 			{0.0f,1.0f,0.0f},
 			{1.0f,0.0f,0.0f}
+		};
+
+		vec3 yawRotationAboutY[3] = {
+			{(float)cos(angleRadiansRotateAboutY),0.0f,(float)sin(angleRadiansRotateAboutY)},
+			{0.0f,1.0f,0.0f},
+			{(float)-sin(angleRadiansRotateAboutY),0.0f,(float)cos(angleRadiansRotateAboutY)}
+		};
+
+		vec3 pitchRotationAboutX[3] = {
+			{1.0f,0.0f,0.0f},
+			{0.0f,(float)cos(angleRadiansRotateAboutX),(float)-sin(angleRadiansRotateAboutX)},
+			{0.0f,(float)sin(angleRadiansRotateAboutX),(float)cos(angleRadiansRotateAboutX)}
+		};
+
+		vec3 pitchRotationAboutZ[3] = {
+			{(float)cos(angleRadiansRotateAboutX),(float)-sin(angleRadiansRotateAboutX),0.0f},
+			{(float)sin(angleRadiansRotateAboutX),(float)cos(angleRadiansRotateAboutX),0.0f},
+			{0.0f,0.0f,1.0f}
 		};
 
 		vec3 matrixB[3] = {
@@ -335,14 +353,31 @@ int main() {
 			{9.0f,8.0f,7.0f}
 		};
 
+		vec3 v1 = { 2,3,4 };
+
 		mat3x3 mA(matrixA);
 		mat3x3 mB(matrixB);
+		mat3x3 yawRotationMatrix(yawRotationAboutY);
+		mat3x3 pitchRotationMatrixX(pitchRotationAboutX);
+		mat3x3 pitchRotationMatrixZ(pitchRotationAboutZ);
 
 		mat3x3 mC = mA * mB;
 
+		/*
 		std::cout << "mA: \n" << mA.m[0] << "\n" << mA.m[1] << "\n" << mA.m[2] << "\n\n";
 		std::cout << "mB: \n" << mB.m[0] << "\n" << mB.m[1] << "\n" << mB.m[2] << "\n\n";
 		std::cout << "mC: \n" << mC.m[0] << "\n" << mC.m[1] << "\n" << mC.m[2] << "\n\n";
+		/**/
+		v1 = mainCamera.getLookAt();
+
+		mat3x3 rotMat = yawRotationMatrix * pitchRotationMatrixX * pitchRotationMatrixZ;
+		vec3 newLookAtVector = v1 * rotMat;
+
+		//std::cout << "lookAt * yawRotationMatrix: " << newLookAtVector << "\n";
+		std::cout << "newLookAt: " << newLookAtVector << "\n";
+
+		mainCamera.setLookAt(newLookAtVector);
+#endif
 
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {

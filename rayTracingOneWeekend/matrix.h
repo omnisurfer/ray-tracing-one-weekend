@@ -128,3 +128,33 @@ inline mat3x3 operator*(const mat3x3 &m1, const mat3x3 &m2) {
 
 	return mat3x3(res);
 }
+
+inline vec3 operator*(const mat3x3 &m1, vec3 &v1) {
+
+	float x, y, z;
+
+	x = 0.0f, y = 0.0f, z = 0.0f;
+
+	x = m1.m[0][0] * v1[0] + m1.m[0][1] * v1[1] + m1.m[0][2] * v1[2];
+	y = m1.m[1][0] * v1[0] + m1.m[1][1] * v1[1] + m1.m[1][2] * v1[2];
+	z = m1.m[2][0] * v1[0] + m1.m[2][1] * v1[1] + m1.m[2][2] * v1[2];
+
+	vec3 res = { x, y, z };
+
+	return res;
+}
+
+inline vec3 operator*(vec3 &v1, const mat3x3 &m1) {
+
+	float x, y, z;
+
+	x = 0.0f, y = 0.0f, z = 0.0f;
+
+	x = m1.m[0][0] * v1[0] + m1.m[0][1] * v1[1] + m1.m[0][2] * v1[2];
+	y = m1.m[1][0] * v1[0] + m1.m[1][1] * v1[1] + m1.m[1][2] * v1[2];
+	z = m1.m[2][0] * v1[0] + m1.m[2][1] * v1[1] + m1.m[2][2] * v1[2];
+
+	vec3 res = { x, y, z };
+
+	return res;
+}
