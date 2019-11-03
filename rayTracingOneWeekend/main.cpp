@@ -266,6 +266,7 @@ int main() {
 		std::cout << "ESC: " << guiControlInputs.escAsserted << "\n";
 		/**/
 
+#if defined ENABLE_CONTROLS && ENABLE_CONTROLS == 1
 		vec3 currentCameraLookAt = mainCamera.getLookAt();
 
 		//get the current mouse position
@@ -378,7 +379,7 @@ int main() {
 
 		mainCamera.setLookAt(newLookAtVector);
 #endif
-
+#endif
 		//check if render is done
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 
