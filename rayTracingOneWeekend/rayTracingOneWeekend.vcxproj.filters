@@ -128,7 +128,10 @@
       <Filter>Header Files\coreEngine</Filter>
     </ClInclude>
     <ClInclude Include="matrix.h">
-      <Filter>Header Files\coreEngine</Filter>
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="quaternion.h">
+      <Filter>Header Files\math</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

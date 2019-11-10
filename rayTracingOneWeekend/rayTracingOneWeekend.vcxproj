@@ -139,6 +139,7 @@
     <ClInclude Include="mathUtilities.h" />
     <ClInclude Include="matrix.h" />
     <ClInclude Include="noise.h" />
+    <ClInclude Include="quaternion.h" />
     <ClInclude Include="ray.h" />
     <ClInclude Include="rngs.h" />
     <ClInclude Include="scenes.h" />

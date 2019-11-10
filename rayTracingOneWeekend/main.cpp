@@ -4,6 +4,7 @@
 #include "defines.h"
 #include "vec3.h"
 #include "matrix.h"
+#include "quaternion.h"
 #include "hitableList.h"
 #include "camera.h"
 #include "color.h"
@@ -247,6 +248,8 @@ int main() {
 	float yawMovementFromXCartesianDisplacement = 0;
 	float horizontalAngleDegreesToRotateBy = 0;
 	float verticleAngleDegreesToRotateBy = 0;
+
+	//simple loop for now to determine how many frames get rendered.
 	for (int i = 0; i < 10000; i++) {
 
 		//check if the gui is running
@@ -287,15 +290,7 @@ int main() {
 
 		double angleRadiansRotateAboutX = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
-		//std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";
-
-		//rotate about 'X' axis (Pitch)
-		float yPrimePitch = currentCameraLookAt.y() * cos(angleRadiansRotateAboutX) - currentCameraLookAt.z() * sin(angleRadiansRotateAboutX);
-		float zPrimePitch = currentCameraLookAt.y() * sin(angleRadiansRotateAboutX) + currentCameraLookAt.z() * cos(angleRadiansRotateAboutX);
-
-		vec3 pitchVector = vec3(currentCameraLookAt.x(), yPrimePitch, zPrimePitch);
-
-		//std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
+		//std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";		
 	
 		//drowan_20191020_TODO: remove hard coded window width of 250pixels
 		//map the amount of X cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
@@ -309,27 +304,9 @@ int main() {
 		double angleRadiansRotateAboutY = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
 		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
-#if 0
-		vec3 newLookAtVector = vec3(
-			pitchVector.x() * cos(angleRadiansRotateAboutY) - pitchVector.z() * sin(angleRadiansRotateAboutY),
-			pitchVector.y(),
-			pitchVector.x() * sin(angleRadiansRotateAboutY) + pitchVector.z() * cos(angleRadiansRotateAboutY)
-		);
 
-		/**/
-		mainCamera.setLookAt(newLookAtVector);
-		/**/
-
-		std::cout << "LAX: " << currentCameraLookAt.x() << " LAY: " << currentCameraLookAt.y() << " LAZ: " << currentCameraLookAt.z() << "\n";
-	#endif
-
-#if 1
-		vec3 matrixA[3] = {
-			{0.0f,0.0f,1.0f},
-			{0.0f,1.0f,0.0f},
-			{1.0f,0.0f,0.0f}
-		};
-
+		//Euler angles lookAt manipulation
+	#if 0
 		vec3 yawRotationAboutY[3] = {
 			{(float)cos(angleRadiansRotateAboutY),0.0f,(float)sin(angleRadiansRotateAboutY)},
 			{0.0f,1.0f,0.0f},
@@ -346,6 +323,13 @@ int main() {
 			{(float)cos(angleRadiansRotateAboutX),(float)-sin(angleRadiansRotateAboutX),0.0f},
 			{(float)sin(angleRadiansRotateAboutX),(float)cos(angleRadiansRotateAboutX),0.0f},
 			{0.0f,0.0f,1.0f}
+		};
+
+		//some test matrices
+		vec3 matrixA[3] = {
+			{0.0f,0.0f,1.0f},
+			{0.0f,1.0f,0.0f},
+			{1.0f,0.0f,0.0f}
 		};
 
 		vec3 matrixB[3] = {
@@ -378,9 +362,28 @@ int main() {
 		std::cout << "newLookAt: " << newLookAtVector << "\n";
 
 		mainCamera.setLookAt(newLookAtVector);
-#endif
+		//quanternion lookAt manipulation	
+	#else				
+		quaternion a, b, c;
+
+		a = { 0.1, 0.2, 0.3, 0.4 };
+		b = { 0.4, 0.3, 0.2, 0.1 };
+
+		c = a + b;				
+
+		std::cout << a << " + " << b << " = " << c << "\n";
+
+		c = a * b;
+
+		std::cout << a << " x " << b << " = " << c << "\n";
+
+		c = b * a;
+
+		std::cout << b << " x " << a << " = " << c << "\n";
+	#endif
 #endif
 		//check if render is done
+		//TODO: Waiting for done here may effectively limit performance to the slowest thread...
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 
 			std::unique_lock<std::mutex> doneLock(thread->workIsDoneMutex);			

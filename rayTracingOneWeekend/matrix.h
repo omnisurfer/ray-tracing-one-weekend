@@ -3,6 +3,11 @@
 /*
 My attempt to make a matrix class. Not likely the best implementation but I want to think this through to understand it 
 better.
+***WARNING*** All the operations are not defined fo this type yet per the recomendations of
+ https://stackoverflow.com/questions/4421706/what-are-the-basic-rules-and-idioms-for-operator-overloading
+
+ Just the bare minimum is implemented to get a feel for what the operations will do to the lookAt vector and to understand what is going
+ on without just glossing over it. At some point using a real library is probably the right path forward.
 */
 #include "vec3.h"
 #include "debug.h"
