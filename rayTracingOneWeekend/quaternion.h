@@ -1,5 +1,12 @@
 #pragma once
 
+#if defined (PLATFORM_WIN) && PLATFORM_WIN == 1
+#define _USE_MATH_DEFINES
+#endif
+
+//little worried if these may conflict with each other?
+#include <cmath>
+#include <math.h>
 /*
 - http://www.chrobotics.com/library/understanding-quaternions
 - https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
@@ -40,6 +47,46 @@ public:
 	inline const quaternion& operator+() const { return *this; }
 	
 	float e[4];
+
+	inline quaternion eulerToQuanternion(float yaw, float pitch, float roll) {
+		float cy = cos(yaw * 0.5);
+		float sy = sin(yaw * 0.5);
+		float cp = cos(pitch * 0.5);
+		float sp = sin(pitch * 0.5);
+		float cr = cos(roll * 0.5);
+		float sr = sin(roll * 0.5);
+
+		quaternion q;
+		q.e[0] = cy * cp * cr + sy * sp * sr;
+		q.e[1] = cy * cp * sr - sy * sp * cr;
+		q.e[2] = sy * cp * sr + cy * sp * cr;
+		q.e[3] = sy * cp * cr - cy * sp * sr;
+
+		return q;
+	}
+
+	inline void quanternionToEuler(const quaternion &q, float &yaw, float &pitch, float & roll) {	
+		//roll (x-axis rotation)
+		float sinrCosp = 2 * (q.w() * q.x() + q.y() * q.z());
+		float cosrCosp = 1 - 2 * (q.x() * q.x() + q.y() * q.y());
+
+		roll = std::atan2(sinrCosp, cosrCosp);
+
+		//pitch (y-axis rotation)
+		float sinp = 2 * (q.w() * q.y() - q.z() * q.x());
+		if (std::abs(sinp) >= 1) {
+			pitch = std::copysign(M_PI / 2, sinp);
+		}
+		else {
+			pitch = std::asin(sinp);
+		}
+
+		//yaw (z-axis rotation)
+		float sinyCosp = 2 * (q.w() * q.z() + q.x() * q.y());
+		float cosyCosp = 1 - 2 * (q.y() * q.y() + q.z() * q.z());
+
+		yaw = std::atan2(sinyCosp, cosyCosp);
+	}
 };
 
 inline std::ostream& operator<<(std::ostream &os, const quaternion &q) {

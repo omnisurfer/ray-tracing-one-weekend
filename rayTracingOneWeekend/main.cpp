@@ -380,6 +380,21 @@ int main() {
 		c = b * a;
 
 		std::cout << b << " x " << a << " = " << c << "\n";
+
+		float angleDeg = 270 * M_PI / 180;
+
+		//TODO: this is weird using one of the quaternions to call the conversion function that is unrelated to the used quanternion.
+		//need to fix this.
+		c = a.eulerToQuanternion(angleDeg, angleDeg, angleDeg);
+
+		std::cout << "w: " << c.w() << " x: " << c.x() << " y: " << c.y() << " z: " << c.z() << "\n";
+
+		float x, y, z;
+
+		a.quanternionToEuler(c, z, y, x);
+
+		std::cout << "x: " << (x * 180)/ M_PI << " y: " << (y * 180)/ M_PI<< " z: " << (z * 180)/M_PI << "\n";
+
 	#endif
 #endif
 		//check if render is done
