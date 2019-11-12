@@ -11,6 +11,7 @@
 - http://www.chrobotics.com/library/understanding-quaternions
 - https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 - https://stackoverflow.com/questions/52413464/look-at-quaternion-using-up-vector
+- https://math.stackexchange.com/questions/40164/how-do-you-rotate-a-vector-by-a-unit-quaternion
 */
 
 /*
