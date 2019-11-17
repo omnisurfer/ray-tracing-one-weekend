@@ -378,6 +378,9 @@ int main() {
 
 		std::cout << a << " x " << b << " = " << c << ", conjugate: " << c.conjugate() << ", norm: " << c.norm() << "\n";
 
+		std::cout << "a: " << a << "\n\t conjugate: " << a.conjugate() << ", norm: " << a.norm() << "\n\t normalized: " << a.normalize() << "\n";
+		std::cout << "b: " << b << "\n\t conjugate: " << b.conjugate() << ", norm: " << b.norm() << "\n\t normalized: " << b.normalize() << "\n";
+
 		c = b * a;
 
 		std::cout << b << " x " << a << " = " << c << "\n";

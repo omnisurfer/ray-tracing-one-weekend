@@ -23,7 +23,8 @@ Axes Conventions (following space navigation, body frame)
  https://stackoverflow.com/questions/4421706/what-are-the-basic-rules-and-idioms-for-operator-overloading
 
  Just the bare minimum is implemented to get a feel for what the operations will do to the lookAt vector and to understand what is going
- on without just glossing over it. At some point using a real library is probably the right path forward.
+ on without just glossing over it. At some point using a real library is probably the right path forward. Emphasis on clarity of the math 
+ probably impacts performance.
 */
 
 class quaternion {
@@ -120,6 +121,19 @@ public:
 
 		result = components.w * components.w + components.x * components.x + components.y * components.y + components.z * components.z;
 		result = sqrt(result);
+
+		return result;
+	}
+
+	inline quaternion normalize() {
+		quaternion result;
+		float norm = components.w * components.w + components.x * components.x + components.y * components.y + components.z * components.z;
+		norm = sqrt(norm);
+
+		result.components.w = components.w / norm;
+		result.components.x = components.x / norm;
+		result.components.y = components.y / norm;
+		result.components.z = components.z / norm;
 
 		return result;
 	}
