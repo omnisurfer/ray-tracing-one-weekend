@@ -361,9 +361,10 @@ int main() {
 		//std::cout << "lookAt * yawRotationMatrix: " << newLookAtVector << "\n";
 		std::cout << "newLookAt: " << newLookAtVector << "\n";
 
-		mainCamera.setLookAt(newLookAtVector);
-		//quanternion lookAt manipulation	
+		mainCamera.setLookAt(newLookAtVector);	
+
 	#else				
+		//Quaternion lookAt manipulation
 		quaternion a, b, c;
 
 		a = { 0.1, 0.2, 0.3, 0.4 };
@@ -371,11 +372,11 @@ int main() {
 
 		c = a + b;				
 
-		std::cout << a << " + " << b << " = " << c << "\n";
+		std::cout << a << " + " << b << " = " << c << ", conjugate: " << c.conjugate() << ", norm: " << c.norm() << "\n";
 
 		c = a * b;
 
-		std::cout << a << " x " << b << " = " << c << "\n";
+		std::cout << a << " x " << b << " = " << c << ", conjugate: " << c.conjugate() << ", norm: " << c.norm() << "\n";
 
 		c = b * a;
 
@@ -383,17 +384,17 @@ int main() {
 
 		float angleDeg = 270 * M_PI / 180;
 
-		//TODO: this is weird using one of the quaternions to call the conversion function that is unrelated to the used quanternion.
-		//need to fix this.
-		c = a.eulerToQuanternion(angleDeg, angleDeg, angleDeg);
+		c = quaternion::eulerToQuanternion(angleDeg, angleDeg, angleDeg);		
 
 		std::cout << "w: " << c.w() << " x: " << c.x() << " y: " << c.y() << " z: " << c.z() << "\n";
 
-		float x, y, z;
+		std::cout << "conjugate: " << c.conjugate() << " norm: " << c.norm()  << "\n";
 
-		a.quanternionToEuler(c, z, y, x);
+		float x, y, z;		
 
-		std::cout << "x: " << (x * 180)/ M_PI << " y: " << (y * 180)/ M_PI<< " z: " << (z * 180)/M_PI << "\n";
+		quaternion::quanternionToEuler(c, z, y, x);
+
+		std::cout << "x: " << (x * 180)/ M_PI << " y: " << (y * 180)/ M_PI<< " z: " << (z * 180)/M_PI << "\n";		
 
 	#endif
 #endif
