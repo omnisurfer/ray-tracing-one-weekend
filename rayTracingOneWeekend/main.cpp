@@ -366,39 +366,57 @@ int main() {
 	#else				
 		//Quaternion lookAt manipulation
 		quaternion a, b, c;
-
+		/*
 		a = { 0.1, 0.2, 0.3, 0.4 };
-		b = { 0.4, 0.3, 0.2, 0.1 };
+		b = { 0.4, 0.3, 0.2, 0.1 };					
 
-		c = a + b;				
+		
+		std::cout << "\na = " << a << "\n\rb = " << b << "\n";
+		std::cout << "\ta + b = " << a + b << "\n";
+		std::cout << "\ta * b = " << a * b << "\n";	
+		std::cout << "\tb * a = " << b * a << "\n";
+		
+		std::cout << "\ta\n\r\tnorm: " << a.norm() << "\n\r\tconjugate: " << a.conjugate() << "\n\r\tnormalized: " << a.normalizeOrVersor() << "\n\r";
+		std::cout << "\tinverse: " << a.inverse() << "\n\r\ta * a^-1 = " << a * a.inverse() << "\n\r";
 
-		std::cout << a << " + " << b << " = " << c << ", conjugate: " << c.conjugate() << ", norm: " << c.norm() << "\n";
+		std::cout << "\tb\n\r\tnorm: " << b.norm() << "\n\r\tconjugate: " << b.conjugate() << "\n\r\tnormalized: " << b.normalizeOrVersor() << "\n";		
+ 		/**/
 
-		c = a * b;
+		static float angleDegree = 0.0f;
+		float angleRadians = angleDegree * M_PI / 180.0f;
 
-		std::cout << a << " x " << b << " = " << c << ", conjugate: " << c.conjugate() << ", norm: " << c.norm() << "\n";
+		c = quaternion::eulerToQuaternion(0.0f, angleRadiansRotateAboutY, angleRadiansRotateAboutX);
 
-		std::cout << "a: " << a << "\n\t conjugate: " << a.conjugate() << ", norm: " << a.norm() << "\n\t normalized: " << a.normalize() << "\n";
-		std::cout << "b: " << b << "\n\t conjugate: " << b.conjugate() << ", norm: " << b.norm() << "\n\t normalized: " << b.normalize() << "\n";
+		/*
+		std::cout << "\n\rAngle(degrees): " << angleDegree << "\n\r\tQuaternion w: " << c.w() << " x: " << c.x() << " y: " << c.y() << " z: " << c.z();
+		std::cout << "\n\r\tconjugate: " << c.conjugate() << "\n\r\tnorm: " << c.norm()  << "\n";
+		/**/
+		vec3 lookAtVector = mainCamera.getLookAt();
+		vec3 cameraUpVector = mainCamera.getUpDirection();
 
-		c = b * a;
+		quaternion lookAtVersor = { 0, lookAtVector.x(), lookAtVector.y(), lookAtVector.z() };
+		quaternion upVersor = { 0, cameraUpVector.x(), cameraUpVector.y(), cameraUpVector.z() };
+		quaternion outputLookAtVersor;
+		quaternion outputUpVersor;
 
-		std::cout << b << " x " << a << " = " << c << "\n";
+		outputLookAtVersor = c * lookAtVersor * c.inverse();
+		outputUpVersor = c * upVersor * c.inverse();
 
-		float angleDeg = 270 * M_PI / 180;
+		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
+		std::cout << "outputUpVersor: " << outputUpVersor << "\n";
+		
+		mainCamera.setLookAt(vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()));
+		mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));
 
-		c = quaternion::eulerToQuanternion(angleDeg, angleDeg, angleDeg);		
-
-		std::cout << "w: " << c.w() << " x: " << c.x() << " y: " << c.y() << " z: " << c.z() << "\n";
-
-		std::cout << "conjugate: " << c.conjugate() << " norm: " << c.norm()  << "\n";
-
+		/*
 		float x, y, z;		
 
-		quaternion::quanternionToEuler(c, z, y, x);
+		quaternion::quaternionToEuler(c, z, y, x);
 
-		std::cout << "x: " << (x * 180)/ M_PI << " y: " << (y * 180)/ M_PI<< " z: " << (z * 180)/M_PI << "\n";		
+		std::cout << "\n\rQuaternion: " << c << "\n\rEuler Angles (degrees) x: " << (x * 180)/ M_PI << " y: " << (y * 180)/ M_PI<< " z: " << (z * 180)/M_PI << "\n";
 
+		angleDegree += 0.1f;
+		/**/
 	#endif
 #endif
 		//check if render is done

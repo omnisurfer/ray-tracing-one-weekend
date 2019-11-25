@@ -12,6 +12,8 @@
 - https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 - https://stackoverflow.com/questions/52413464/look-at-quaternion-using-up-vector
 - https://math.stackexchange.com/questions/40164/how-do-you-rotate-a-vector-by-a-unit-quaternion
+- https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation
+- https://www.vcalc.com/equation/?uuid=6c9fa386-75f1-11e6-9770-bc764e2038f2
 
 Axes Conventions (following space navigation, body frame)
 - https://en.wikipedia.org/wiki/Axes_conventions
@@ -65,7 +67,7 @@ public:
 
 	componentValues components;
 
-	static inline quaternion eulerToQuanternion(const float yawAngle_Z, const float pitchAngle_Y, const float rollAngle_X) {
+	static inline quaternion eulerToQuaternion(const float yawAngle_Z, const float pitchAngle_Y, const float rollAngle_X) {
 		float cy = cos(yawAngle_Z * 0.5);
 		float sy = sin(yawAngle_Z * 0.5);
 		float cp = cos(pitchAngle_Y * 0.5);
@@ -82,7 +84,7 @@ public:
 		return result;
 	}
 
-	static inline void quanternionToEuler(const quaternion &q, float &yawAngle_Z, float &pitchAngle_Y, float &rollAngle_X) {		
+	static inline void quaternionToEuler(const quaternion &q, float &yawAngle_Z, float &pitchAngle_Y, float &rollAngle_X) {		
 		//roll (x-axis rotation)
 		float sinrCosp = 2 * (q.w() * q.x() + q.y() * q.z());
 		float cosrCosp = 1 - 2 * (q.x() * q.x() + q.y() * q.y());
@@ -125,8 +127,9 @@ public:
 		return result;
 	}
 
-	inline quaternion normalize() {
-		quaternion result;
+	inline quaternion normalizeOrVersor() {
+		quaternion result;		
+
 		float norm = components.w * components.w + components.x * components.x + components.y * components.y + components.z * components.z;
 		norm = sqrt(norm);
 
@@ -134,6 +137,26 @@ public:
 		result.components.x = components.x / norm;
 		result.components.y = components.y / norm;
 		result.components.z = components.z / norm;
+
+		return result;
+	}
+
+	inline quaternion inverse() {
+		quaternion result;
+		quaternion conjugate;
+
+		conjugate.components.w = components.w;
+		conjugate.components.x = -components.x;
+		conjugate.components.y = -components.y;
+		conjugate.components.z = -components.z;
+
+		float normMagnitude = components.w * components.w + components.x * components.x + components.y * components.y + components.z * components.z;		 
+
+		result.components.w = conjugate.components.w / normMagnitude;
+
+		result.components.x = conjugate.components.x / normMagnitude;
+		result.components.y = conjugate.components.y / normMagnitude;
+		result.components.z = conjugate.components.z / normMagnitude;
 
 		return result;
 	}
