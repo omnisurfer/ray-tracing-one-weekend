@@ -322,14 +322,14 @@ Hitable *cornellBox_NED() {
 
 	//back panel
 	list[i++] = new Translate(
-		new YZRectangle( 
+		new FlipNormals(new YZRectangle( 
 			0, 
 			planeWidth, 
 			0, 
 			planeHeight, 
 			0,
 			white
-		), vec3(planeWidth / 2,-planeWidth / 2,-planeHeight / 2)
+		)), vec3(planeWidth / 2,-planeWidth / 2,-planeHeight / 2)
 	);	
 
 	//right panel	

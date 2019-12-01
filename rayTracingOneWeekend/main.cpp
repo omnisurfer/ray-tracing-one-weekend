@@ -148,7 +148,7 @@ Zenith (Up, -z)	   North (x)
 
 	*/
 
-#if 1
+#if 0
 	//Book world reference frame	
 	vec3 lookFrom(0, 0, 0);
 	vec3 lookAt(0, 0, 1);

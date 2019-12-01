@@ -137,6 +137,7 @@ protected:
 		_u = unit_vector(cross(_upDirection, _w));		
 		_v = cross(_w, _u);		
 
+#if 1
 		_lowerLeftCorner = _origin -
 			half_width * _focusDistance * _u -
 			half_height * _focusDistance * _v -
@@ -144,6 +145,15 @@ protected:
 
 		_horizontal = 2 * half_width * _focusDistance * _u;
 		_vertical = 2 * half_height * _focusDistance * _v;
+#else
+		_lowerLeftCorner = _origin -
+			half_width * _focusDistance * _w -
+			half_height * _focusDistance * _u -
+			_focusDistance * _v;
+
+		_horizontal = 2 * half_width * _focusDistance * _w;
+		_vertical = 2 * half_height * _focusDistance * _u;
+#endif
 	}
 
 private:
