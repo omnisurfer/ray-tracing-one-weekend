@@ -426,7 +426,7 @@ Zenith (Up, -z)	   North (x)
 		static float angleDegree = 0.0f;
 		float angleRadians = angleDegree * M_PI / 180.0f;
 
-		c = quaternion::eulerToQuaternion(angleRadiansRotateAboutY * 0.0f, angleRadiansRotateAboutX * 1.0f, 0.0f);
+		c = quaternion::eulerToQuaternion(angleRadiansRotateAboutY * 1.0f, angleRadiansRotateAboutX * 1.0f, 0.0f);
 
 		/*
 		std::cout << "\n\rAngle(degrees): " << angleDegree << "\n\r\tQuaternion w: " << c.w() << " x: " << c.x() << " y: " << c.y() << " z: " << c.z();

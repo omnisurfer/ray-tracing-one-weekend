@@ -179,14 +179,14 @@ Hitable *cornellBox() {
 	);	
 	
 	//left panel	
-	list[i++] = new FlipNormals(new YZRectangle(
+	list[i++] = new YZRectangle(
 		(xCoord - (xCoord / 2)) - (planeAxisDepthOffset / 2),
 		((planeWidth + xCoord) - (xCoord / 2)) - (planeAxisDepthOffset / 2),
 		(yCoord - (yCoord / 2)),
 		((planeHeight + yCoord) - (yCoord / 2)),
 		-planeAxisDepthOffset / 2,
 		red
-	));
+	);
 	
 	//back panel
 	list[i++] = new Translate(
