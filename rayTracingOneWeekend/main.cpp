@@ -147,15 +147,26 @@ Zenith (Up, -z)	   North (x)
 
 
 	*/
+
+#if 1
+	//Book world reference frame	
+	vec3 lookFrom(0, 0, 0);
+	vec3 lookAt(0, 0, 1);
+	vec3 worldUp(0, -1, 0);
+
+	Hitable *world = new Translate(cornellBox(), vec3(0, 0, 500));
+#else
+	//NED world reference frame	
 	vec3 lookFrom(0, 0, 0);
 	vec3 lookAt(1, 0, 0);
 	vec3 worldUp(0, 0, -1);
+
+	Hitable *world = new Translate(cornellBox_NED(), vec3(700, 0, 0));
+#endif
 	float distToFocus = 1000;//(lookFrom - lookAt).length(); //1000
 	float aperture = 2.0;
 	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
-	float vFoV = 60.0;
-
-	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
+	float vFoV = 60.0;	
 
 	// TODO: drowan(20190607) - should I make a way to select this programatically?
 
@@ -173,10 +184,9 @@ Zenith (Up, -z)	   North (x)
 	//Some of the weird corner lookAt vector issues seem to be related to having the origin not exactly zero'd...
 	//When the camera is setup with LookFrom@0,0,0 and LookAt@0,0,1 it seems to work properly
 	//Maybe should consider moving the world/objects and keeping camera at 0,0,0?
-	mainCamera.setLookFrom(vec3(0, 0, 0));
-	mainCamera.setLookAt(vec3(1, 0, 0));
 
-	Hitable *world = new Translate(cornellBox_NED(), vec3(700,0,0));
+	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
+
 #endif
 
 	// Each thread will have a handle to this shared buffer but will access the memory with a thread specific memory offset which will hopefully mitigate concurrent access issues.

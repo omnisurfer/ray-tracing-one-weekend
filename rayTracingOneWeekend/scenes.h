@@ -196,8 +196,8 @@ Hitable *cornellBox() {
 		yCoord - (planeHeight / 2),
 		(planeHeight + yCoord) - (planeHeight / 2),
 		planeAxisDepthOffset,
-		green
-	)), vec3(0,0,250));
+		white
+	)), vec3(0,0,0));
 
 	//right panel
 	list[i++] = new FlipNormals(new YZRectangle(
@@ -216,7 +216,7 @@ Hitable *cornellBox() {
 		(yCoord - (yCoord / 2)),
 		((planeHeight + yCoord) - (yCoord / 2)),
 		(planeAxisDepthOffset / 2),
-		yellow
+		white
 	));
 #endif
 

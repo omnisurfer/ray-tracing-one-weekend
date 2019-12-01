@@ -6,8 +6,8 @@
 //4K 3840x2160, 2K 2560x1440
 #define DEFAULT_RENDER_WIDTH 1000
 #define DEFAULT_RENDER_HEIGHT 1000
-#define DEFAULT_RENDER_AA 10
-#define DEBUG_RUN_THREADS 0 //0 selects max available threads
+#define DEFAULT_RENDER_AA 1
+#define DEBUG_RUN_THREADS 7 //0 selects max available threads
 
 #define OUTPUT_BMP_EN 0
 #define RUN_RAY_TRACE 1
