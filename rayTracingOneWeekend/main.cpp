@@ -99,21 +99,8 @@ int main() {
 
 	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 	renderProps.finalImageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
+	
 
-	//Setup camera
-	vec3 lookFrom(0, 0, -500);
-	vec3 lookAt(0, 0, 500);
-	//the negative 1 means y increases going down the screen from the top right corner of the window (the origin)
-	vec3 worldUp(0, -1, 0);
-	float distToFocus = 1000;//(lookFrom - lookAt).length(); //1000
-	float aperture = 2.0;
-	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
-	float vFoV = 60.0;
-
-	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
-
-	// TODO: drowan(20190607) - should I make a way to select this programatically?
-#if OUTPUT_RANDOM_SCENE == 1
 	/* Not 100% sure about this but it seems to act this way
 
 	--------------------> (+X)
@@ -127,6 +114,52 @@ int main() {
 
 	*/
 
+	/* Need to follow NED convention for "world frame" of air vehicles (https://en.wikipedia.org/wiki/Axes_conventions)
+Zenith (Up, -z)	   North (x)
+			  |   /
+			  |	 /
+			  |	/
+			  |/
+--------------/-------------------East (y)
+			 /|
+			/ |
+		   /  |
+		  /	  |
+		 /    |
+		/     |
+			  Nadir (Down, z)
+	*/
+
+	/* Need to follow RPY angles for "body frame" of air vehicles
+		 -z (yaw)
+			  |   /
+			  |	 /
+			  |	/
+			  |/
+-x -----------/------------------- +x (vehicle front, forward motion, roll)
+			 /|
+			/ |
+		   /  |
+		  /	  |
+		 /    |
+		/     |
++y (pitch)	  +z
+
+
+	*/
+	vec3 lookFrom(0, 0, 0);
+	vec3 lookAt(1, 0, 0);
+	vec3 worldUp(0, 0, -1);
+	float distToFocus = 1000;//(lookFrom - lookAt).length(); //1000
+	float aperture = 2.0;
+	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
+	float vFoV = 60.0;
+
+	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
+
+	// TODO: drowan(20190607) - should I make a way to select this programatically?
+
+#if OUTPUT_RANDOM_SCENE == 1
 	//random scene
 	mainCamera.setLookFrom(vec3(0, 0, 0));
 	mainCamera.setLookAt(vec3(0, 0, 1));
@@ -135,17 +168,15 @@ int main() {
 	Hitable *world = randomScene();
 #else
 	//cornell box
-	//mainCamera.setLookFrom(vec3(278, 278, -500));
-	//mainCamera.setLookAt(vec3(278, 278, 0));
-
+	
 	//Need to account for look from displacement from origin to be able to rotate around any point not at origin.
 	//Some of the weird corner lookAt vector issues seem to be related to having the origin not exactly zero'd...
 	//When the camera is setup with LookFrom@0,0,0 and LookAt@0,0,1 it seems to work properly
 	//Maybe should consider moving the world/objects and keeping camera at 0,0,0?
 	mainCamera.setLookFrom(vec3(0, 0, 0));
-	mainCamera.setLookAt(vec3(0, 0, 1));
+	mainCamera.setLookAt(vec3(1, 0, 0));
 
-	Hitable *world = cornellBox();
+	Hitable *world = new Translate(cornellBox_NED(), vec3(700,0,0));
 #endif
 
 	// Each thread will have a handle to this shared buffer but will access the memory with a thread specific memory offset which will hopefully mitigate concurrent access issues.
@@ -238,8 +269,7 @@ int main() {
 
 #pragma endregion Start_Threads
 
-#pragma region Manage_Threads
-
+#pragma region Modify LookAt Debug
 	//temp holds the initial camera lookAt that is used as the 0,0 reference
 	//this is clunky but for now it works for testing.		
 
@@ -250,6 +280,7 @@ int main() {
 	float verticleAngleDegreesToRotateBy = 0;
 
 	//simple loop for now to determine how many frames get rendered.
+	//START OF RENDER LOOP
 	for (int i = 0; i < 10000; i++) {
 
 		//check if the gui is running
@@ -291,7 +322,7 @@ int main() {
 		double angleRadiansRotateAboutX = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
 		//std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";		
-	
+
 		//drowan_20191020_TODO: remove hard coded window width of 250pixels
 		//map the amount of X cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
 		yawMovementFromXCartesianDisplacement = ((float)xCartesian / 250.0f) * 45.0f;
@@ -306,7 +337,7 @@ int main() {
 		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
 
 		//Euler angles lookAt manipulation
-	#if 0
+#if 0
 		vec3 yawRotationAboutY[3] = {
 			{(float)cos(angleRadiansRotateAboutY),0.0f,(float)sin(angleRadiansRotateAboutY)},
 			{0.0f,1.0f,0.0f},
@@ -361,31 +392,31 @@ int main() {
 		//std::cout << "lookAt * yawRotationMatrix: " << newLookAtVector << "\n";
 		std::cout << "newLookAt: " << newLookAtVector << "\n";
 
-		mainCamera.setLookAt(newLookAtVector);	
+		mainCamera.setLookAt(newLookAtVector);
 
-	#else				
-		//Quaternion lookAt manipulation
+#else				
+	//Quaternion lookAt manipulation
 		quaternion a, b, c;
 		/*
 		a = { 0.1, 0.2, 0.3, 0.4 };
-		b = { 0.4, 0.3, 0.2, 0.1 };					
+		b = { 0.4, 0.3, 0.2, 0.1 };
 
-		
+
 		std::cout << "\na = " << a << "\n\rb = " << b << "\n";
 		std::cout << "\ta + b = " << a + b << "\n";
-		std::cout << "\ta * b = " << a * b << "\n";	
+		std::cout << "\ta * b = " << a * b << "\n";
 		std::cout << "\tb * a = " << b * a << "\n";
-		
+
 		std::cout << "\ta\n\r\tnorm: " << a.norm() << "\n\r\tconjugate: " << a.conjugate() << "\n\r\tnormalized: " << a.normalizeOrVersor() << "\n\r";
 		std::cout << "\tinverse: " << a.inverse() << "\n\r\ta * a^-1 = " << a * a.inverse() << "\n\r";
 
-		std::cout << "\tb\n\r\tnorm: " << b.norm() << "\n\r\tconjugate: " << b.conjugate() << "\n\r\tnormalized: " << b.normalizeOrVersor() << "\n";		
- 		/**/
+		std::cout << "\tb\n\r\tnorm: " << b.norm() << "\n\r\tconjugate: " << b.conjugate() << "\n\r\tnormalized: " << b.normalizeOrVersor() << "\n";
+		/**/
 
 		static float angleDegree = 0.0f;
 		float angleRadians = angleDegree * M_PI / 180.0f;
 
-		c = quaternion::eulerToQuaternion(0.0f, angleRadiansRotateAboutY, angleRadiansRotateAboutX);
+		c = quaternion::eulerToQuaternion(angleRadiansRotateAboutY * 0.0f, angleRadiansRotateAboutX * 1.0f, 0.0f);
 
 		/*
 		std::cout << "\n\rAngle(degrees): " << angleDegree << "\n\r\tQuaternion w: " << c.w() << " x: " << c.x() << " y: " << c.y() << " z: " << c.z();
@@ -404,12 +435,12 @@ int main() {
 
 		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
 		std::cout << "outputUpVersor: " << outputUpVersor << "\n";
-		
+
 		mainCamera.setLookAt(vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()));
 		mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));
 
 		/*
-		float x, y, z;		
+		float x, y, z;
 
 		quaternion::quaternionToEuler(c, z, y, x);
 
@@ -417,8 +448,12 @@ int main() {
 
 		angleDegree += 0.1f;
 		/**/
-	#endif
 #endif
+#endif
+#pragma endregion Modify LookAt Debug
+
+#pragma region Manage_Threads
+	
 		//check if render is done
 		//TODO: Waiting for done here may effectively limit performance to the slowest thread...
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
@@ -458,7 +493,8 @@ int main() {
 			continueLock.unlock();
 			//thread->continueWorkConditionVar.notify_all();
 		}
-	}	
+	}
+	//END OF RENDER LOOP
 
 #pragma endregion Manage_Threads
 
