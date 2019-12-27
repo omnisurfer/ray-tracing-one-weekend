@@ -446,8 +446,12 @@ Zenith (Up, -z)	   North (x)
 		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
 		std::cout << "outputUpVersor: " << outputUpVersor << "\n";
 
+		/*
+		drowan_notes_20191226: I think to replicate a "FPS" style camera, I need to allow pitch within the objects frame of reference and do yaw within the world
+		frame of reference? As I have the camera now, this seems to behave as an "airplane" style camera (or something with 3DOF).
+		*/
 		mainCamera.setLookAt(vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()));
-		mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));
+		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));
 
 		/*
 		float x, y, z;
