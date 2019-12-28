@@ -311,7 +311,6 @@ Zenith (Up, -z)	   North (x)
 		/**/
 
 #if defined ENABLE_CONTROLS && ENABLE_CONTROLS == 1
-		vec3 currentCameraLookAt = mainCamera.getLookAt();
 
 		//get the current mouse position
 		int xCartesian = 0, yCartesian = 0;
@@ -406,27 +405,17 @@ Zenith (Up, -z)	   North (x)
 
 #else				
 	//Quaternion lookAt manipulation
-		quaternion a, b, c;
-		/*
-		a = { 0.1, 0.2, 0.3, 0.4 };
-		b = { 0.4, 0.3, 0.2, 0.1 };
-
-
-		std::cout << "\na = " << a << "\n\rb = " << b << "\n";
-		std::cout << "\ta + b = " << a + b << "\n";
-		std::cout << "\ta * b = " << a * b << "\n";
-		std::cout << "\tb * a = " << b * a << "\n";
-
-		std::cout << "\ta\n\r\tnorm: " << a.norm() << "\n\r\tconjugate: " << a.conjugate() << "\n\r\tnormalized: " << a.normalizeOrVersor() << "\n\r";
-		std::cout << "\tinverse: " << a.inverse() << "\n\r\ta * a^-1 = " << a * a.inverse() << "\n\r";
-
-		std::cout << "\tb\n\r\tnorm: " << b.norm() << "\n\r\tconjugate: " << b.conjugate() << "\n\r\tnormalized: " << b.normalizeOrVersor() << "\n";
-		/**/
+		quaternion qRotateAboutY, qRotateAboutX;
 
 		static float angleDegree = 0.0f;
 		float angleRadians = angleDegree * M_PI / 180.0f;
 
-		c = quaternion::eulerToQuaternion(angleRadiansRotateAboutY * 1.0f, angleRadiansRotateAboutX * 1.0f, 0.0f);
+		/* 
+		Seperating the rotations seems to create an FPS like camera. If I do the transform in one pass, it seems to act like
+		an "airplane" camera
+		*/
+		qRotateAboutY = quaternion::eulerToQuaternion(angleRadiansRotateAboutY * 1.0f, angleRadiansRotateAboutX * 0.0f, 0.0f);
+		qRotateAboutX = quaternion::eulerToQuaternion(angleRadiansRotateAboutY * 0.0f, angleRadiansRotateAboutX * 1.0f, 0.0f);
 
 		/*
 		std::cout << "\n\rAngle(degrees): " << angleDegree << "\n\r\tQuaternion w: " << c.w() << " x: " << c.x() << " y: " << c.y() << " z: " << c.z();
@@ -439,9 +428,18 @@ Zenith (Up, -z)	   North (x)
 		quaternion upVersor = { 0, cameraUpVector.x(), cameraUpVector.y(), cameraUpVector.z() };
 		quaternion outputLookAtVersor;
 		quaternion outputUpVersor;
+		
+		/* 
+		combine with the x rotation OR the mix of x and y rotations (airplane like movement)		
+		*/
+		outputLookAtVersor = qRotateAboutX * lookAtVersor * qRotateAboutX.inverse();
+		outputUpVersor = qRotateAboutX * upVersor * qRotateAboutX.inverse();
 
-		outputLookAtVersor = c * lookAtVersor * c.inverse();
-		outputUpVersor = c * upVersor * c.inverse();
+		/* 
+		Now combine with the y rotation
+		*/
+		outputLookAtVersor = qRotateAboutY * outputLookAtVersor * qRotateAboutY.inverse();
+		outputUpVersor = qRotateAboutY * outputUpVersor * qRotateAboutY.inverse();
 
 		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
 		std::cout << "outputUpVersor: " << outputUpVersor << "\n";
@@ -451,7 +449,10 @@ Zenith (Up, -z)	   North (x)
 		frame of reference? As I have the camera now, this seems to behave as an "airplane" style camera (or something with 3DOF).
 		*/
 		mainCamera.setLookAt(vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()));
-		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));
+		/*
+		only set the upVersor if you want airplane like movement 
+		*/
+		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
 
 		/*
 		float x, y, z;
