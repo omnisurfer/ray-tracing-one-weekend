@@ -298,57 +298,7 @@ Zenith (Up, -z)	   North (x)
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
 			break;
-		}
-
-		//check some keys
-		GUIControlInputs guiControlInputs;
-		getGUIControlInputs(guiControlInputs);
-
-		/*
-		std::cout << "W: " << guiControlInputs.forwardAsserted << "\n";
-		std::cout << "S: " << guiControlInputs.reverseAsserted << "\n";
-		std::cout << "A: " << guiControlInputs.leftAsserted << "\n";
-		std::cout << "D: " << guiControlInputs.rightAsserted << "\n";
-		std::cout << "ESC: " << guiControlInputs.escAsserted << "\n";
-		/**/
-
-		/*
-		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
-		*/
-		if (guiControlInputs.forwardAsserted) {
-			vec3 oldLookFrom = mainCamera.getLookFrom();
-			vec3 oldLookAt = mainCamera.getLookAt();			
-						
-			vec3 oldLookAtUnitVector = unit_vector(mainCamera.getLookAt());
-			vec3 oldLookFromUnitVector = unit_vector(mainCamera.getLookFrom());
-
-			//drowan_DEBUG_20200102: hack to get around when the lookFrom is 0,0,0 and produces a NaN unit vector
-			if (dot(oldLookAtUnitVector, vec3(1.0,1.0,1.0)) == 0.0) {
-				oldLookAtUnitVector = oldLookFromUnitVector;
-			}
-			
-			vec3 newLookFrom = (oldLookAtUnitVector * vec3(50.0, 50.0, 50.0)) + oldLookFrom;
-			vec3 newLookAt = (oldLookAtUnitVector * vec3(50.0, 50.0, 50.0)) + oldLookAt;
-		
-			mainCamera.setLookFrom(newLookFrom);
-			mainCamera.setLookAt(newLookAt);
-
-			std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << "\n";			
-		}
-		else if (guiControlInputs.reverseAsserted) {			
-			vec3 oldLookFrom = mainCamera.getLookFrom();
-			vec3 oldLookAt = mainCamera.getLookAt();
-			
-			vec3 oldLookAtUnitVector = unit_vector(mainCamera.getLookAt());
-
-			vec3 newLookFrom = oldLookFrom - (oldLookAtUnitVector * vec3(50.0, 50.0, 50.0));
-			vec3 newLookAt = oldLookAt - (oldLookAtUnitVector * vec3(50.0, 50.0, 50.0));
-
-			mainCamera.setLookFrom(newLookFrom);
-			mainCamera.setLookAt(newLookAt);
-
-			std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << "\n";
-		}
+		}		
 
 #if defined ENABLE_CONTROLS && ENABLE_CONTROLS == 1
 
@@ -462,23 +412,28 @@ Zenith (Up, -z)	   North (x)
 		std::cout << "\n\r\tconjugate: " << c.conjugate() << "\n\r\tnorm: " << c.norm()  << "\n";
 		/**/
 		vec3 lookAtVector = mainCamera.getLookAt();
+		vec3 lookFromVector = mainCamera.getLookFrom();
 		vec3 cameraUpVector = mainCamera.getUpDirection();
 
 		quaternion lookAtVersor = { 0, lookAtVector.x(), lookAtVector.y(), lookAtVector.z() };
+		quaternion lookFromVersor = { 0, lookFromVector.x(), lookFromVector.y(), lookFromVector.z() };
 		quaternion upVersor = { 0, cameraUpVector.x(), cameraUpVector.y(), cameraUpVector.z() };
 		quaternion outputLookAtVersor;
+		quaternion outputLookFromVersor;
 		quaternion outputUpVersor;
 		
 		/* 
 		combine with the x rotation OR the mix of x and y rotations (airplane like movement)		
 		*/
 		outputLookAtVersor = qRotateAboutX * lookAtVersor * qRotateAboutX.inverse();
+		outputLookFromVersor = qRotateAboutX * lookFromVersor * qRotateAboutX.inverse();
 		outputUpVersor = qRotateAboutX * upVersor * qRotateAboutX.inverse();
 
 		/* 
 		Now combine with the y rotation
 		*/
 		outputLookAtVersor = qRotateAboutY * outputLookAtVersor * qRotateAboutY.inverse();
+		outputLookFromVersor = qRotateAboutY * outputLookFromVersor * qRotateAboutY.inverse();
 		outputUpVersor = qRotateAboutY * outputUpVersor * qRotateAboutY.inverse();
 
 		/*
@@ -490,6 +445,7 @@ Zenith (Up, -z)	   North (x)
 		frame of reference? As I have the camera now, this seems to behave as an "airplane" style camera (or something with 3DOF).
 		*/
 		mainCamera.setLookAt(vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()));
+		mainCamera.setLookFrom(vec3(outputLookFromVersor.x(), outputLookFromVersor.y(), outputLookFromVersor.z()));
 		/*
 		only set the upVersor if you want airplane like movement 
 		*/
@@ -506,6 +462,59 @@ Zenith (Up, -z)	   North (x)
 		/**/
 #endif
 #endif
+		//check some keys
+		GUIControlInputs guiControlInputs;
+		getGUIControlInputs(guiControlInputs);
+
+		/*
+		std::cout << "W: " << guiControlInputs.forwardAsserted << "\n";
+		std::cout << "S: " << guiControlInputs.reverseAsserted << "\n";
+		std::cout << "A: " << guiControlInputs.leftAsserted << "\n";
+		std::cout << "D: " << guiControlInputs.rightAsserted << "\n";
+		std::cout << "ESC: " << guiControlInputs.escAsserted << "\n";
+		/**/
+
+		/*
+		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
+		*/
+		vec3 oldLookFrom = mainCamera.getLookFrom();
+		vec3 oldLookAt = mainCamera.getLookAt();
+		vec3 lookFromLookAtDifference = vec3(0.0, 0.0, 0.0);
+		vec3 lookFromLookAtDifferenceUnitVector = vec3(0.0, 0.0, 0.0);
+
+		vec3 newLookFrom = oldLookFrom;
+		vec3 newLookAt = oldLookAt;
+
+		bool controlAsserted = false;
+
+		lookFromLookAtDifference = oldLookAt - oldLookFrom;
+		/*
+		make sure the difference is not negative as this results in the subtraction to the "look" vectors
+		that occurs when going "backwards" is multiplied by a negative difference which creates a cycle that
+		moves the camera "forward" and "backwards" repeatedly.
+		*/
+		lookFromLookAtDifference *= lookFromLookAtDifference;
+
+		lookFromLookAtDifferenceUnitVector = unit_vector(lookFromLookAtDifference);
+
+		if (guiControlInputs.forwardAsserted) {
+			newLookFrom = oldLookFrom + (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
+			newLookAt = oldLookAt + (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
+			controlAsserted = true;
+		}
+		else if (guiControlInputs.reverseAsserted) {
+			newLookFrom = oldLookFrom - (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
+			newLookAt = oldLookAt - (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
+			controlAsserted = true;
+		}
+
+		mainCamera.setLookFrom(newLookFrom);
+		mainCamera.setLookAt(newLookAt);
+
+		if (controlAsserted) {
+			std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << " diffUnit: " << lookFromLookAtDifferenceUnitVector << "\n";
+		}
+
 #pragma endregion Modify LookAt Debug
 
 #pragma region Manage_Threads
