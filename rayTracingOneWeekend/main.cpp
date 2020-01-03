@@ -291,6 +291,8 @@ Zenith (Up, -z)	   North (x)
 
 	//simple loop for now to determine how many frames get rendered.
 	//START OF RENDER LOOP
+	std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << "\n";
+
 	for (int i = 0; i < 10000; i++) {
 
 		//check if the gui is running
@@ -309,6 +311,44 @@ Zenith (Up, -z)	   North (x)
 		std::cout << "D: " << guiControlInputs.rightAsserted << "\n";
 		std::cout << "ESC: " << guiControlInputs.escAsserted << "\n";
 		/**/
+
+		/*
+		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
+		*/
+		if (guiControlInputs.forwardAsserted) {
+			vec3 oldLookFrom = mainCamera.getLookFrom();
+			vec3 oldLookAt = mainCamera.getLookAt();			
+						
+			vec3 oldLookAtUnitVector = unit_vector(mainCamera.getLookAt());
+			vec3 oldLookFromUnitVector = unit_vector(mainCamera.getLookFrom());
+
+			//drowan_DEBUG_20200102: hack to get around when the lookFrom is 0,0,0 and produces a NaN unit vector
+			if (dot(oldLookAtUnitVector, vec3(1.0,1.0,1.0)) == 0.0) {
+				oldLookAtUnitVector = oldLookFromUnitVector;
+			}
+			
+			vec3 newLookFrom = (oldLookAtUnitVector * vec3(50.0, 50.0, 50.0)) + oldLookFrom;
+			vec3 newLookAt = (oldLookAtUnitVector * vec3(50.0, 50.0, 50.0)) + oldLookAt;
+		
+			mainCamera.setLookFrom(newLookFrom);
+			mainCamera.setLookAt(newLookAt);
+
+			std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << "\n";			
+		}
+		else if (guiControlInputs.reverseAsserted) {			
+			vec3 oldLookFrom = mainCamera.getLookFrom();
+			vec3 oldLookAt = mainCamera.getLookAt();
+			
+			vec3 oldLookAtUnitVector = unit_vector(mainCamera.getLookAt());
+
+			vec3 newLookFrom = oldLookFrom - (oldLookAtUnitVector * vec3(50.0, 50.0, 50.0));
+			vec3 newLookAt = oldLookAt - (oldLookAtUnitVector * vec3(50.0, 50.0, 50.0));
+
+			mainCamera.setLookFrom(newLookFrom);
+			mainCamera.setLookAt(newLookAt);
+
+			std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << "\n";
+		}
 
 #if defined ENABLE_CONTROLS && ENABLE_CONTROLS == 1
 
@@ -441,9 +481,10 @@ Zenith (Up, -z)	   North (x)
 		outputLookAtVersor = qRotateAboutY * outputLookAtVersor * qRotateAboutY.inverse();
 		outputUpVersor = qRotateAboutY * outputUpVersor * qRotateAboutY.inverse();
 
+		/*
 		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
 		std::cout << "outputUpVersor: " << outputUpVersor << "\n";
-
+		/**/
 		/*
 		drowan_notes_20191226: I think to replicate a "FPS" style camera, I need to allow pitch within the objects frame of reference and do yaw within the world
 		frame of reference? As I have the camera now, this seems to behave as an "airplane" style camera (or something with 3DOF).
