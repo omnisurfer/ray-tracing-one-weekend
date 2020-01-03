@@ -67,6 +67,11 @@ Return to [Render scene]
 */
 
 int main() {
+
+	//move the console window somewhere out of the way
+	HWND consoleWindowHandle = GetConsoleWindow();
+
+	SetWindowPos(consoleWindowHandle, 0, 500, 500, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 	
 	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
 	coutLock.unlock();
@@ -505,6 +510,19 @@ Zenith (Up, -z)	   North (x)
 		else if (guiControlInputs.reverseAsserted) {
 			newLookFrom = oldLookFrom + (lookFromLookAtDifferenceUnitVector * vec3(-50.0, -50.0, -50.0));
 			newLookAt = oldLookAt + (lookFromLookAtDifferenceUnitVector * vec3(-50.0, -50.0, -50.0));
+			controlAsserted = true;
+		}
+		/*
+		maybe to get strafe I need to find the cross product vector of the look at vector?
+		*/
+		else if (guiControlInputs.leftAsserted) {
+			newLookFrom = vec3(oldLookFrom.x(), oldLookFrom.y() - 50.0, oldLookFrom.z());
+			newLookAt = vec3(oldLookAt.x(), oldLookAt.y() - 50.0, oldLookAt.z());
+			controlAsserted = true;
+		}
+		else if (guiControlInputs.rightAsserted) {
+			newLookFrom = vec3(oldLookFrom.x(), oldLookFrom.y() + 50.0, oldLookFrom.z());
+			newLookAt = vec3(oldLookAt.x(), oldLookAt.y() + 50.0, oldLookAt.z());
 			controlAsserted = true;
 		}
 
