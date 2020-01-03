@@ -415,8 +415,10 @@ Zenith (Up, -z)	   North (x)
 		vec3 lookFromVector = mainCamera.getLookFrom();
 		vec3 cameraUpVector = mainCamera.getUpDirection();
 
-		quaternion lookAtVersor = { 0, lookAtVector.x(), lookAtVector.y(), lookAtVector.z() };
-		quaternion lookFromVersor = { 0, lookFromVector.x(), lookFromVector.y(), lookFromVector.z() };
+		//move the vector back to origin...?
+		lookAtVector = lookAtVector - lookFromVector;
+
+		quaternion lookAtVersor = { 0, lookAtVector.x(), lookAtVector.y(), lookAtVector.z() };		
 		quaternion upVersor = { 0, cameraUpVector.x(), cameraUpVector.y(), cameraUpVector.z() };
 		quaternion outputLookAtVersor;
 		quaternion outputLookFromVersor;
@@ -425,15 +427,13 @@ Zenith (Up, -z)	   North (x)
 		/* 
 		combine with the x rotation OR the mix of x and y rotations (airplane like movement)		
 		*/
-		outputLookAtVersor = qRotateAboutX * lookAtVersor * qRotateAboutX.inverse();
-		outputLookFromVersor = qRotateAboutX * lookFromVersor * qRotateAboutX.inverse();
+		outputLookAtVersor = qRotateAboutX * lookAtVersor * qRotateAboutX.inverse();		
 		outputUpVersor = qRotateAboutX * upVersor * qRotateAboutX.inverse();
 
 		/* 
 		Now combine with the y rotation
 		*/
-		outputLookAtVersor = qRotateAboutY * outputLookAtVersor * qRotateAboutY.inverse();
-		outputLookFromVersor = qRotateAboutY * outputLookFromVersor * qRotateAboutY.inverse();
+		outputLookAtVersor = qRotateAboutY * outputLookAtVersor * qRotateAboutY.inverse();		
 		outputUpVersor = qRotateAboutY * outputUpVersor * qRotateAboutY.inverse();
 
 		/*
@@ -444,8 +444,9 @@ Zenith (Up, -z)	   North (x)
 		drowan_notes_20191226: I think to replicate a "FPS" style camera, I need to allow pitch within the objects frame of reference and do yaw within the world
 		frame of reference? As I have the camera now, this seems to behave as an "airplane" style camera (or something with 3DOF).
 		*/
-		mainCamera.setLookAt(vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()));
-		mainCamera.setLookFrom(vec3(outputLookFromVersor.x(), outputLookFromVersor.y(), outputLookFromVersor.z()));
+		//add back the lookfrom to move the lookAt points back to where they came from
+		vec3 outputLookAtVector = vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()) + lookFromVector;
+		mainCamera.setLookAt(outputLookAtVector);		
 		/*
 		only set the upVersor if you want airplane like movement 
 		*/
@@ -493,7 +494,6 @@ Zenith (Up, -z)	   North (x)
 		that occurs when going "backwards" is multiplied by a negative difference which creates a cycle that
 		moves the camera "forward" and "backwards" repeatedly.
 		*/
-		lookFromLookAtDifference *= lookFromLookAtDifference;
 
 		lookFromLookAtDifferenceUnitVector = unit_vector(lookFromLookAtDifference);
 
@@ -503,8 +503,8 @@ Zenith (Up, -z)	   North (x)
 			controlAsserted = true;
 		}
 		else if (guiControlInputs.reverseAsserted) {
-			newLookFrom = oldLookFrom - (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
-			newLookAt = oldLookAt - (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
+			newLookFrom = oldLookFrom + (lookFromLookAtDifferenceUnitVector * vec3(-50.0, -50.0, -50.0));
+			newLookAt = oldLookAt + (lookFromLookAtDifferenceUnitVector * vec3(-50.0, -50.0, -50.0));
 			controlAsserted = true;
 		}
 
