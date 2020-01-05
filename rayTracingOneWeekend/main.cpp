@@ -71,7 +71,7 @@ int main() {
 	//move the console window somewhere out of the way
 	HWND consoleWindowHandle = GetConsoleWindow();
 
-	SetWindowPos(consoleWindowHandle, 0, 500, 500, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+	SetWindowPos(consoleWindowHandle, 0, 700, 200, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 	
 	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
 	coutLock.unlock();
@@ -153,38 +153,16 @@ Zenith (Up, -z)	   North (x)
 
 	*/
 
-#if 0
-	//Book world reference frame	
-	vec3 lookFrom(0, 0, 0);
-	vec3 lookAt(0, 0, 1);
-	vec3 worldUp(0, -1, 0);
-
-	Hitable *world = new Translate(cornellBox(), vec3(0, 0, 500));
-#else
 	//NED world reference frame	
 	vec3 lookFrom(0, 0, 0);
 	vec3 lookAt(1, 0, 0);
 	vec3 worldUp(0, 0, -1);
 
-	Hitable *world = new Translate(cornellBox_NED(), vec3(700, 0, 0));
-#endif
 	float distToFocus = 1000;//(lookFrom - lookAt).length(); //1000
 	float aperture = 2.0;
 	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
 	float vFoV = 60.0;	
 
-	// TODO: drowan(20190607) - should I make a way to select this programatically?
-
-#if OUTPUT_RANDOM_SCENE == 1
-	//random scene
-	mainCamera.setLookFrom(vec3(0, 0, 0));
-	mainCamera.setLookAt(vec3(0, 0, 1));
-
-	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
-	Hitable *world = randomScene();
-#else
-	//cornell box
-	
 	//Need to account for look from displacement from origin to be able to rotate around any point not at origin.
 	//Some of the weird corner lookAt vector issues seem to be related to having the origin not exactly zero'd...
 	//When the camera is setup with LookFrom@0,0,0 and LookAt@0,0,1 it seems to work properly
@@ -192,6 +170,16 @@ Zenith (Up, -z)	   North (x)
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
+	// TODO: drowan(20190607) - should I make a way to select this programatically?
+#if OUTPUT_RANDOM_SCENE == 1
+	//random scene	
+
+	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
+	Hitable *world = randomScene();
+#else
+	//cornell box		
+
+	Hitable *world = new Translate(cornellBox_NED(), vec3(300, 0, 0));
 #endif
 
 	// Each thread will have a handle to this shared buffer but will access the memory with a thread specific memory offset which will hopefully mitigate concurrent access issues.
@@ -298,7 +286,7 @@ Zenith (Up, -z)	   North (x)
 	//START OF RENDER LOOP
 	std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << "\n";
 
-	for (int i = 0; i < 10000; i++) {
+	for (int i = 0; i < 1000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
@@ -336,7 +324,7 @@ Zenith (Up, -z)	   North (x)
 
 		//std::cout << "horzAngleDegYaw: " << horizontalAngleDegreesToRotateBy << "\n";
 
-		double angleRadiansRotateAboutY = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
+		double angleRadiansRotateAboutZ = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
 		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
 
@@ -400,46 +388,57 @@ Zenith (Up, -z)	   North (x)
 
 #else				
 	//Quaternion lookAt manipulation
-		quaternion qRotateAboutY, qRotateAboutX;
+		quaternion qRotateAboutZ, qRotateAboutX;
 
 		static float angleDegree = 0.0f;
 		float angleRadians = angleDegree * M_PI / 180.0f;
+
+		vec3 lookAtVector = mainCamera.getLookAt();
+		vec3 lookFromVector = mainCamera.getLookFrom();
+		vec3 cameraUpVector = mainCamera.getUpDirection();
 
 		/* 
 		Seperating the rotations seems to create an FPS like camera. If I do the transform in one pass, it seems to act like
 		an "airplane" camera
 		*/
-		qRotateAboutY = quaternion::eulerToQuaternion(angleRadiansRotateAboutY * 1.0f, angleRadiansRotateAboutX * 0.0f, 0.0f);
-		qRotateAboutX = quaternion::eulerToQuaternion(angleRadiansRotateAboutY * 0.0f, angleRadiansRotateAboutX * 1.0f, 0.0f);
-
-		/*
-		std::cout << "\n\rAngle(degrees): " << angleDegree << "\n\r\tQuaternion w: " << c.w() << " x: " << c.x() << " y: " << c.y() << " z: " << c.z();
-		std::cout << "\n\r\tconjugate: " << c.conjugate() << "\n\r\tnorm: " << c.norm()  << "\n";
-		/**/
-		vec3 lookAtVector = mainCamera.getLookAt();
-		vec3 lookFromVector = mainCamera.getLookFrom();
-		vec3 cameraUpVector = mainCamera.getUpDirection();
+		qRotateAboutZ = quaternion::eulerToQuaternion(
+			angleRadiansRotateAboutZ * mainCamera.getW().x() * 1.0, 
+			angleRadiansRotateAboutZ * mainCamera.getW().y() * 1.0, 
+			angleRadiansRotateAboutZ * mainCamera.getW().z() * 1.0
+		);
+		qRotateAboutX = quaternion::eulerToQuaternion(
+			angleRadiansRotateAboutX * mainCamera.getU().x() * 0.0, 
+			angleRadiansRotateAboutX * mainCamera.getU().y() * 0.0, 
+			angleRadiansRotateAboutX * mainCamera.getU().z() * 0.0
+		);	
 
 		//move the vector back to origin...?
-		lookAtVector = lookAtVector - lookFromVector;
+		lookAtVector = lookAtVector - lookFromVector;		
 
-		quaternion lookAtVersor = { 0, lookAtVector.x(), lookAtVector.y(), lookAtVector.z() };		
+		quaternion lookAtVersor = { 0, lookAtVector.x(), lookAtVector.y(), lookAtVector.z() };
+		quaternion lookFromVersor = { 0, lookFromVector.x(), lookFromVector.y(), lookFromVector.z() };
 		quaternion upVersor = { 0, cameraUpVector.x(), cameraUpVector.y(), cameraUpVector.z() };
+
 		quaternion outputLookAtVersor;
 		quaternion outputLookFromVersor;
 		quaternion outputUpVersor;
-		
-		/* 
-		combine with the x rotation OR the mix of x and y rotations (airplane like movement)		
-		*/
-		outputLookAtVersor = qRotateAboutX * lookAtVersor * qRotateAboutX.inverse();		
-		outputUpVersor = qRotateAboutX * upVersor * qRotateAboutX.inverse();
 
-		/* 
-		Now combine with the y rotation
+		/*
+		X (Pitch) movement
 		*/
-		outputLookAtVersor = qRotateAboutY * outputLookAtVersor * qRotateAboutY.inverse();		
-		outputUpVersor = qRotateAboutY * outputUpVersor * qRotateAboutY.inverse();
+		outputLookAtVersor = qRotateAboutX * lookAtVersor * qRotateAboutX.inverse();
+		outputLookFromVersor = qRotateAboutX * lookFromVersor * qRotateAboutX.inverse();
+		outputUpVersor = qRotateAboutX * upVersor * qRotateAboutX.inverse();		
+
+		//mainCamera.setLookAt(outputLookAtVector);
+		//mainCamera.setUpDirection(outputUpVector);
+						
+		/* 
+		Now combine with the Z (Yaw) rotation
+		*/
+		outputLookAtVersor = qRotateAboutZ * outputLookAtVersor * qRotateAboutZ.inverse();
+		outputLookFromVersor = qRotateAboutZ * lookFromVersor * qRotateAboutZ.inverse();
+		outputUpVersor = qRotateAboutZ * outputUpVersor * qRotateAboutZ.inverse();		
 
 		/*
 		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
@@ -451,21 +450,16 @@ Zenith (Up, -z)	   North (x)
 		*/
 		//add back the lookfrom to move the lookAt points back to where they came from
 		vec3 outputLookAtVector = vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()) + lookFromVector;
-		mainCamera.setLookAt(outputLookAtVector);		
+		vec3 outputLookFromVector = vec3(outputLookFromVersor.x(), outputLookFromVersor.y(), outputLookFromVersor.z());
+		vec3 outputUpVector = vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z());
+
+		mainCamera.setLookAt(outputLookAtVector);
+		//mainCamera.setLookFrom(outputLookFromVector);
+		mainCamera.setUpDirection(outputUpVector);
 		/*
 		only set the upVersor if you want airplane like movement 
 		*/
 		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
-
-		/*
-		float x, y, z;
-
-		quaternion::quaternionToEuler(c, z, y, x);
-
-		std::cout << "\n\rQuaternion: " << c << "\n\rEuler Angles (degrees) x: " << (x * 180)/ M_PI << " y: " << (y * 180)/ M_PI<< " z: " << (z * 180)/M_PI << "\n";
-
-		angleDegree += 0.1f;
-		/**/
 #endif
 #endif
 		//check some keys
@@ -484,23 +478,20 @@ Zenith (Up, -z)	   North (x)
 		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
 		*/
 		vec3 oldLookFrom = mainCamera.getLookFrom();
-		vec3 oldLookAt = mainCamera.getLookAt();
-		vec3 lookFromLookAtDifference = vec3(0.0, 0.0, 0.0);
+		vec3 oldLookAt = mainCamera.getLookAt();		
 		vec3 lookFromLookAtDifferenceUnitVector = vec3(0.0, 0.0, 0.0);
 
 		vec3 newLookFrom = oldLookFrom;
-		vec3 newLookAt = oldLookAt;
+		vec3 newLookAt = oldLookAt;		
 
 		bool controlAsserted = false;
 
-		lookFromLookAtDifference = oldLookAt - oldLookFrom;
 		/*
 		make sure the difference is not negative as this results in the subtraction to the "look" vectors
 		that occurs when going "backwards" is multiplied by a negative difference which creates a cycle that
 		moves the camera "forward" and "backwards" repeatedly.
-		*/
-
-		lookFromLookAtDifferenceUnitVector = unit_vector(lookFromLookAtDifference);
+		*/		
+		lookFromLookAtDifferenceUnitVector = unit_vector(oldLookAt - oldLookFrom);		
 
 		if (guiControlInputs.forwardAsserted) {
 			newLookFrom = oldLookFrom + (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
@@ -527,10 +518,18 @@ Zenith (Up, -z)	   North (x)
 		}
 
 		mainCamera.setLookFrom(newLookFrom);
-		mainCamera.setLookAt(newLookAt);
+		mainCamera.setLookAt(newLookAt);		
 
 		if (controlAsserted) {
-			std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << " diffUnit: " << lookFromLookAtDifferenceUnitVector << "\n";
+			std::cout << "mainCamera: " << 
+						"\r\n\tlookFrom: " << mainCamera.getLookFrom() << 
+						"\r\n\tlookAt: " << mainCamera.getLookAt() << 
+						"\r\n\tdiffUnit: " << lookFromLookAtDifferenceUnitVector << 
+						"\r\n\tup direction: " << mainCamera.getUpDirection() << 
+						"\r\n\tu (y left/right) " << mainCamera.getU() <<
+						"\r\n\tv (z up/down) " << mainCamera.getV() <<
+						"\r\n\tw (x fwd/rev) " << mainCamera.getW() <<
+				"\n";
 		}
 
 #pragma endregion Modify LookAt Debug

@@ -93,6 +93,18 @@ public:
 		return _upDirection;
 	}
 
+	vec3 getU() {
+		return _u;
+	}
+
+	vec3 getV() {
+		return _v;
+	}
+
+	vec3 getW() {
+		return _w;
+	}
+
 	float setVerticalFoV() {
 		return _vFoV;
 	}
@@ -134,7 +146,9 @@ protected:
 		_origin = _lookFrom;
 
 		_w = unit_vector(_lookFrom - _lookAt);
-		_u = unit_vector(cross(_upDirection, _w));		
+		_u = unit_vector(cross(_upDirection, _w));
+		//drowan_DEBUG_20200104: swaping x and y may create a line perpendicular to the _w
+		//_u = vec3(_w.y(), -1.0 * _w.x(), _w.z());
 		_v = cross(_w, _u);		
 
 #if 1

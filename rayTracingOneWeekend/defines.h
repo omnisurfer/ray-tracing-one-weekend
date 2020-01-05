@@ -4,8 +4,8 @@
 
 //Setup screen and output image
 //4K 3840x2160, 2K 2560x1440
-#define DEFAULT_RENDER_WIDTH 300
-#define DEFAULT_RENDER_HEIGHT 300
+#define DEFAULT_RENDER_WIDTH 400
+#define DEFAULT_RENDER_HEIGHT 400
 #define DEFAULT_RENDER_AA 1
 #define DEBUG_RUN_THREADS 7 //0 selects max available threads
 
@@ -19,7 +19,7 @@
 #define CAPTURE_MOUSE 1
 #define ENABLE_CONTROLS 1
 
-#define GLOBAL_ILLUM_EN 0
+#define GLOBAL_ILLUM_EN 1
 #define SKY_ILLUM_GAIN 0.3
 #define GLOBAL_ILLUM_GAIN 0.3
 #define CAMERA_DOF_EN 0
