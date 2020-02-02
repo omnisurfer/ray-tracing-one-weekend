@@ -119,20 +119,21 @@ int main() {
 
 	*/
 
-	/* Need to follow NED convention for "world frame" of air vehicles (https://en.wikipedia.org/wiki/Axes_conventions)
-Zenith (Up, -z)	   North (x)
+	/* Need to follow NED convention for "world frame" of [air vehicles](https://en.wikipedia.org/wiki/Axes_conventions)
+	Following [Right Hand coordinate system](https://www.oreilly.com/library/view/learn-arcore-/9781788830409/03e5338d-02f1-4461-a57a-ef46a976f96b.xhtml)
+Zenith (Up, -z)	   North, Vehicle Left, Thumb (+x)
 			  |   /
 			  |	 /
 			  |	/
 			  |/
---------------/-------------------East (y)
+--------------/-------------------East, Vehicle "Front", Index (+y)
 			 /|
 			/ |
 		   /  |
 		  /	  |
 		 /    |
 		/     |
-			  Nadir (Down, z)
+			  Nadir, Vehicle "Bottom", Middle (Down, +z)
 	*/
 
 	/* Need to follow RPY angles for "body frame" of air vehicles
@@ -407,13 +408,13 @@ Zenith (Up, -z)	   North (x)
 			angleRadiansRotateAboutZ * mainCamera.getW().z() * 1.0
 		);
 		qRotateAboutX = quaternion::eulerToQuaternion(
-			angleRadiansRotateAboutX * mainCamera.getU().x() * 0.0, 
-			angleRadiansRotateAboutX * mainCamera.getU().y() * 0.0, 
-			angleRadiansRotateAboutX * mainCamera.getU().z() * 0.0
+			angleRadiansRotateAboutX * mainCamera.getU().x() * 1.0, 
+			angleRadiansRotateAboutX * mainCamera.getU().y() * 1.0, 
+			angleRadiansRotateAboutX * mainCamera.getU().z() * 1.0
 		);	
 
 		//move the vector back to origin...?
-		lookAtVector = lookAtVector - lookFromVector;		
+		//lookAtVector = lookAtVector - lookFromVector;		
 
 		quaternion lookAtVersor = { 0, lookAtVector.x(), lookAtVector.y(), lookAtVector.z() };
 		quaternion lookFromVersor = { 0, lookFromVector.x(), lookFromVector.y(), lookFromVector.z() };
@@ -428,10 +429,7 @@ Zenith (Up, -z)	   North (x)
 		*/
 		outputLookAtVersor = qRotateAboutX * lookAtVersor * qRotateAboutX.inverse();
 		outputLookFromVersor = qRotateAboutX * lookFromVersor * qRotateAboutX.inverse();
-		outputUpVersor = qRotateAboutX * upVersor * qRotateAboutX.inverse();		
-
-		//mainCamera.setLookAt(outputLookAtVector);
-		//mainCamera.setUpDirection(outputUpVector);
+		outputUpVersor = qRotateAboutX * upVersor * qRotateAboutX.inverse();			
 						
 		/* 
 		Now combine with the Z (Yaw) rotation
@@ -440,7 +438,7 @@ Zenith (Up, -z)	   North (x)
 		outputLookFromVersor = qRotateAboutZ * lookFromVersor * qRotateAboutZ.inverse();
 		outputUpVersor = qRotateAboutZ * outputUpVersor * qRotateAboutZ.inverse();		
 
-		/*
+		/**/
 		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
 		std::cout << "outputUpVersor: " << outputUpVersor << "\n";
 		/**/
@@ -459,7 +457,7 @@ Zenith (Up, -z)	   North (x)
 		/*
 		only set the upVersor if you want airplane like movement 
 		*/
-		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
+		mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
 #endif
 #endif
 		//check some keys

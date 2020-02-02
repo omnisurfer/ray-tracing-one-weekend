@@ -10,7 +10,7 @@
 #define DEBUG_RUN_THREADS 7 //0 selects max available threads
 
 #define OUTPUT_BMP_EN 0
-#define RUN_RAY_TRACE 1
+#define RUN_RAY_TRACE 0
 #define BYPASS_SCENE_CONFIG 1
 
 #define DISPLAY_FPS 1

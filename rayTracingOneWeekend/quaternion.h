@@ -31,9 +31,13 @@ Axes Conventions (following space navigation, body frame)
 
 class quaternion {
 
+	/*
+	x y z w
+	*/
+
 public:
 	quaternion() {}
-	quaternion(const float a, const float bi, const float cj, const float dk) {
+	quaternion(const float bi, const float cj, const float dk, const float a) {
 		components.w = a;		
 		components.x = bi;
 		components.y = cj;
@@ -59,10 +63,14 @@ public:
 		
 	//using a union to make things look cleaner...
 	//https://stackoverflow.com/questions/2310483/purpose-of-unions-in-c-and-c
-	union componentValues{
-		struct { float w, x, y, z; };
-		struct { float a, b, c, d; };
-		float e[4];
+	struct componentValues {
+		union {
+			//drowan_MOD_20200202: changed order to match 3D Math Primer book order. Don't think operations will change
+			//need to remember that e[4] is now w/a
+			struct { float x, y, z, w; };
+			struct { float b, c, d, a; };
+			float e[4];
+		};
 	};
 
 	componentValues components;
@@ -168,7 +176,7 @@ private:
 
 inline std::ostream& operator<<(std::ostream &os, const quaternion &q) {
 
-	os << q.w() << " + " << q.x() << "i + " << q.y() << "j + " << q.z() << "k ";
+	os << q.x() << "i + " << q.y() << "j + " << q.z() << "k + " << q.w() << "w";
 	return os;
 }
 

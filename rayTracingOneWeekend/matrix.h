@@ -10,6 +10,7 @@ better.
  on without just glossing over it. At some point using a real library is probably the right path forward.
 */
 #include "vec3.h"
+#include "quaternion.h"
 #include "debug.h"
 
 class mat3x3 {
@@ -18,16 +19,8 @@ public:
 	mat3x3() {}
 	mat3x3(const vec3 matrix[3]) {
 		m[0] = matrix[0];
-		m[0] = matrix[0];
-		m[0] = matrix[0];
-
 		m[1] = matrix[1];
-		m[1] = matrix[1];
-		m[1] = matrix[1];
-
-		m[2] = matrix[2];
-		m[2] = matrix[2];
-		m[2] = matrix[2];
+		m[2] = matrix[2];		
 	};
 
 	//https://stackoverflow.com/questions/4421706/what-are-the-basic-rules-and-idioms-for-operator-overloading
@@ -163,3 +156,19 @@ inline vec3 operator*(vec3 &v1, const mat3x3 &m1) {
 
 	return res;
 }
+
+class qmat4x4{
+	
+public:
+	qmat4x4() {}
+	qmat4x4(const  quaternion qMatrix[4]) {
+		qm[0] = qMatrix[0];
+		qm[1] = qMatrix[1];
+		qm[2] = qMatrix[2];
+		qm[3] = qMatrix[3];
+	}
+
+	inline const qmat4x4& operator+() const { return *this; }
+
+	quaternion qm[4];
+};

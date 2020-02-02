@@ -1,15 +1,47 @@
 #pragma once
 
 #include "vec3.h"
+#include "quaternion.h"
 #include "defines.h"
 #include "mathUtilities.h"
 
 class Camera {
 
 public:
-	Camera(vec3 lookFrom, vec3 lookAt, vec3 upDirection, float vFoV, float aspect, float aperture, float focusDistance, float t0, float t1) : 
+	Camera(vec3 lookFrom, vec3 lookAt, vec3 upDirection, float vFoV, float aspect, float aperture, float focusDistance, float t0, float t1) :
 		_lookFrom(lookFrom), _lookAt(lookAt), _upDirection(upDirection), _vFoV(vFoV), _aspect(aspect), _aperture(aperture), _focusDistance(focusDistance), _time0(t0), _time1(t1) {
 
+		/*drowan_NOTE_20200202
+		On page 182 of 3D Math Primer for Graphics and Game Development, 2nd Ed.
+		Trying to replicate the following matrix for rotation and translate ops
+
+		T = 1 0 0 0
+			0 1 0 0
+			0 0 1 0
+			0 0 0 1
+
+		T = r r r 0
+			r r r 0
+			r r r 0
+			p p p 1
+
+		Where r is the rotation and p is the point by which rotation occurs about
+		*/
+		quaternion qBasisPoseMatrix[4] = {
+			{1.0f,0.0f,0.0f,0.0f},		//x, roll basis
+			{0.0f,1.0f,0.0f,0.0f},		//y, pitch basis
+			{0.0f,0.0f,-1.0f,0.0f},		//z, yaw basis
+			{0.0f,0.0f,0.0f,1.0f}		//displacement basis? not sure yet...
+		};
+
+		qOrientationMatrix = qBasisPoseMatrix;		
+
+		std::cout << "qMatrix: \n" 
+			<< qBasisPoseMatrix[0] << "\n" 
+			<< qBasisPoseMatrix[1] << "\n"
+			<< qBasisPoseMatrix[2] << "\n"
+			<< qBasisPoseMatrix[3] << "\n";
+		
 		setCamera();
 	}
 
@@ -82,11 +114,11 @@ public:
 	}
 
 	vec3 getLookAt() {
-		return _lookAt;		
+		return _lookAt;
 	}
 
 	vec3 getLookFrom() {
-		return _lookFrom;		
+		return _lookFrom;
 	}
 
 	vec3 getUpDirection() {
@@ -121,15 +153,32 @@ public:
 		return _focusDistance;
 	}
 
-	void rotateCamera(float degrees) {		
+	void setOrientation(float roll, float pitch, float yaw) {
+		
+		quaternion qRoll = quaternion::eulerToQuaternion(
+			yaw * qOrientationMatrix.qm[0].x(),
+			yaw * qOrientationMatrix.qm[0].y(),
+			yaw * qOrientationMatrix.qm[0].z()
+		);
 
+		quaternion qPitch = quaternion::eulerToQuaternion(
+			yaw * qOrientationMatrix.qm[2].x(),
+			yaw * qOrientationMatrix.qm[2].y(),
+			yaw * qOrientationMatrix.qm[2].z()
+		);
+
+		quaternion qYaw = quaternion::eulerToQuaternion(
+			yaw * qOrientationMatrix.qm[3].x(),
+			yaw * qOrientationMatrix.qm[3].y(),
+			yaw * qOrientationMatrix.qm[3].z()
+		);
+
+		qOrientationMatrix.qm[0] = qRoll;
+		qOrientationMatrix.qm[1] = qPitch;
+		qOrientationMatrix.qm[2] = qPitch;
 	}
 
-	void tiltCamera(float degrees) {
-
-	}
-
-	void pitchCamera(float deegrees) {
+	void setPosition(float x, float y, float z) {
 
 	}
 
@@ -149,7 +198,7 @@ protected:
 		_u = unit_vector(cross(_upDirection, _w));
 		//drowan_DEBUG_20200104: swaping x and y may create a line perpendicular to the _w
 		//_u = vec3(_w.y(), -1.0 * _w.x(), _w.z());
-		_v = cross(_w, _u);		
+		_v = cross(_w, _u);
 
 #if 1
 		_lowerLeftCorner = _origin -
@@ -190,4 +239,7 @@ private:
 	float _lensRadius;
 
 	float _time0, _time1;
+
+	 qmat4x4 qOrientationMatrix;
+	 qmat4x4 qPositionMatrix;
 };
