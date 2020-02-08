@@ -27,11 +27,13 @@ public:
 
 		Where r is the rotation and p is the point by which rotation occurs about
 		*/
+
+		//drowan_TODO_20200208: DON'T USE QUATERNION FOR THIS. I WILL JUST GET CONFUSED. MAKE A MAT4x4
 		quaternion qBasisPoseMatrix[4] = {
-			{1.0f,0.0f,0.0f,0.0f},		//x, roll basis
-			{0.0f,1.0f,0.0f,0.0f},		//y, pitch basis
-			{0.0f,0.0f,-1.0f,0.0f},		//z, yaw basis
-			{0.0f,0.0f,0.0f,1.0f}		//displacement basis? not sure yet...
+			{1.0f,0.0f,0.0f,0.0f},		//displacement basis? not sure yet...
+			{0.0f,1.0f,0.0f,0.0f},		//x, roll basis
+			{0.0f,0.0f,1.0f,0.0f},		//y, pitch basis
+			{0.0f,0.0f,0.0f,-1.0f}		//z, yaw basis
 		};
 
 		qOrientationMatrix = qBasisPoseMatrix;		
