@@ -1,7 +1,9 @@
 #pragma once
 
 #include "vec3.h"
+#include "vec4.h"
 #include "quaternion.h"
+#include "mat4x4.h"
 #include "defines.h"
 #include "mathUtilities.h"
 
@@ -27,23 +29,43 @@ public:
 
 		Where r is the rotation and p is the point by which rotation occurs about
 		*/
-
-		//drowan_TODO_20200208: DON'T USE QUATERNION FOR THIS. I WILL JUST GET CONFUSED. MAKE A MAT4x4
-		quaternion qBasisPoseMatrix[4] = {
-			{1.0f,0.0f,0.0f,0.0f},		//displacement basis? not sure yet...
-			{0.0f,1.0f,0.0f,0.0f},		//x, roll basis
-			{0.0f,0.0f,1.0f,0.0f},		//y, pitch basis
-			{0.0f,0.0f,0.0f,-1.0f}		//z, yaw basis
+		
+		vec4 basisOrientationMatrix[4] = {
+			{1.0f,2.0f,3.0f,4.0f},		//x, roll basis
+			{4.0f,1.0f,2.0f,3.0f},		//y, pitch basis
+			{3.0f,4.0f,-1.0f,2.0f},		//z, yaw basis
+			{2.0f,3.0f,4.0f,1.0f}		//displacement basis? not sure yet...			
 		};
 
-		qOrientationMatrix = qBasisPoseMatrix;		
-
-		std::cout << "qMatrix: \n" 
-			<< qBasisPoseMatrix[0] << "\n" 
-			<< qBasisPoseMatrix[1] << "\n"
-			<< qBasisPoseMatrix[2] << "\n"
-			<< qBasisPoseMatrix[3] << "\n";
+		vec4 basisPositionMatrix[4] = {
+			{1.0f,2.0f,3.0f,4.0f},		//x, roll basis
+			{4.0f,1.0f,2.0f,3.0f},		//y, pitch basis
+			{3.0f,5.0f,-1.0f,4.0f},		//z, yaw basis
+			{3.0f,0.0f,7.0f,10.0f}		//displacement basis? not sure yet...			
+		};
 		
+		quaternion qOrientation = basisOrientationMatrix[0];
+		quaternion qPosition = basisPositionMatrix[0];
+
+		orientationMatrix = basisOrientationMatrix;
+		positionMatrix = basisPositionMatrix;
+
+		std::cout << "orientationMatrix: \n" 
+			<< basisOrientationMatrix[0] << "\n" 
+			<< basisOrientationMatrix[1] << "\n"
+			<< basisOrientationMatrix[2] << "\n"
+			<< basisOrientationMatrix[3] << "\n";
+
+		std::cout 
+			<< "o[0] dot o[1] = " << dot(basisOrientationMatrix[0], basisOrientationMatrix[1]) << "\n"
+			<< "o[0] times p[0] = " << orientationMatrix.m[0] << " * " << positionMatrix.m[0] << " = " << orientationMatrix.m[0] * positionMatrix.m[0] << "\n"
+			<< "ori times pos = " << orientationMatrix << " *\n" << positionMatrix << " =\n" << orientationMatrix * positionMatrix << "\n";
+
+		std::cout
+			//<< "qOri dot qPos: " << dot(qOrientation, qPosition) << "\n"
+			<< "qOri times qPos: " << qOrientation << " * " << qPosition << " = " << qOrientation * qPosition << "\n";
+				
+		/**/
 		setCamera();
 	}
 
@@ -156,7 +178,7 @@ public:
 	}
 
 	void setOrientation(float roll, float pitch, float yaw) {
-		
+		/*
 		quaternion qRoll = quaternion::eulerToQuaternion(
 			yaw * qOrientationMatrix.qm[0].x(),
 			yaw * qOrientationMatrix.qm[0].y(),
@@ -178,6 +200,7 @@ public:
 		qOrientationMatrix.qm[0] = qRoll;
 		qOrientationMatrix.qm[1] = qPitch;
 		qOrientationMatrix.qm[2] = qPitch;
+		/**/
 	}
 
 	void setPosition(float x, float y, float z) {
@@ -242,6 +265,6 @@ private:
 
 	float _time0, _time1;
 
-	 qmat4x4 qOrientationMatrix;
-	 qmat4x4 qPositionMatrix;
+	 mat4x4 orientationMatrix;
+	 mat4x4 positionMatrix;
 };

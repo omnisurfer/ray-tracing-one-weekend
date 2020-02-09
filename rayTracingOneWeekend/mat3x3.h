@@ -156,19 +156,3 @@ inline vec3 operator*(vec3 &v1, const mat3x3 &m1) {
 
 	return res;
 }
-
-class qmat4x4{
-	
-public:
-	qmat4x4() {}
-	qmat4x4(const  quaternion qMatrix[4]) {
-		qm[0] = qMatrix[0];
-		qm[1] = qMatrix[1];
-		qm[2] = qMatrix[2];
-		qm[3] = qMatrix[3];
-	}
-
-	inline const qmat4x4& operator+() const { return *this; }
-
-	quaternion qm[4];
-};

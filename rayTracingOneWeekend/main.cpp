@@ -3,7 +3,7 @@
 
 #include "defines.h"
 #include "vec3.h"
-#include "matrix.h"
+#include "mat3x3.h"
 #include "quaternion.h"
 #include "hitableList.h"
 #include "camera.h"

@@ -67,9 +67,6 @@
     <ClInclude Include="rngs.h">
       <Filter>Header Files\math</Filter>
     </ClInclude>
-    <ClInclude Include="vec3.h">
-      <Filter>Header Files\math</Filter>
-    </ClInclude>
     <ClInclude Include="mathUtilities.h">
       <Filter>Header Files\math</Filter>
     </ClInclude>
@@ -127,10 +124,19 @@
     <ClInclude Include="common.h">
       <Filter>Header Files\coreEngine</Filter>
     </ClInclude>
-    <ClInclude Include="matrix.h">
+    <ClInclude Include="quaternion.h">
       <Filter>Header Files\math</Filter>
     </ClInclude>
-    <ClInclude Include="quaternion.h">
+    <ClInclude Include="vec3.h">
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="mat3x3.h">
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="vec4.h">
+      <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="mat4x4.h">
       <Filter>Header Files\math</Filter>
     </ClInclude>
   </ItemGroup>

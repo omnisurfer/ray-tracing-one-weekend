@@ -1,5 +1,7 @@
 #pragma once
 
+#include <math.h>
+
 class vec3 {
 public:
 	vec3() {}

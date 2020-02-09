@@ -28,6 +28,7 @@ Axes Conventions (following space navigation, body frame)
  on without just glossing over it. At some point using a real library is probably the right path forward. Emphasis on clarity of the math 
  probably impacts performance.
 */
+#include "vec4.h";
 
 class quaternion {
 
@@ -42,6 +43,12 @@ public:
 		components.x = bi;
 		components.y = cj;
 		components.z = dk;
+	}
+	quaternion(const vec4 v) {
+		components.x = v.x();
+		components.y = v.y();
+		components.z = v.z();
+		components.w = v.w();
 	}
 
 	inline float a() const { return components.a; }
