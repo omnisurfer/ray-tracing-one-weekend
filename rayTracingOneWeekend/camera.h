@@ -11,7 +11,7 @@ class Camera {
 
 public:
 	Camera(vec3 lookFrom, vec3 lookAt, vec3 upDirection, float vFoV, float aspect, float aperture, float focusDistance, float t0, float t1) :
-		_lookFrom(lookFrom), _lookAt(lookAt), _upDirection(upDirection), _vFoV(vFoV), _aspect(aspect), _aperture(aperture), _focusDistance(focusDistance), _time0(t0), _time1(t1) {
+		_lookFromPoint(lookFrom), _lookAt(lookAt), _upDirection(upDirection), _vFoV(vFoV), _aspect(aspect), _aperture(aperture), _focusDistance(focusDistance), _time0(t0), _time1(t1) {
 
 		/*drowan_NOTE_20200202
 		On page 182 of 3D Math Primer for Graphics and Game Development, 2nd Ed.
@@ -29,34 +29,43 @@ public:
 
 		Where r is the rotation and p is the point by which rotation occurs about
 		*/
-		
+
+		//drowan_TODO_20200213: I think long term I should create an abstract pose class
+		//that the camera can add to itself to be able to move using composition? Or inheritance?
 		vec4 basisOrientationMatrix[4] = {
-			{1.0f,2.0f,3.0f,4.0f},		//x, roll basis
-			{4.0f,1.0f,2.0f,3.0f},		//y, pitch basis
-			{3.0f,4.0f,-1.0f,2.0f},		//z, yaw basis
-			{2.0f,3.0f,4.0f,1.0f}		//displacement basis? not sure yet...			
+			{1.0f,0.0f,0.0f,0.0f},		//x, roll basis
+			{0.0f,1.0f,0.0f,0.0f},		//y, pitch basis
+			{0.0f,0.0f,-1.0f,0.0f},		//z, yaw basis
+			{0.0f,0.0f,0.0f,1.0f}		//displacement basis? not sure yet...			
 		};
 
 		vec4 basisPositionMatrix[4] = {
-			{1.0f,2.0f,3.0f,4.0f},		//x, roll basis
-			{4.0f,1.0f,2.0f,3.0f},		//y, pitch basis
-			{3.0f,5.0f,-1.0f,4.0f},		//z, yaw basis
-			{3.0f,0.0f,7.0f,10.0f}		//displacement basis? not sure yet...			
+			{0.0f,0.0f,0.0f,0.0f},		//x, roll basis
+			{0.0f,0.0f,0.0f,0.0f},		//y, pitch basis
+			{0.0f,0.0f,0.0f,0.0f},		//z, yaw basis
+			{0.0f,0.0f,0.0f,0.0f}			//displacement basis? not sure yet... this line is an origin of 0,0,0	
 		};
-		
+
 		quaternion qOrientation = basisOrientationMatrix[0];
 		quaternion qPosition = basisPositionMatrix[0];
 
 		orientationMatrix = basisOrientationMatrix;
 		positionMatrix = basisPositionMatrix;
 
-		std::cout << "orientationMatrix: \n" 
-			<< basisOrientationMatrix[0] << "\n" 
+		std::cout << "basisOrientationMatrix: \n"
+			<< basisOrientationMatrix[0] << "\n"
 			<< basisOrientationMatrix[1] << "\n"
 			<< basisOrientationMatrix[2] << "\n"
 			<< basisOrientationMatrix[3] << "\n";
 
-		std::cout 
+		std::cout << "basisPositionMatrix: \n"
+			<< basisPositionMatrix[0] << "\n"
+			<< basisPositionMatrix[1] << "\n"
+			<< basisPositionMatrix[2] << "\n"
+			<< basisPositionMatrix[3] << "\n";		
+
+		/*
+		std::cout
 			<< "o[0] dot o[1] = " << dot(basisOrientationMatrix[0], basisOrientationMatrix[1]) << "\n"
 			<< "o[0] times p[0] = " << orientationMatrix.m[0] << " * " << positionMatrix.m[0] << " = " << orientationMatrix.m[0] * positionMatrix.m[0] << "\n"
 			<< "ori times pos = " << orientationMatrix << " *\n" << positionMatrix << " =\n" << orientationMatrix * positionMatrix << "\n";
@@ -64,7 +73,7 @@ public:
 		std::cout
 			//<< "qOri dot qPos: " << dot(qOrientation, qPosition) << "\n"
 			<< "qOri times qPos: " << qOrientation << " * " << qPosition << " = " << qOrientation * qPosition << "\n";
-				
+
 		/**/
 		setCamera();
 	}
@@ -89,8 +98,8 @@ public:
 		setCamera();
 	}
 
-	void setLookFrom(vec3 lookFrom) {
-		_lookFrom = lookFrom;
+	void setLookFromPoint(vec3 lookFromPoint) {
+		_lookFromPoint = lookFromPoint;
 
 		setCamera();
 	}
@@ -141,8 +150,8 @@ public:
 		return _lookAt;
 	}
 
-	vec3 getLookFrom() {
-		return _lookFrom;
+	vec3 getLookFromPoint() {
+		return _lookFromPoint;
 	}
 
 	vec3 getUpDirection() {
@@ -177,39 +186,43 @@ public:
 		return _focusDistance;
 	}
 
-	void setOrientation(float roll, float pitch, float yaw) {
-		/*
-		quaternion qRoll = quaternion::eulerToQuaternion(
-			yaw * qOrientationMatrix.qm[0].x(),
-			yaw * qOrientationMatrix.qm[0].y(),
-			yaw * qOrientationMatrix.qm[0].z()
-		);
-
-		quaternion qPitch = quaternion::eulerToQuaternion(
-			yaw * qOrientationMatrix.qm[2].x(),
-			yaw * qOrientationMatrix.qm[2].y(),
-			yaw * qOrientationMatrix.qm[2].z()
-		);
-
-		quaternion qYaw = quaternion::eulerToQuaternion(
-			yaw * qOrientationMatrix.qm[3].x(),
-			yaw * qOrientationMatrix.qm[3].y(),
-			yaw * qOrientationMatrix.qm[3].z()
-		);
-
-		qOrientationMatrix.qm[0] = qRoll;
-		qOrientationMatrix.qm[1] = qPitch;
-		qOrientationMatrix.qm[2] = qPitch;
-		/**/
+	void setOrientationMatrix(mat4x4 orientationMatrix) {
+		orientationMatrix = orientationMatrix;
 	}
 
-	void setPosition(float x, float y, float z) {
+	mat4x4 getOrientationMatrix() {
+		return orientationMatrix;
+	}
 
+	void setPositionMatrix(mat4x4 positionMatrix) {
+		positionMatrix = positionMatrix;
+	}
+
+	mat4x4 getPositionMatrix() {
+		return positionMatrix;
+	}
+
+	void setPosition(vec3 position) {
+		positionMatrix.m[3][0] = position.x();
+		positionMatrix.m[3][1] = position.y();
+		positionMatrix.m[3][2] = position.z();
+	}
+
+	vec3 getPosition() {
+		return vec3(positionMatrix.m[0][4], positionMatrix.m[1][4], positionMatrix.m[2][4]);
 	}
 
 protected:
 
 	void setCamera() {
+
+		//lookAt vector contains camera orientation relative to world space but centered on it's origin
+		//origin of the camera is set by lookFrom
+
+		//need to take move camera origin back to 0,0
+		//perform rotation
+		//move camera to new or original displacement
+		//modify lookAt to relect this?
 
 		_lensRadius = _aperture / 2;
 
@@ -217,9 +230,9 @@ protected:
 		float half_height = tan(theta / 2);
 		float half_width = _aspect * half_height;
 
-		_origin = _lookFrom;
+		_origin = _lookFromPoint;
 
-		_w = unit_vector(_lookFrom - _lookAt);
+		_w = unit_vector(_lookFromPoint - _lookAt);
 		_u = unit_vector(cross(_upDirection, _w));
 		//drowan_DEBUG_20200104: swaping x and y may create a line perpendicular to the _w
 		//_u = vec3(_w.y(), -1.0 * _w.x(), _w.z());
@@ -246,7 +259,7 @@ protected:
 
 private:
 
-	vec3 _lookFrom;
+	vec3 _lookFromPoint;
 	vec3 _lookAt;
 	vec3 _upDirection;
 	//vFov is top to bottom in degrees
@@ -265,6 +278,6 @@ private:
 
 	float _time0, _time1;
 
-	 mat4x4 orientationMatrix;
-	 mat4x4 positionMatrix;
+	mat4x4 orientationMatrix;
+	mat4x4 positionMatrix;
 };

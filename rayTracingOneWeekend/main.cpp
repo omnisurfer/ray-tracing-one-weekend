@@ -285,7 +285,7 @@ Zenith (Up, -z)	   North, Vehicle Left, Thumb (+x)
 
 	//simple loop for now to determine how many frames get rendered.
 	//START OF RENDER LOOP
-	std::cout << "lookFrom: " << mainCamera.getLookFrom() << " lookAt: " << mainCamera.getLookAt() << "\n";
+	std::cout << "lookFrom: " << mainCamera.getLookFromPoint() << " lookAt: " << mainCamera.getLookAt() << "\n";
 
 	for (int i = 0; i < 1000; i++) {
 
@@ -389,13 +389,17 @@ Zenith (Up, -z)	   North, Vehicle Left, Thumb (+x)
 
 #else				
 	//Quaternion lookAt manipulation
+		//drowan_DEBUG_20200213: Camera matrix testing
+		mainCamera.setPosition(vec3(9, 8, 7));
+		std::cout << "\nmainCamera position: " << mainCamera.getPositionMatrix() << "\n";
+
 		quaternion qRotateAboutZ, qRotateAboutX;
 
 		static float angleDegree = 0.0f;
 		float angleRadians = angleDegree * M_PI / 180.0f;
 
 		vec3 lookAtVector = mainCamera.getLookAt();
-		vec3 lookFromVector = mainCamera.getLookFrom();
+		vec3 lookFromVector = mainCamera.getLookFromPoint();
 		vec3 cameraUpVector = mainCamera.getUpDirection();
 
 		/* 
@@ -452,8 +456,8 @@ Zenith (Up, -z)	   North, Vehicle Left, Thumb (+x)
 		vec3 outputUpVector = vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z());
 
 		mainCamera.setLookAt(outputLookAtVector);
-		//mainCamera.setLookFrom(outputLookFromVector);
-		mainCamera.setUpDirection(outputUpVector);
+		mainCamera.setLookFromPoint(outputLookFromVector);
+		//mainCamera.setUpDirection(outputUpVector);
 		/*
 		only set the upVersor if you want airplane like movement 
 		*/
@@ -475,7 +479,7 @@ Zenith (Up, -z)	   North, Vehicle Left, Thumb (+x)
 		/*
 		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
 		*/
-		vec3 oldLookFrom = mainCamera.getLookFrom();
+		vec3 oldLookFrom = mainCamera.getLookFromPoint();
 		vec3 oldLookAt = mainCamera.getLookAt();		
 		vec3 lookFromLookAtDifferenceUnitVector = vec3(0.0, 0.0, 0.0);
 
@@ -515,12 +519,12 @@ Zenith (Up, -z)	   North, Vehicle Left, Thumb (+x)
 			controlAsserted = true;
 		}
 
-		mainCamera.setLookFrom(newLookFrom);
+		mainCamera.setLookFromPoint(newLookFrom);
 		mainCamera.setLookAt(newLookAt);		
 
 		if (controlAsserted) {
 			std::cout << "mainCamera: " << 
-						"\r\n\tlookFrom: " << mainCamera.getLookFrom() << 
+						"\r\n\tlookFrom: " << mainCamera.getLookFromPoint() << 
 						"\r\n\tlookAt: " << mainCamera.getLookAt() << 
 						"\r\n\tdiffUnit: " << lookFromLookAtDifferenceUnitVector << 
 						"\r\n\tup direction: " << mainCamera.getUpDirection() << 
