@@ -10,14 +10,14 @@
 #define DEBUG_RUN_THREADS 7 //0 selects max available threads
 
 #define OUTPUT_BMP_EN 0
-#define RUN_RAY_TRACE 0
+#define RUN_RAY_TRACE 1
 #define BYPASS_SCENE_CONFIG 1
 
 #define DISPLAY_FPS 1
 #define OUTPUT_RANDOM_SCENE 0
 #define DISPLAY_WINDOW 1
-#define CAPTURE_MOUSE 1
-#define ENABLE_CONTROLS 1
+#define CAPTURE_MOUSE 0
+#define ENABLE_CONTROLS 0
 
 #define GLOBAL_ILLUM_EN 1
 #define SKY_ILLUM_GAIN 0.3

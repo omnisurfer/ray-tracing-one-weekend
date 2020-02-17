@@ -105,54 +105,7 @@ int main() {
 	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 	renderProps.finalImageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
 	
-
-	/* Not 100% sure about this but it seems to act this way
-
-	--------------------> (+X)
-	|  \
-	|   \
-	|    \
-	|     \
-	|      \
-
-	(+Y)       Z+ (into monitor)
-
-	*/
-
-	/* Need to follow NED convention for "world frame" of [air vehicles](https://en.wikipedia.org/wiki/Axes_conventions)
-	Following [Right Hand coordinate system](https://www.oreilly.com/library/view/learn-arcore-/9781788830409/03e5338d-02f1-4461-a57a-ef46a976f96b.xhtml)
-Zenith (Up, -z)	   North, Vehicle Left, Thumb (+x)
-			  |   /
-			  |	 /
-			  |	/
-			  |/
---------------/-------------------East, Vehicle "Front", Index (+y)
-			 /|
-			/ |
-		   /  |
-		  /	  |
-		 /    |
-		/     |
-			  Nadir, Vehicle "Bottom", Middle (Down, +z)
-	*/
-
-	/* Need to follow RPY angles for "body frame" of air vehicles
-		 -z (yaw)
-			  |   /
-			  |	 /
-			  |	/
-			  |/
--x -----------/------------------- +x (vehicle front, forward motion, roll)
-			 /|
-			/ |
-		   /  |
-		  /	  |
-		 /    |
-		/     |
-+y (pitch)	  +z
-
-
-	*/
+	/* See camera for reference frame explanation*/
 
 	//NED world reference frame	
 	vec3 lookFrom(0, 0, 0);

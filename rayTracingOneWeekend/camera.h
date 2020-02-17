@@ -32,10 +32,51 @@ public:
 
 		//drowan_TODO_20200213: I think long term I should create an abstract pose class
 		//that the camera can add to itself to be able to move using composition? Or inheritance?
-		vec4 basisOrientationMatrix[4] = {
-			{1.0f,0.0f,0.0f,0.0f},		//x, roll basis
-			{0.0f,1.0f,0.0f,0.0f},		//y, pitch basis
-			{0.0f,0.0f,-1.0f,0.0f},		//z, yaw basis
+		/*
+		Need to follow NED convention for "world frame" of [air vehicles](https://en.wikipedia.org/wiki/Axes_conventions)
+		Following [Right Hand coordinate system](https://www.oreilly.com/library/view/learn-arcore-/9781788830409/03e5338d-02f1-4461-a57a-ef46a976f96b.xhtml)
+
+						  -z Zenith, Up, Middle Finger, up/down on monitor
+						  |
+						  |	  +x, North, Thumb, into monitor
+						  |   /
+						  |	 /
+						  |	/
+						  |/
+		 -y --------------/------------------- +y, East, Index Finger, left/right on monitor
+						 /|
+						/ |
+					   /  |
+					  /	  |
+					 /    |
+					/     |
+				  -x	  +z, Nadir, Down into Earth's Core.
+		*/
+
+		/* Need to follow RPY angles for "body frame" of air vehicles. Right Hand coordiante system make your thumb the airplane nose, index finger the wing(s) and middle
+		point towards the ground (or mabye landing gear?).
+
+						 -z (yaw), Zenith, Vehicle Up, up/down on monitor
+						  |
+						  |	  +x (roll), Vehicle Front, into monitor.
+						  |   /
+						  |	 /
+						  |	/
+						  |/
+			-y -----------/------------------- +y (pitch), Vehicle Right, left/right on monitor
+						 /|
+						/ |
+					   /  |
+					  /	  |
+					 /    |
+					/     |
+				  -x	  +z, Vehicle wheels?
+		*/
+
+		vec4 nedWorldBasisOrientationMatrix[4] = {
+			{-1.0f,0.0f,0.0f,0.0f},		//x, roll
+			{0.0f,1.0f,0.0f,0.0f},		//y, pitch
+			{0.0f,0.0f,-1.0f,0.0f},		//z, yaw
 			{0.0f,0.0f,0.0f,1.0f}		//displacement basis? not sure yet...			
 		};
 
@@ -43,20 +84,20 @@ public:
 			{0.0f,0.0f,0.0f,0.0f},		//x, roll basis
 			{0.0f,0.0f,0.0f,0.0f},		//y, pitch basis
 			{0.0f,0.0f,0.0f,0.0f},		//z, yaw basis
-			{0.0f,0.0f,0.0f,0.0f}			//displacement basis? not sure yet... this line is an origin of 0,0,0	
+			{-500.0f,0.0f,0.0f,0.0f}		//displacement basis? not sure yet... this line is an origin of 0,0,0	
 		};
 
-		quaternion qOrientation = basisOrientationMatrix[0];
+		quaternion qOrientation = nedWorldBasisOrientationMatrix[0];
 		quaternion qPosition = basisPositionMatrix[0];
 
-		orientationMatrix = basisOrientationMatrix;
+		orientationMatrix = nedWorldBasisOrientationMatrix;
 		positionMatrix = basisPositionMatrix;
 
 		std::cout << "basisOrientationMatrix: \n"
-			<< basisOrientationMatrix[0] << "\n"
-			<< basisOrientationMatrix[1] << "\n"
-			<< basisOrientationMatrix[2] << "\n"
-			<< basisOrientationMatrix[3] << "\n";
+			<< nedWorldBasisOrientationMatrix[0] << "\n"
+			<< nedWorldBasisOrientationMatrix[1] << "\n"
+			<< nedWorldBasisOrientationMatrix[2] << "\n"
+			<< nedWorldBasisOrientationMatrix[3] << "\n";
 
 		std::cout << "basisPositionMatrix: \n"
 			<< basisPositionMatrix[0] << "\n"
@@ -75,7 +116,7 @@ public:
 			<< "qOri times qPos: " << qOrientation << " * " << qPosition << " = " << qOrientation * qPosition << "\n";
 
 		/**/
-		setCamera();
+		setCamera();		
 	}
 
 	ray getRay(float s, float t) {
@@ -214,7 +255,7 @@ public:
 
 protected:
 
-	void setCamera() {
+	void setCamera_ORIGINAL() {
 
 		//lookAt vector contains camera orientation relative to world space but centered on it's origin
 		//origin of the camera is set by lookFrom
@@ -230,6 +271,7 @@ protected:
 		float half_height = tan(theta / 2);
 		float half_width = _aspect * half_height;
 
+		//lookFromPoint is taken from the position matrix
 		_origin = _lookFromPoint;
 
 		_w = unit_vector(_lookFromPoint - _lookAt);
@@ -255,6 +297,35 @@ protected:
 		_horizontal = 2 * half_width * _focusDistance * _w;
 		_vertical = 2 * half_height * _focusDistance * _u;
 #endif
+	}
+
+	void setCamera() {
+
+		_lensRadius = _aperture / 2;
+
+		float theta = _vFoV * M_PI / 180;
+		float half_height = tan(theta / 2);
+		float half_width = _aspect * half_height;
+
+		//_origin = _lookFromPoint;
+		_origin = vec3(positionMatrix.m[3][0], positionMatrix.m[3][1], positionMatrix.m[3][2]);
+
+		//_w = unit_vector(_lookFromPoint - _lookAt);
+		//looking along the +x axis (vehicle front) into the monitor (traditionally "z")
+		_w = vec3(orientationMatrix.m[0][0], orientationMatrix.m[0][1], orientationMatrix.m[0][2]);
+		//moving "left and right" along the +y axis
+		_u = vec3(orientationMatrix.m[1][0], orientationMatrix.m[1][1], orientationMatrix.m[1][2]);
+		//moving "up and down" along the +z axis, up down the monitor (traditionally "y")
+		_v = vec3(orientationMatrix.m[2][0], orientationMatrix.m[2][1], orientationMatrix.m[2][2]); 
+
+		_lowerLeftCorner = _origin -
+			half_width * _focusDistance * _u -
+			half_height * _focusDistance * _v -
+			_focusDistance * _w;
+
+		_horizontal = 2 * half_width * _focusDistance * _u;
+		_vertical = 2 * half_height * _focusDistance * _v;
+
 	}
 
 private:
