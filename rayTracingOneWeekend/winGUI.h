@@ -248,6 +248,11 @@ LRESULT CALLBACK WndProc(
 					break;
 				}
 
+				case VK_SPACE: {
+					_guiControlInputs.spaceAsserted = true;
+					break;
+				}
+
 				default: {
 					break;
 				}
@@ -283,6 +288,11 @@ LRESULT CALLBACK WndProc(
 
 				case VK_ESCAPE: {
 					_guiControlInputs.escAsserted = false;
+					break;
+				}
+
+				case VK_SPACE: {
+					_guiControlInputs.spaceAsserted = false;
 					break;
 				}
 

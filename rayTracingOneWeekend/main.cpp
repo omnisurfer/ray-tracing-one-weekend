@@ -247,7 +247,7 @@ int main() {
 			break;
 		}		
 
-#if defined ENABLE_CONTROLS && ENABLE_CONTROLS == 1
+#if defined ENABLE_MOUSE_CONTROLS && ENABLE_MOUSE_CONTROLS == 1
 
 		//get the current mouse position
 		int xCartesian = 0, yCartesian = 0;
@@ -339,13 +339,10 @@ int main() {
 		std::cout << "newLookAt: " << newLookAtVector << "\n";
 
 		mainCamera.setLookAt(newLookAtVector);
-
-#else				
+#endif
+				
 	//Quaternion lookAt manipulation
-		//drowan_DEBUG_20200213: Camera matrix testing
-		mainCamera.setPosition(vec3(9, 8, 7));
-		std::cout << "\nmainCamera position: " << mainCamera.getPositionMatrix() << "\n";
-
+#if 1
 		quaternion qRotateAboutZ, qRotateAboutX;
 
 		static float angleDegree = 0.0f;
@@ -409,83 +406,74 @@ int main() {
 		vec3 outputUpVector = vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z());
 
 		mainCamera.setLookAt(outputLookAtVector);
-		mainCamera.setLookFromPoint(outputLookFromVector);
+		//mainCamera.setLookFromPoint(outputLookFromVector);
 		//mainCamera.setUpDirection(outputUpVector);
 		/*
 		only set the upVersor if you want airplane like movement 
 		*/
-		mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
+		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
 #endif
+
+	//quaternion matrix rotation manipulation
+#if 0
 #endif
+
+#endif
+
+#if defined ENABLE_KEYBOARD_CONTROLS && ENABLE_KEYBOARD_CONTROLS == 1
 		//check some keys
 		GUIControlInputs guiControlInputs;
 		getGUIControlInputs(guiControlInputs);
 
 		/*
-		std::cout << "W: " << guiControlInputs.forwardAsserted << "\n";
-		std::cout << "S: " << guiControlInputs.reverseAsserted << "\n";
-		std::cout << "A: " << guiControlInputs.leftAsserted << "\n";
-		std::cout << "D: " << guiControlInputs.rightAsserted << "\n";
-		std::cout << "ESC: " << guiControlInputs.escAsserted << "\n";
-		/**/
-
-		/*
 		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
 		*/
 		vec3 oldLookFrom = mainCamera.getLookFromPoint();
-		vec3 oldLookAt = mainCamera.getLookAt();		
-		vec3 lookFromLookAtDifferenceUnitVector = vec3(0.0, 0.0, 0.0);
-
 		vec3 newLookFrom = oldLookFrom;
-		vec3 newLookAt = oldLookAt;		
 
-		bool controlAsserted = false;
+		bool controlAsserted = false;		
 
-		/*
-		make sure the difference is not negative as this results in the subtraction to the "look" vectors
-		that occurs when going "backwards" is multiplied by a negative difference which creates a cycle that
-		moves the camera "forward" and "backwards" repeatedly.
-		*/		
-		lookFromLookAtDifferenceUnitVector = unit_vector(oldLookAt - oldLookFrom);		
-
-		if (guiControlInputs.forwardAsserted) {
-			newLookFrom = oldLookFrom + (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
-			newLookAt = oldLookAt + (lookFromLookAtDifferenceUnitVector * vec3(50.0, 50.0, 50.0));
+		if (guiControlInputs.forwardAsserted) {			
+			newLookFrom += vec3(50.0, 0.0, 0.0);			
 			controlAsserted = true;
 		}
-		else if (guiControlInputs.reverseAsserted) {
-			newLookFrom = oldLookFrom + (lookFromLookAtDifferenceUnitVector * vec3(-50.0, -50.0, -50.0));
-			newLookAt = oldLookAt + (lookFromLookAtDifferenceUnitVector * vec3(-50.0, -50.0, -50.0));
+		if (guiControlInputs.reverseAsserted) {			
+			newLookFrom += vec3(-50.0, 0.0, 0.0);
+			controlAsserted = true;
+		}		
+		if (guiControlInputs.leftAsserted) {			
+			newLookFrom += vec3(0.0, -50.0, 0.0);
 			controlAsserted = true;
 		}
-		/*
-		maybe to get strafe I need to find the cross product vector of the look at vector?
-		*/
-		else if (guiControlInputs.leftAsserted) {
-			newLookFrom = vec3(oldLookFrom.x(), oldLookFrom.y() - 50.0, oldLookFrom.z());
-			newLookAt = vec3(oldLookAt.x(), oldLookAt.y() - 50.0, oldLookAt.z());
-			controlAsserted = true;
-		}
-		else if (guiControlInputs.rightAsserted) {
-			newLookFrom = vec3(oldLookFrom.x(), oldLookFrom.y() + 50.0, oldLookFrom.z());
-			newLookAt = vec3(oldLookAt.x(), oldLookAt.y() + 50.0, oldLookAt.z());
+		if (guiControlInputs.rightAsserted) {			
+			newLookFrom += vec3(0.0, 50.0, 0.0);
 			controlAsserted = true;
 		}
 
-		mainCamera.setLookFromPoint(newLookFrom);
-		mainCamera.setLookAt(newLookAt);		
+		if (guiControlInputs.spaceAsserted) {
+			newLookFrom += vec3(0.0, 0.0, -50.0);
+			controlAsserted = true;
+		}		
+		else {
+			float diff = newLookFrom.z() + 50.0;
+
+			if (newLookFrom.z() == 0.0) {
+				//do nothing
+			}
+			else if (diff < 0) {
+				newLookFrom += vec3(0.0, 0.0, 10.0);
+				controlAsserted = true;
+			}			
+			else {
+				newLookFrom = vec3(newLookFrom.x(), newLookFrom.y(), 0.0);
+				controlAsserted = true;
+			}
+		}
 
 		if (controlAsserted) {
-			std::cout << "mainCamera: " << 
-						"\r\n\tlookFrom: " << mainCamera.getLookFromPoint() << 
-						"\r\n\tlookAt: " << mainCamera.getLookAt() << 
-						"\r\n\tdiffUnit: " << lookFromLookAtDifferenceUnitVector << 
-						"\r\n\tup direction: " << mainCamera.getUpDirection() << 
-						"\r\n\tu (y left/right) " << mainCamera.getU() <<
-						"\r\n\tv (z up/down) " << mainCamera.getV() <<
-						"\r\n\tw (x fwd/rev) " << mainCamera.getW() <<
-				"\n";
+			mainCamera.setLookFromPoint(newLookFrom);			
 		}
+#endif
 
 #pragma endregion Modify LookAt Debug
 

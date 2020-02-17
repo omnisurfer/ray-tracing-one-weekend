@@ -307,8 +307,8 @@ protected:
 		float half_height = tan(theta / 2);
 		float half_width = _aspect * half_height;
 
-		//_origin = _lookFromPoint;
-		_origin = vec3(positionMatrix.m[3][0], positionMatrix.m[3][1], positionMatrix.m[3][2]);
+		_origin = _lookFromPoint;
+		//_origin = vec3(positionMatrix.m[3][0], positionMatrix.m[3][1], positionMatrix.m[3][2]);
 
 		//_w = unit_vector(_lookFromPoint - _lookAt);
 		//looking along the +x axis (vehicle front) into the monitor (traditionally "z")
