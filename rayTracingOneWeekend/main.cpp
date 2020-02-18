@@ -240,7 +240,7 @@ int main() {
 	//START OF RENDER LOOP
 	std::cout << "lookFrom: " << mainCamera.getLookFromPoint() << " lookAt: " << mainCamera.getLookAt() << "\n";
 
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < 10000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
@@ -265,7 +265,8 @@ int main() {
 
 		//std::cout << "vertAngleDegPitch: " << verticleAngleDegreesToRotateBy << "\n";
 
-		double angleRadiansRotateAboutX = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
+		//seems to be acting like pitch (OK?)
+		double angleRadiansRotateAboutPitchAxis = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
 		//std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";		
 
@@ -278,9 +279,12 @@ int main() {
 
 		//std::cout << "horzAngleDegYaw: " << horizontalAngleDegreesToRotateBy << "\n";
 
-		double angleRadiansRotateAboutZ = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
+		//seems to be acting like roll...
+		double angleRadiansRotateAboutYawAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
 		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
+
+		double angleRadiansRotateAboutRollAxis = 0.0;
 
 		//Euler angles lookAt manipulation
 #if 0
@@ -341,12 +345,12 @@ int main() {
 		mainCamera.setLookAt(newLookAtVector);
 #endif
 				
-	//Quaternion lookAt manipulation
-#if 1
-		quaternion qRotateAboutZ, qRotateAboutX;
+	static float angleDegree = 0.0f;
+	float angleRadians = angleDegree * M_PI / 180.0f;
 
-		static float angleDegree = 0.0f;
-		float angleRadians = angleDegree * M_PI / 180.0f;
+	//Quaternion lookAt manipulation
+#if 0
+		quaternion qRotateAboutYawAxis, qRotateAboutRollAxis;		
 
 		vec3 lookAtVector = mainCamera.getLookAt();
 		vec3 lookFromVector = mainCamera.getLookFromPoint();
@@ -356,15 +360,15 @@ int main() {
 		Seperating the rotations seems to create an FPS like camera. If I do the transform in one pass, it seems to act like
 		an "airplane" camera
 		*/
-		qRotateAboutZ = quaternion::eulerToQuaternion(
-			angleRadiansRotateAboutZ * mainCamera.getW().x() * 1.0, 
-			angleRadiansRotateAboutZ * mainCamera.getW().y() * 1.0, 
-			angleRadiansRotateAboutZ * mainCamera.getW().z() * 1.0
+		qRotateAboutYawAxis = quaternion::eulerToQuaternion(
+			angleRadiansRotateAboutYawAxis * mainCamera.getW().x() * 1.0, 
+			angleRadiansRotateAboutYawAxis * mainCamera.getW().y() * 1.0, 
+			angleRadiansRotateAboutYawAxis * mainCamera.getW().z() * 1.0
 		);
-		qRotateAboutX = quaternion::eulerToQuaternion(
-			angleRadiansRotateAboutX * mainCamera.getU().x() * 1.0, 
-			angleRadiansRotateAboutX * mainCamera.getU().y() * 1.0, 
-			angleRadiansRotateAboutX * mainCamera.getU().z() * 1.0
+		qRotateAboutRollAxis = quaternion::eulerToQuaternion(
+			angleRadiansRotateAboutPitchAxis * mainCamera.getU().x() * 1.0, 
+			angleRadiansRotateAboutPitchAxis * mainCamera.getU().y() * 1.0, 
+			angleRadiansRotateAboutPitchAxis * mainCamera.getU().z() * 1.0
 		);	
 
 		//move the vector back to origin...?
@@ -381,16 +385,16 @@ int main() {
 		/*
 		X (Pitch) movement
 		*/
-		outputLookAtVersor = qRotateAboutX * lookAtVersor * qRotateAboutX.inverse();
-		outputLookFromVersor = qRotateAboutX * lookFromVersor * qRotateAboutX.inverse();
-		outputUpVersor = qRotateAboutX * upVersor * qRotateAboutX.inverse();			
+		outputLookAtVersor = qRotateAboutRollAxis * lookAtVersor * qRotateAboutRollAxis.inverse();
+		outputLookFromVersor = qRotateAboutRollAxis * lookFromVersor * qRotateAboutRollAxis.inverse();
+		outputUpVersor = qRotateAboutRollAxis * upVersor * qRotateAboutRollAxis.inverse();			
 						
 		/* 
 		Now combine with the Z (Yaw) rotation
 		*/
-		outputLookAtVersor = qRotateAboutZ * outputLookAtVersor * qRotateAboutZ.inverse();
-		outputLookFromVersor = qRotateAboutZ * lookFromVersor * qRotateAboutZ.inverse();
-		outputUpVersor = qRotateAboutZ * outputUpVersor * qRotateAboutZ.inverse();		
+		outputLookAtVersor = qRotateAboutYawAxis * outputLookAtVersor * qRotateAboutYawAxis.inverse();
+		outputLookFromVersor = qRotateAboutYawAxis * lookFromVersor * qRotateAboutYawAxis.inverse();
+		outputUpVersor = qRotateAboutYawAxis * outputUpVersor * qRotateAboutYawAxis.inverse();		
 
 		/**/
 		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
@@ -415,7 +419,57 @@ int main() {
 #endif
 
 	//quaternion matrix rotation manipulation
-#if 0
+#if 1
+		quaternion qInputRollVersor, qPitchVersor, qYawVersor;
+
+		/*
+		x (roll), y (pitch), z (yaw)
+		*/
+		qInputRollVersor = quaternion::eulerToQuaternion(			 			
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+
+		qPitchVersor = quaternion::eulerToQuaternion(						
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+
+		qYawVersor = quaternion::eulerToQuaternion(						
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+
+		quaternion qOutputRollVersor, qOutputPitchVersor, qOutputYawVersor;
+
+		qOutputRollVersor = { 0.0, mainCamera.getOrientationMatrix().m[0][0], mainCamera.getOrientationMatrix().m[0][1], mainCamera.getOrientationMatrix().m[0][2] };
+		qOutputPitchVersor = { 0.0, mainCamera.getOrientationMatrix().m[1][0], mainCamera.getOrientationMatrix().m[1][1], mainCamera.getOrientationMatrix().m[1][2] };
+		qOutputYawVersor = { 0.0, mainCamera.getOrientationMatrix().m[2][0], mainCamera.getOrientationMatrix().m[2][1], mainCamera.getOrientationMatrix().m[2][2] };
+
+		qOutputRollVersor = qInputRollVersor * qOutputRollVersor * qInputRollVersor.inverse();
+		qOutputPitchVersor = qPitchVersor * qOutputPitchVersor * qPitchVersor.inverse();
+		qOutputYawVersor = qYawVersor * qOutputYawVersor * qYawVersor.inverse();
+
+		mat4x4 outputOrientationMatrix;
+		
+		outputOrientationMatrix.m[0] = { qOutputRollVersor.x(), qOutputRollVersor.y(), qOutputRollVersor.z(), 0 };
+		outputOrientationMatrix.m[1] = { qOutputPitchVersor.x(), qOutputPitchVersor.y(), qOutputPitchVersor.z(), 0 };
+		outputOrientationMatrix.m[2] = { qOutputYawVersor.x(), qOutputYawVersor.y(), qOutputYawVersor.z(), 0 };
+		outputOrientationMatrix.m[3] = { 0.0, 0.0, 0.0, 1.0 };
+
+		//drowan_NOTE_20200217: see 8.7.3 in 3D Math Primer for Graphics and Game Development, 2nd Ed. for Quaternion to Matrix conversion
+		float x, y, z;
+		x = qInputRollVersor.x();
+		y = qInputRollVersor.y();
+		z = qInputRollVersor.z();
+
+		mainCamera.setOrientationMatrix(outputOrientationMatrix);
+
+		std::cout << "oM: " << outputOrientationMatrix << "\n";
+
 #endif
 
 #endif

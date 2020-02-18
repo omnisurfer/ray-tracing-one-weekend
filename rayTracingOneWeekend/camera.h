@@ -90,8 +90,8 @@ public:
 		quaternion qOrientation = nedWorldBasisOrientationMatrix[0];
 		quaternion qPosition = basisPositionMatrix[0];
 
-		orientationMatrix = nedWorldBasisOrientationMatrix;
-		positionMatrix = basisPositionMatrix;
+		_orientationMatrix = nedWorldBasisOrientationMatrix;
+		_positionMatrix = basisPositionMatrix;
 
 		std::cout << "basisOrientationMatrix: \n"
 			<< nedWorldBasisOrientationMatrix[0] << "\n"
@@ -228,34 +228,36 @@ public:
 	}
 
 	void setOrientationMatrix(mat4x4 orientationMatrix) {
-		orientationMatrix = orientationMatrix;
+		_orientationMatrix = orientationMatrix;
+
+		setCamera();
 	}
 
 	mat4x4 getOrientationMatrix() {
-		return orientationMatrix;
+		return _orientationMatrix;
 	}
 
 	void setPositionMatrix(mat4x4 positionMatrix) {
-		positionMatrix = positionMatrix;
+		_positionMatrix = positionMatrix;
 	}
 
 	mat4x4 getPositionMatrix() {
-		return positionMatrix;
+		return _positionMatrix;
 	}
 
 	void setPosition(vec3 position) {
-		positionMatrix.m[3][0] = position.x();
-		positionMatrix.m[3][1] = position.y();
-		positionMatrix.m[3][2] = position.z();
+		_positionMatrix.m[3][0] = position.x();
+		_positionMatrix.m[3][1] = position.y();
+		_positionMatrix.m[3][2] = position.z();
 	}
 
 	vec3 getPosition() {
-		return vec3(positionMatrix.m[0][4], positionMatrix.m[1][4], positionMatrix.m[2][4]);
+		return vec3(_positionMatrix.m[0][4], _positionMatrix.m[1][4], _positionMatrix.m[2][4]);
 	}
 
 protected:
 
-	void setCamera_ORIGINAL() {
+	void setCamera_OLD() {
 
 		//lookAt vector contains camera orientation relative to world space but centered on it's origin
 		//origin of the camera is set by lookFrom
@@ -312,11 +314,11 @@ protected:
 
 		//_w = unit_vector(_lookFromPoint - _lookAt);
 		//looking along the +x axis (vehicle front) into the monitor (traditionally "z")
-		_w = vec3(orientationMatrix.m[0][0], orientationMatrix.m[0][1], orientationMatrix.m[0][2]);
+		_w = vec3(_orientationMatrix.m[0][0], _orientationMatrix.m[0][1], _orientationMatrix.m[0][2]);
 		//moving "left and right" along the +y axis
-		_u = vec3(orientationMatrix.m[1][0], orientationMatrix.m[1][1], orientationMatrix.m[1][2]);
+		_u = vec3(_orientationMatrix.m[1][0], _orientationMatrix.m[1][1], _orientationMatrix.m[1][2]);
 		//moving "up and down" along the +z axis, up down the monitor (traditionally "y")
-		_v = vec3(orientationMatrix.m[2][0], orientationMatrix.m[2][1], orientationMatrix.m[2][2]); 
+		_v = vec3(_orientationMatrix.m[2][0], _orientationMatrix.m[2][1], _orientationMatrix.m[2][2]); 
 
 		_lowerLeftCorner = _origin -
 			half_width * _focusDistance * _u -
@@ -349,6 +351,6 @@ private:
 
 	float _time0, _time1;
 
-	mat4x4 orientationMatrix;
-	mat4x4 positionMatrix;
+	mat4x4 _orientationMatrix;
+	mat4x4 _positionMatrix;
 };
