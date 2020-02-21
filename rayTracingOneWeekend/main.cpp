@@ -420,38 +420,35 @@ int main() {
 
 	//quaternion matrix rotation manipulation
 #if 1
-		quaternion qInputRollVersor, qPitchVersor, qYawVersor;
+		quaternion qInputRollVersor, qInputPitchVersor, qInputRotationVersor;
 
 		/*
 		x (roll), y (pitch), z (yaw)
 		*/
-		qInputRollVersor = quaternion::eulerToQuaternion(			 			
+
+		qInputRotationVersor = quaternion::eulerAnglesToQuaternion(						
 			angleRadiansRotateAboutYawAxis * 1.0,
 			angleRadiansRotateAboutPitchAxis * 1.0,
 			angleRadiansRotateAboutRollAxis * 1.0
 		);
 
-		qPitchVersor = quaternion::eulerToQuaternion(						
-			angleRadiansRotateAboutYawAxis * 1.0,
-			angleRadiansRotateAboutPitchAxis * 1.0,
-			angleRadiansRotateAboutRollAxis * 1.0
+		/*
+		qInputYawVersor = quaternion(
+			angleRadiansRotateAboutYawAxis,
+			mainCamera.getOrientationMatrix().m[2][0],
+			mainCamera.getOrientationMatrix().m[2][1],
+			mainCamera.getOrientationMatrix().m[2][2]
 		);
-
-		qYawVersor = quaternion::eulerToQuaternion(						
-			angleRadiansRotateAboutYawAxis * 1.0,
-			angleRadiansRotateAboutPitchAxis * 1.0,
-			angleRadiansRotateAboutRollAxis * 1.0
-		);
-
+		/**/
 		quaternion qOutputRollVersor, qOutputPitchVersor, qOutputYawVersor;
 
 		qOutputRollVersor = { 0.0, mainCamera.getOrientationMatrix().m[0][0], mainCamera.getOrientationMatrix().m[0][1], mainCamera.getOrientationMatrix().m[0][2] };
 		qOutputPitchVersor = { 0.0, mainCamera.getOrientationMatrix().m[1][0], mainCamera.getOrientationMatrix().m[1][1], mainCamera.getOrientationMatrix().m[1][2] };
 		qOutputYawVersor = { 0.0, mainCamera.getOrientationMatrix().m[2][0], mainCamera.getOrientationMatrix().m[2][1], mainCamera.getOrientationMatrix().m[2][2] };
 
-		qOutputRollVersor = qInputRollVersor * qOutputRollVersor * qInputRollVersor.inverse();
-		qOutputPitchVersor = qPitchVersor * qOutputPitchVersor * qPitchVersor.inverse();
-		qOutputYawVersor = qYawVersor * qOutputYawVersor * qYawVersor.inverse();
+		qOutputRollVersor = qInputRotationVersor * qOutputRollVersor * qInputRotationVersor.inverse();
+		qOutputPitchVersor = qInputRotationVersor * qOutputPitchVersor * qInputRotationVersor.inverse();
+		qOutputYawVersor = qInputRotationVersor * qOutputYawVersor * qInputRotationVersor.inverse();
 
 		mat4x4 outputOrientationMatrix;
 		

@@ -84,7 +84,7 @@ public:
 
 	componentValues components;
 
-	static inline quaternion eulerToQuaternion(const float yawAngle_Z, const float pitchAngle_Y, const float rollAngle_X) {
+	static inline quaternion eulerAnglesToQuaternion(const float yawAngle_Z, const float pitchAngle_Y, const float rollAngle_X) {
 		float cy = cos(yawAngle_Z * 0.5);
 		float sy = sin(yawAngle_Z * 0.5);
 		float cp = cos(pitchAngle_Y * 0.5);
@@ -101,7 +101,7 @@ public:
 		return result;
 	}
 
-	static inline void quaternionToEuler(const quaternion &q, float &yawAngle_Z, float &pitchAngle_Y, float &rollAngle_X) {		
+	static inline void quaternionToEulerAngles(const quaternion &q, float &yawAngle_Z, float &pitchAngle_Y, float &rollAngle_X) {		
 		//roll (x-axis rotation)
 		float sinrCosp = 2 * (q.w() * q.x() + q.y() * q.z());
 		float cosrCosp = 1 - 2 * (q.x() * q.x() + q.y() * q.y());
