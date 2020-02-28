@@ -420,35 +420,56 @@ int main() {
 
 	//quaternion matrix rotation manipulation
 #if 1
-		quaternion qInputRollVersor, qInputPitchVersor, qInputRotationVersor;
+		/*
+		Maybe this will solve my pitch to roll issue?
+		https://gamedev.stackexchange.com/questions/30644/how-to-keep-my-quaternion-using-fps-camera-from-tilting-and-messing-up
+		
+		GOOG: quaternion and basis vectors
+		https://www.gamedev.net/forums/topic/656126-extracting-basis-vectors-from-a-quaternion/
+		https://math.stackexchange.com/questions/3340396/how-do-i-express-three-desired-basis-vectors-as-a-quaternion
 
+		*/
+		quaternion qInputRollVersor, qInputPitchVersor, qInputYawVersor, qLookAtVersor;
+		
+		qLookAtVersor = quaternion::eulerAnglesToQuaternion(
+			90 * M_PI/180,
+			0,
+			0
+		);		
 		/*
 		x (roll), y (pitch), z (yaw)
 		*/
+		/**/
+		qInputRollVersor = quaternion::eulerAnglesToQuaternion(						
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+	
+		qInputPitchVersor = quaternion::eulerAnglesToQuaternion(
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+		/**/
 
-		qInputRotationVersor = quaternion::eulerAnglesToQuaternion(						
+		qInputYawVersor = quaternion::eulerAnglesToQuaternion(
 			angleRadiansRotateAboutYawAxis * 1.0,
 			angleRadiansRotateAboutPitchAxis * 1.0,
 			angleRadiansRotateAboutRollAxis * 1.0
 		);
 
-		/*
-		qInputYawVersor = quaternion(
-			angleRadiansRotateAboutYawAxis,
-			mainCamera.getOrientationMatrix().m[2][0],
-			mainCamera.getOrientationMatrix().m[2][1],
-			mainCamera.getOrientationMatrix().m[2][2]
-		);
-		/**/
+		qLookAtVersor = qLookAtVersor * qInputYawVersor;
+		
 		quaternion qOutputRollVersor, qOutputPitchVersor, qOutputYawVersor;
 
 		qOutputRollVersor = { 0.0, mainCamera.getOrientationMatrix().m[0][0], mainCamera.getOrientationMatrix().m[0][1], mainCamera.getOrientationMatrix().m[0][2] };
 		qOutputPitchVersor = { 0.0, mainCamera.getOrientationMatrix().m[1][0], mainCamera.getOrientationMatrix().m[1][1], mainCamera.getOrientationMatrix().m[1][2] };
 		qOutputYawVersor = { 0.0, mainCamera.getOrientationMatrix().m[2][0], mainCamera.getOrientationMatrix().m[2][1], mainCamera.getOrientationMatrix().m[2][2] };
 
-		qOutputRollVersor = qInputRotationVersor * qOutputRollVersor * qInputRotationVersor.inverse();
-		qOutputPitchVersor = qInputRotationVersor * qOutputPitchVersor * qInputRotationVersor.inverse();
-		qOutputYawVersor = qInputRotationVersor * qOutputYawVersor * qInputRotationVersor.inverse();
+		qOutputYawVersor = qInputYawVersor * qOutputYawVersor * qInputYawVersor.inverse();		
+		qOutputPitchVersor = qInputPitchVersor * qOutputPitchVersor * qInputPitchVersor.inverse();
+		qOutputRollVersor = qInputRollVersor * qOutputRollVersor * qInputRollVersor.inverse();
 
 		mat4x4 outputOrientationMatrix;
 		
@@ -458,11 +479,6 @@ int main() {
 		outputOrientationMatrix.m[3] = { 0.0, 0.0, 0.0, 1.0 };
 
 		//drowan_NOTE_20200217: see 8.7.3 in 3D Math Primer for Graphics and Game Development, 2nd Ed. for Quaternion to Matrix conversion
-		float x, y, z;
-		x = qInputRollVersor.x();
-		y = qInputRollVersor.y();
-		z = qInputRollVersor.z();
-
 		mainCamera.setOrientationMatrix(outputOrientationMatrix);
 
 		std::cout << "oM: " << outputOrientationMatrix << "\n";
