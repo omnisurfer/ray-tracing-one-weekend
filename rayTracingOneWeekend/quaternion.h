@@ -29,7 +29,6 @@ Axes Conventions (following space navigation, body frame)
  probably impacts performance.
 */
 #include "vec4.h";
-
 class quaternion {
 
 	/*
@@ -49,6 +48,12 @@ public:
 		components.y = v.y();
 		components.z = v.z();
 		components.w = v.w();
+	}
+	quaternion(const float a, vec3 axis) {
+		components.w = a;
+		components.x = axis.x();
+		components.y = axis.y();
+		components.z = axis.z();
 	}
 
 	inline float a() const { return components.a; }
@@ -84,13 +89,13 @@ public:
 
 	componentValues components;
 
-	static inline quaternion eulerAnglesToQuaternion(const float yawAngle_Z, const float pitchAngle_Y, const float rollAngle_X) {
-		float cy = cos(yawAngle_Z * 0.5);
-		float sy = sin(yawAngle_Z * 0.5);
-		float cp = cos(pitchAngle_Y * 0.5);
-		float sp = sin(pitchAngle_Y * 0.5);
-		float cr = cos(rollAngle_X * 0.5);
-		float sr = sin(rollAngle_X * 0.5);
+	static inline quaternion eulerAnglesToQuaternion(const float yawAngleRadians_Z, const float pitchAngleRadians_Y, const float rollAngleRadians_X) {
+		float cy = cos(yawAngleRadians_Z * 0.5);
+		float sy = sin(yawAngleRadians_Z * 0.5);
+		float cp = cos(pitchAngleRadians_Y * 0.5);
+		float sp = sin(pitchAngleRadians_Y * 0.5);
+		float cr = cos(rollAngleRadians_X * 0.5);
+		float sr = sin(rollAngleRadians_X * 0.5);
 
 		quaternion result;
 		result.components.w = cy * cp * cr + sy * sp * sr;
@@ -101,27 +106,40 @@ public:
 		return result;
 	}
 
-	static inline void quaternionToEulerAngles(const quaternion &q, float &yawAngle_Z, float &pitchAngle_Y, float &rollAngle_X) {		
+	static inline void quaternionToEulerAngles(const quaternion &q, float &yawAngleRadians_Z, float &pitchAngleRadians_Y, float &rollAngleRadians_X) {		
 		//roll (x-axis rotation)
 		float sinrCosp = 2 * (q.w() * q.x() + q.y() * q.z());
 		float cosrCosp = 1 - 2 * (q.x() * q.x() + q.y() * q.y());
 
-		rollAngle_X = std::atan2(sinrCosp, cosrCosp);
+		rollAngleRadians_X = std::atan2(sinrCosp, cosrCosp);
 
 		//pitch (y-axis rotation)
 		float sinp = 2 * (q.w() * q.y() - q.z() * q.x());
 		if (std::abs(sinp) >= 1) {
-			pitchAngle_Y = std::copysign(M_PI / 2, sinp);
+			pitchAngleRadians_Y = std::copysign(M_PI / 2, sinp);
 		}
 		else {
-			pitchAngle_Y = std::asin(sinp);
+			pitchAngleRadians_Y = std::asin(sinp);
 		}
 
 		//yaw (z-axis rotation)
 		float sinyCosp = 2 * (q.w() * q.z() + q.x() * q.y());
 		float cosyCosp = 1 - 2 * (q.y() * q.y() + q.z() * q.z());
 
-		yawAngle_Z = std::atan2(sinyCosp, cosyCosp);
+		yawAngleRadians_Z = std::atan2(sinyCosp, cosyCosp);
+	}
+
+	static inline quaternion rotatedAngleAroundVectorToQuaternion(const float x, const float y, const float z, const float angleRadians) {
+		quaternion result;
+
+		float factor = sin(angleRadians / 2.0);
+
+		result.components.w = cos(angleRadians / 2.0);
+		result.components.x = x * factor;
+		result.components.y = y * factor;
+		result.components.z = z * factor;
+
+		return result;
 	}
 
 	inline quaternion conjugate() {
