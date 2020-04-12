@@ -240,12 +240,71 @@ int main() {
 	//START OF RENDER LOOP
 	std::cout << "lookFrom: " << mainCamera.getLookFromPoint() << " lookAt: " << mainCamera.getLookAt() << "\n";
 
+	double angleRadiansRotateAboutYawAxis = 0.0;
+	double angleRadiansRotateAboutRollAxis = 0.0;
+	double angleRadiansRotateAboutPitchAxis = 0.0;
+
 	for (int i = 0; i < 10000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
 			break;
 		}		
+
+#if defined ENABLE_KEYBOARD_CONTROLS && ENABLE_KEYBOARD_CONTROLS == 1
+		//check some keys
+		GUIControlInputs guiControlInputs;
+		getGUIControlInputs(guiControlInputs);
+
+		/*
+		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
+		*/
+		vec3 oldLookFrom = mainCamera.getLookFromPoint();
+		vec3 newLookFrom = oldLookFrom;
+
+		bool controlAsserted = false;
+
+		if (guiControlInputs.forwardAsserted) {
+			newLookFrom += vec3(50.0, 0.0, 0.0);
+			controlAsserted = true;
+		}
+		if (guiControlInputs.reverseAsserted) {
+			newLookFrom += vec3(-50.0, 0.0, 0.0);
+			controlAsserted = true;
+		}
+		if (guiControlInputs.leftAsserted) {
+			newLookFrom += vec3(0.0, -50.0, 0.0);
+			controlAsserted = true;
+		}
+		if (guiControlInputs.rightAsserted) {
+			newLookFrom += vec3(0.0, 50.0, 0.0);
+			controlAsserted = true;
+		}
+
+		if (guiControlInputs.spaceAsserted) {
+			newLookFrom += vec3(0.0, 0.0, -50.0);
+			controlAsserted = true;
+		}
+		else {
+			float diff = newLookFrom.z() + 50.0;
+
+			if (newLookFrom.z() == 0.0) {
+				//do nothing
+			}
+			else if (diff < 0) {
+				newLookFrom += vec3(0.0, 0.0, 10.0);
+				controlAsserted = true;
+			}
+			else {
+				newLookFrom = vec3(newLookFrom.x(), newLookFrom.y(), 0.0);
+				controlAsserted = true;
+			}
+		}
+
+		if (controlAsserted) {
+			mainCamera.setLookFromPoint(newLookFrom);
+		}
+#endif
 
 #if defined ENABLE_MOUSE_CONTROLS && ENABLE_MOUSE_CONTROLS == 1
 
@@ -266,7 +325,7 @@ int main() {
 		//std::cout << "vertAngleDegPitch: " << verticleAngleDegreesToRotateBy << "\n";
 
 		//seems to be acting like pitch (OK?)
-		double angleRadiansRotateAboutPitchAxis = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
+		angleRadiansRotateAboutPitchAxis = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
 
 		//std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";		
 
@@ -279,30 +338,32 @@ int main() {
 
 		//std::cout << "horzAngleDegYaw: " << horizontalAngleDegreesToRotateBy << "\n";
 
-		//seems to be acting like roll...
-		double angleRadiansRotateAboutYawAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
-
+		//seems to be acting like roll...		
+		if (!guiControlInputs.leftShiftAsserted) {
+			angleRadiansRotateAboutYawAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
+		}
 		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
-
-		double angleRadiansRotateAboutRollAxis = 0.0;
+		else {
+			angleRadiansRotateAboutRollAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);;
+		}
 
 		//Euler angles lookAt manipulation
 #if 0
 		vec3 yawRotationAboutY[3] = {
-			{(float)cos(angleRadiansRotateAboutY),0.0f,(float)sin(angleRadiansRotateAboutY)},
+			{(float)cos(angleRadiansRotateAboutYawAxis),0.0f,(float)sin(angleRadiansRotateAboutYawAxis)},
 			{0.0f,1.0f,0.0f},
-			{(float)-sin(angleRadiansRotateAboutY),0.0f,(float)cos(angleRadiansRotateAboutY)}
+			{(float)-sin(angleRadiansRotateAboutYawAxis),0.0f,(float)cos(angleRadiansRotateAboutYawAxis)}
 		};
 
 		vec3 pitchRotationAboutX[3] = {
 			{1.0f,0.0f,0.0f},
-			{0.0f,(float)cos(angleRadiansRotateAboutX),(float)-sin(angleRadiansRotateAboutX)},
-			{0.0f,(float)sin(angleRadiansRotateAboutX),(float)cos(angleRadiansRotateAboutX)}
+			{0.0f,(float)cos(angleRadiansRotateAboutPitchAxis),(float)-sin(angleRadiansRotateAboutPitchAxis)},
+			{0.0f,(float)sin(angleRadiansRotateAboutPitchAxis),(float)cos(angleRadiansRotateAboutPitchAxis)}
 		};
 
 		vec3 pitchRotationAboutZ[3] = {
-			{(float)cos(angleRadiansRotateAboutX),(float)-sin(angleRadiansRotateAboutX),0.0f},
-			{(float)sin(angleRadiansRotateAboutX),(float)cos(angleRadiansRotateAboutX),0.0f},
+			{(float)cos(angleRadiansRotateAboutPitchAxis),(float)-sin(angleRadiansRotateAboutPitchAxis),0.0f},
+			{(float)sin(angleRadiansRotateAboutPitchAxis),(float)cos(angleRadiansRotateAboutPitchAxis),0.0f},
 			{0.0f,0.0f,1.0f}
 		};
 
@@ -360,12 +421,12 @@ int main() {
 		Seperating the rotations seems to create an FPS like camera. If I do the transform in one pass, it seems to act like
 		an "airplane" camera
 		*/
-		qRotateAboutYawAxis = quaternion::eulerToQuaternion(
+		qRotateAboutYawAxis = quaternion::eulerAnglesToQuaternion(
 			angleRadiansRotateAboutYawAxis * mainCamera.getW().x() * 1.0, 
 			angleRadiansRotateAboutYawAxis * mainCamera.getW().y() * 1.0, 
 			angleRadiansRotateAboutYawAxis * mainCamera.getW().z() * 1.0
 		);
-		qRotateAboutRollAxis = quaternion::eulerToQuaternion(
+		qRotateAboutRollAxis = quaternion::eulerAnglesToQuaternion(
 			angleRadiansRotateAboutPitchAxis * mainCamera.getU().x() * 1.0, 
 			angleRadiansRotateAboutPitchAxis * mainCamera.getU().y() * 1.0, 
 			angleRadiansRotateAboutPitchAxis * mainCamera.getU().z() * 1.0
@@ -427,23 +488,61 @@ int main() {
 		GOOG: quaternion and basis vectors
 		https://www.gamedev.net/forums/topic/656126-extracting-basis-vectors-from-a-quaternion/
 		https://math.stackexchange.com/questions/3340396/how-do-i-express-three-desired-basis-vectors-as-a-quaternion
+		https://gamedev.stackexchange.com/questions/103502/how-can-i-implement-a-quaternion-camera
+		https://www.gamedev.net/tutorials/programming/math-and-physics/a-simple-quaternion-based-camera-r1997/
 
 		*/
 
-		quaternion qViewRollVersor, qViewPitchVersor, qViewYawVersor;
+		/* drowan_20200411_NOTES: the pitch rotation turning to roll when yaw is +90 (facing East) makes sense if I think that I am not changing the camera's orientation but the whole worlds
+		orientation. The pitch is occuring in world space. Pitch turns into a roll relative to the camera's perspective because the whole world
+		is pitching about its axis? Not sure if yaw is doing something similar?
+		Maybe looking at this wrong. Maybe what I am calling qViewRollVersor should just be lookAt and a vector I can choose to rotate around..?
+		*/
+
+		quaternion qViewVersor, qEastVersor, qUpVersor;
 
 		/**/
-		qViewRollVersor = { 0.0, mainCamera.getOrientationMatrix().m[0][0], mainCamera.getOrientationMatrix().m[0][1], mainCamera.getOrientationMatrix().m[0][2] };
-		qViewPitchVersor = { 0.0, mainCamera.getOrientationMatrix().m[1][0], mainCamera.getOrientationMatrix().m[1][1], mainCamera.getOrientationMatrix().m[1][2] };
-		qViewYawVersor = { 0.0, mainCamera.getOrientationMatrix().m[2][0], mainCamera.getOrientationMatrix().m[2][1], mainCamera.getOrientationMatrix().m[2][2] };
+		//was roll versor
+		qViewVersor = { 0.0, mainCamera.getOrientationMatrix().m[0][0], mainCamera.getOrientationMatrix().m[0][1], mainCamera.getOrientationMatrix().m[0][2] };
+		//was pitch versor
+		qEastVersor = { 0.0, mainCamera.getOrientationMatrix().m[1][0], mainCamera.getOrientationMatrix().m[1][1], mainCamera.getOrientationMatrix().m[1][2] };
+		//was yaw versor
+		qUpVersor = { 0.0, mainCamera.getOrientationMatrix().m[2][0], mainCamera.getOrientationMatrix().m[2][1], mainCamera.getOrientationMatrix().m[2][2] };
 		/**/
 
 		quaternion qInputYawVersor, qInputPitchVersor, qInputRollVersor;
 						
 		/*
 		x (roll), y (pitch), z (yaw)
+		Original assignment code
 		*/
-		/**/		
+		/*	
+		qInputYawVersor = quaternion::eulerAnglesToQuaternion(
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+
+		qInputPitchVersor = quaternion::eulerAnglesToQuaternion(
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+
+		qInputRollVersor = quaternion::eulerAnglesToQuaternion(
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+		
+		qViewYawVersor =  qInputYawVersor * qViewYawVersor * qInputYawVersor.inverse();
+		
+		qViewRollVersor = qInputPitchVersor * qViewRollVersor * qInputPitchVersor.inverse();
+
+		qViewPitchVersor = qInputPitchVersor * qViewPitchVersor * qInputPitchVersor.inverse();		
+		*/
+
+		/**/
 		qInputYawVersor = quaternion::eulerAnglesToQuaternion(
 			angleRadiansRotateAboutYawAxis * 1.0,
 			angleRadiansRotateAboutPitchAxis * 0.0,
@@ -461,22 +560,27 @@ int main() {
 			angleRadiansRotateAboutPitchAxis * 0.0,
 			angleRadiansRotateAboutRollAxis * 1.0
 		);
+
+		// pitch inputs
+		qUpVersor = qInputPitchVersor * qUpVersor * qInputPitchVersor.inverse();
+		qViewVersor = qInputPitchVersor * qViewVersor * qInputPitchVersor.inverse();
+		qEastVersor = qInputPitchVersor * qEastVersor * qInputPitchVersor.inverse();
+
+		std::cout << "u: " << qUpVersor << "\nv: " << qViewVersor << "\ne: " << qEastVersor << "\n";
+		
+		// yaw inputs
+		qUpVersor = qInputYawVersor * qUpVersor * qInputYawVersor.inverse();
+		qViewVersor = qInputYawVersor * qViewVersor * qInputYawVersor.inverse();
+		qEastVersor = qInputYawVersor * qEastVersor * qInputYawVersor.inverse();		
+
+		std::cout << "u: " << qUpVersor << "\nv: " << qViewVersor << "\ne: " << qEastVersor << "\n";
 		/**/
 
-		qViewRollVersor = qViewRollVersor * qInputYawVersor * qInputPitchVersor;
-		//qViewRollVersor = qInputPitchVersor * qViewRollVersor * qInputPitchVersor.inverse();
-
-		qViewPitchVersor = qViewRollVersor * qInputYawVersor * qInputPitchVersor;
-		//qViewPitchVersor = qInputPitchVersor * qViewPitchVersor * qInputPitchVersor.inverse();		 
-
-		qViewYawVersor = qViewYawVersor * qInputYawVersor * qInputPitchVersor;		
-		//qViewYawVersor =  qInputYawVersor * qViewYawVersor * qInputYawVersor.inverse();		 
-								
 		mat4x4 outputOrientationMatrix;
 		
-		outputOrientationMatrix.m[0] = { qViewRollVersor.x(), qViewRollVersor.y(), qViewRollVersor.z(), 0 };
-		outputOrientationMatrix.m[1] = { qViewPitchVersor.x(), qViewPitchVersor.y(), qViewPitchVersor.z(), 0 };
-		outputOrientationMatrix.m[2] = { qViewYawVersor.x(), qViewYawVersor.y(), qViewYawVersor.z(), 0 };
+		outputOrientationMatrix.m[0] = { qViewVersor.x(), qViewVersor.y(), qViewVersor.z(), qViewVersor.w() };
+		outputOrientationMatrix.m[1] = { qEastVersor.x(), qEastVersor.y(), qEastVersor.z(), qEastVersor.w() };
+		outputOrientationMatrix.m[2] = { qUpVersor.x(), qUpVersor.y(), qUpVersor.z(), qUpVersor.w() };
 		outputOrientationMatrix.m[3] = { 0.0, 0.0, 0.0, 1.0 };
 
 		//drowan_NOTE_20200217: see 8.7.3 in 3D Math Primer for Graphics and Game Development, 2nd Ed. for Quaternion to Matrix conversion
@@ -487,62 +591,6 @@ int main() {
 		std::cout << "oM: " << outputOrientationMatrix << "\n";
 
 #endif
-
-#endif
-
-#if defined ENABLE_KEYBOARD_CONTROLS && ENABLE_KEYBOARD_CONTROLS == 1
-		//check some keys
-		GUIControlInputs guiControlInputs;
-		getGUIControlInputs(guiControlInputs);
-
-		/*
-		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
-		*/
-		vec3 oldLookFrom = mainCamera.getLookFromPoint();
-		vec3 newLookFrom = oldLookFrom;
-
-		bool controlAsserted = false;		
-
-		if (guiControlInputs.forwardAsserted) {			
-			newLookFrom += vec3(50.0, 0.0, 0.0);			
-			controlAsserted = true;
-		}
-		if (guiControlInputs.reverseAsserted) {			
-			newLookFrom += vec3(-50.0, 0.0, 0.0);
-			controlAsserted = true;
-		}		
-		if (guiControlInputs.leftAsserted) {			
-			newLookFrom += vec3(0.0, -50.0, 0.0);
-			controlAsserted = true;
-		}
-		if (guiControlInputs.rightAsserted) {			
-			newLookFrom += vec3(0.0, 50.0, 0.0);
-			controlAsserted = true;
-		}
-
-		if (guiControlInputs.spaceAsserted) {
-			newLookFrom += vec3(0.0, 0.0, -50.0);
-			controlAsserted = true;
-		}		
-		else {
-			float diff = newLookFrom.z() + 50.0;
-
-			if (newLookFrom.z() == 0.0) {
-				//do nothing
-			}
-			else if (diff < 0) {
-				newLookFrom += vec3(0.0, 0.0, 10.0);
-				controlAsserted = true;
-			}			
-			else {
-				newLookFrom = vec3(newLookFrom.x(), newLookFrom.y(), 0.0);
-				controlAsserted = true;
-			}
-		}
-
-		if (controlAsserted) {
-			mainCamera.setLookFromPoint(newLookFrom);			
-		}
 #endif
 
 #pragma endregion Modify LookAt Debug

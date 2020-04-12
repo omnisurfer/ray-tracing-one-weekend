@@ -87,7 +87,7 @@ public:
 			{-500.0f,0.0f,0.0f,0.0f}		//displacement basis? not sure yet... this line is an origin of 0,0,0	
 		};
 
-		quaternion qOrientation = nedWorldBasisOrientationMatrix[0];
+		_orientationVersor = nedWorldBasisOrientationMatrix[0];
 		quaternion qPosition = basisPositionMatrix[0];
 
 		_orientationMatrix = nedWorldBasisOrientationMatrix;
@@ -115,7 +115,8 @@ public:
 			//<< "qOri dot qPos: " << dot(qOrientation, qPosition) << "\n"
 			<< "qOri times qPos: " << qOrientation << " * " << qPosition << " = " << qOrientation * qPosition << "\n";
 
-		/**/
+		/**/		
+
 		setCamera();		
 	}
 
@@ -255,9 +256,19 @@ public:
 		return vec3(_positionMatrix.m[0][4], _positionMatrix.m[1][4], _positionMatrix.m[2][4]);
 	}
 
+	void setOrientationVersor(quaternion orientation) {
+		_orientationVersor = orientation;
+
+		setCamera();
+	}
+	
+	quaternion getOrientationVersor() {
+		return _orientationVersor;
+	}
+
 protected:
 
-	void setCamera_OLD() {
+	void setCamera_Euler() {
 
 		//lookAt vector contains camera orientation relative to world space but centered on it's origin
 		//origin of the camera is set by lookFrom
@@ -301,7 +312,7 @@ protected:
 #endif
 	}
 
-	void setCamera() {
+	void setCamera_QuaternionMatrix() {
 
 		_lensRadius = _aperture / 2;
 
@@ -330,6 +341,14 @@ protected:
 
 	}
 
+	void setCamera() {
+#if 0
+		setCamera_Euler();
+#else
+		setCamera_QuaternionMatrix();
+#endif
+	}
+
 private:
 
 	vec3 _lookFromPoint;
@@ -346,6 +365,9 @@ private:
 	vec3 _horizontal;
 	vec3 _vertical;
 	//orthonormal basis vectors that the camera is aligned to?
+	//_w is the vector the cameras looks along, or the front of the plane (North)
+	//_u is the vector to the the right of the camera lens, or the right wing of the plane (East)
+	//_v is the vector below the camera, or the direction towards the earth (Down)
 	vec3 _u, _v, _w;
 	float _lensRadius;
 
@@ -353,4 +375,6 @@ private:
 
 	mat4x4 _orientationMatrix;
 	mat4x4 _positionMatrix;
+
+	quaternion _orientationVersor;
 };

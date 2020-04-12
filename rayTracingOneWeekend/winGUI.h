@@ -253,6 +253,11 @@ LRESULT CALLBACK WndProc(
 					break;
 				}
 
+				case VK_SHIFT: {					
+					_guiControlInputs.leftShiftAsserted = true;
+					break;
+				}
+
 				default: {
 					break;
 				}
@@ -293,6 +298,11 @@ LRESULT CALLBACK WndProc(
 
 				case VK_SPACE: {
 					_guiControlInputs.spaceAsserted = false;
+					break;
+				}
+				
+				case VK_SHIFT: {
+					_guiControlInputs.leftShiftAsserted = false;
 					break;
 				}
 

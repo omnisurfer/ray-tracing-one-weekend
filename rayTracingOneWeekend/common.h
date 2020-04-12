@@ -27,6 +27,7 @@ struct GUIControlInputs {
 	bool rightAsserted = false;
 	bool escAsserted = false;
 	bool spaceAsserted = false;
+	bool leftShiftAsserted = false;
 };
 
 struct WorkerThread {

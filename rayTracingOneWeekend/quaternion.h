@@ -144,7 +144,7 @@ public:
 		return result;
 	}
 
-	inline quaternion normalizeOrVersor() {
+	inline quaternion normalizeVersor() {
 		quaternion result;		
 
 		float norm = components.w * components.w + components.x * components.x + components.y * components.y + components.z * components.z;
