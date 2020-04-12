@@ -20,6 +20,16 @@ struct WorkerImageBuffer {
 	std::shared_ptr<uint8_t> buffer;
 };
 
+struct GUIControlInputs {
+	bool forwardAsserted = false;
+	bool reverseAsserted = false;
+	bool leftAsserted = false;
+	bool rightAsserted = false;
+	bool escAsserted = false;
+	bool spaceAsserted = false;
+	bool leftShiftAsserted = false;
+};
+
 struct WorkerThread {
 	uint32_t id;
 
@@ -36,4 +46,5 @@ struct WorkerThread {
 	std::mutex exitMutex;
 	std::condition_variable exitConditionVar;		
 	std::thread handle;
+	int configuredMaxThreads = std::thread::hardware_concurrency();;
 };

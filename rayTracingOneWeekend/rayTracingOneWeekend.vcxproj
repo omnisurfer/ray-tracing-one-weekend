@@ -135,9 +135,12 @@
     <ClInclude Include="defines.h" />
     <ClInclude Include="hitable.h" />
     <ClInclude Include="hitableList.h" />
+    <ClInclude Include="mat4x4.h" />
     <ClInclude Include="material.h" />
     <ClInclude Include="mathUtilities.h" />
+    <ClInclude Include="mat3x3.h" />
     <ClInclude Include="noise.h" />
+    <ClInclude Include="quaternion.h" />
     <ClInclude Include="ray.h" />
     <ClInclude Include="rngs.h" />
     <ClInclude Include="scenes.h" />
@@ -145,6 +148,7 @@
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="texture.h" />
     <ClInclude Include="vec3.h" />
+    <ClInclude Include="vec4.h" />
     <ClInclude Include="winDIBbitmap.h" />
     <ClInclude Include="winGUI.h" />
     <ClInclude Include="xy_rect.h" />

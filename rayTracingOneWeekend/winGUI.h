@@ -8,13 +8,22 @@
 HWND raytraceMSWindowHandle;
 HBITMAP workingBitmap;
 
-int globalMouseX = 0, globalMouseY = 0;
-std::mutex globalMouseCoordMutex;
+int globalMouseCurrentX = 0, globalMouseCurrentY = 0;
+int globalMouseLastX = 0, globalMouseLastY = 0;
+int globalMouseDeltaX = 0, globalMouseDeltaY = 0;
+std::mutex globalMouseXYInputMutex;
 
 int globalWindowHeight = 0, globalWindowWidth = 0;
 
 bool globalGuiIsRunning = false;
 std::mutex globalGuiIsRunningMutex;
+
+GUIControlInputs _guiControlInputs;
+
+//more sophisticated FPS method:
+//https://stackoverflow.com/questions/28530798/how-to-make-a-basic-fps-counter
+clock_t currentFrameTimeSample;
+clock_t lastFrameTimeSample;
 
 int guiWorkerProcedure(
 	std::shared_ptr<WorkerThread> workerThreadStruct,
@@ -29,12 +38,19 @@ LRESULT CALLBACK WndProc(
 );
 
 int getMouseCoord(int &x, int &y) {
-
-	std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
-	x = globalMouseX - globalWindowWidth/2;
-	y = globalMouseY - globalWindowHeight/2;
+	
+	std::lock_guard<std::mutex> lock(globalMouseXYInputMutex);		
+	x = globalMouseCurrentX - globalWindowWidth / 2;
+	y = globalMouseCurrentY - globalWindowHeight / 2;
 
 	return 0;
+}
+
+bool getGUIControlInputs(GUIControlInputs &guiControlInputs) {
+
+	guiControlInputs = _guiControlInputs;
+
+	return true;
 }
 
 bool checkIfGuiIsRunning() {
@@ -62,6 +78,9 @@ int guiWorkerProcedure(
 	globalGuiIsRunning = true;
 	guiRunningLock.unlock();
 
+	//set the clock samples to the same time
+	currentFrameTimeSample = clock();
+	lastFrameTimeSample = currentFrameTimeSample;
 
 	//wait to be told to run
 	std::unique_lock<std::mutex> startLock(workerThreadStruct->startMutex);
@@ -94,7 +113,7 @@ int guiWorkerProcedure(
 		//http://www.directxtutorial.com/Lesson.aspx?lessonid=11-1-4
 		//figure out how big to make the whole window
 		RECT rect;
-		rect = { 0, 0, (LONG)windowWidth, (LONG)windowHeight };
+		rect = { 0, 0, (LONG)windowWidth, (LONG)windowHeight };		
 
 		globalWindowHeight = windowHeight;
 		globalWindowWidth = windowWidth;
@@ -189,18 +208,158 @@ LRESULT CALLBACK WndProc(
 	- https://docs.microsoft.com/en-us/windows/win32/gdi/using-brushes
 	- https://docs.microsoft.com/en-us/windows/win32/gdi/drawing-a-custom-window-background
 	*/
+	
 	//TODO drowan(20190704): Reading the cursor here is probably not best practice. Look into how to do this.
 	POINT p;
 
 	if (GetCursorPos(&p)) {
-		if (ScreenToClient(hwnd, &p)) {
-			if (p.x >= 0 && p.y >= 0) {
-				//std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
-			}
-		}
+		if (ScreenToClient(hwnd, &p));
 	}
 
 	switch (uMsg) {
+
+		/**/
+		case WM_KEYDOWN: {			
+			
+			switch (wParam) {
+
+				case 'W': {
+					_guiControlInputs.forwardAsserted = true;
+					break;
+				}
+
+				case 'S': {
+					_guiControlInputs.reverseAsserted = true;
+					break;
+				}
+
+				case 'A': {
+					_guiControlInputs.leftAsserted = true;
+					break;
+				}
+
+				case 'D': {
+					_guiControlInputs.rightAsserted = true;
+					break;
+				}
+
+				case VK_ESCAPE: {
+					_guiControlInputs.escAsserted = true;
+					break;
+				}
+
+				case VK_SPACE: {
+					_guiControlInputs.spaceAsserted = true;
+					break;
+				}
+
+				case VK_SHIFT: {					
+					_guiControlInputs.leftShiftAsserted = true;
+					break;
+				}
+
+				default: {
+					break;
+				}
+
+			}
+
+			return 0L;
+		}
+
+		case WM_KEYUP: {
+
+			switch (wParam) {
+
+				case 'W': {
+					_guiControlInputs.forwardAsserted = false;
+					break;
+				}
+
+				case 'S': {
+					_guiControlInputs.reverseAsserted = false;
+					break;
+				}
+
+				case 'A': {
+					_guiControlInputs.leftAsserted = false;
+					break;
+				}
+
+				case 'D': {
+					_guiControlInputs.rightAsserted = false;
+					break;
+				}
+
+				case VK_ESCAPE: {
+					_guiControlInputs.escAsserted = false;
+					break;
+				}
+
+				case VK_SPACE: {
+					_guiControlInputs.spaceAsserted = false;
+					break;
+				}
+				
+				case VK_SHIFT: {
+					_guiControlInputs.leftShiftAsserted = false;
+					break;
+				}
+
+				default: {
+					break;
+				}
+
+			}
+
+			return 0L;
+		}
+		/**/
+		case WM_SYSKEYDOWN: {
+		
+			switch (wParam) {
+
+				default: {
+					break;
+				}
+
+			}
+			return 0L;
+		}
+
+		case WM_SYSKEYUP: {
+
+			switch (wParam) {
+
+				default: {
+					break;
+				}
+
+			}
+			return 0L;
+		}
+
+		case WM_MOUSEMOVE: {
+					
+			if (p.x >= 0 && p.y >= 0) {
+				//std::cout << "\nMousepoint " << p.x << ", " << p.y << "\n";
+			}
+			
+			std::lock_guard<std::mutex> lock(globalMouseXYInputMutex);
+			globalMouseCurrentX = p.x;
+			globalMouseCurrentY = p.y;
+			
+			globalMouseDeltaX = p.x - globalMouseLastX;							
+			globalMouseDeltaY = p.y - globalMouseLastY;
+
+			//std::cout << "\nGlobX: " << globalMouseDeltaX << "\n";
+			//std::cout << "\nGlobY: " << globalMouseDeltaY << "\n";
+
+			globalMouseLastX = p.x;
+			globalMouseLastY = p.y;			
+
+			return 0L;
+		}
 
 		/*
 		- Maybe use this to pass a pointer to the image buffer
@@ -215,6 +374,9 @@ LRESULT CALLBACK WndProc(
 				global_newBitmap = (HBITMAP*)LoadImage(NULL, ".\\high_photon_cornellbox_bw.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 			}
 			/**/
+
+			//disable mouse cursor
+			ShowCursor(false);
 			return 0L;
 		}
 
@@ -286,8 +448,7 @@ LRESULT CALLBACK WndProc(
 		}
 
 		case WM_PAINT:
-		{
-			//DEBUG_MSG_L0(__func__, "WM_PAINT");
+		{			
 	#if 1			
 			PAINTSTRUCT ps;
 			HDC hdcClientWindow;
@@ -316,6 +477,42 @@ LRESULT CALLBACK WndProc(
 
 			DeleteDC(hdcBlitWindow);
 
+			//draw some text
+			//https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-drawtext
+	#if DISPLAY_FPS == 1
+			//SetBkColor(hdcClientWindow, RGB(0, 0, 255));
+			SetBkMode(hdcClientWindow, TRANSPARENT);
+			SetTextColor(hdcClientWindow, RGB(255, 0, 0));
+			
+			//Create a basic FPS counter
+			lastFrameTimeSample = currentFrameTimeSample;
+			currentFrameTimeSample = clock();			
+
+			clock_t deltaTime = currentFrameTimeSample - lastFrameTimeSample;
+
+			float clocksPerSec = (float)deltaTime / CLOCKS_PER_SEC;
+			int instantaneousFPS = (int)1 / clocksPerSec;
+
+			//make sure it doesn't take more than four char positions
+			instantaneousFPS = instantaneousFPS % 1000;
+
+			//std::cout << "frame time (in seconds): " << clocksPerSec << "\n";
+			//std::cout << "FPS (instantaneous): " << instantaneousFPS << "\n";
+
+			RECT fpsRect;
+			fpsRect = { 0, 0, 100, 100 };
+
+			char fpsText[100] = "FPS: ";					
+
+			//convert int to string
+			char fpsIntText[4];
+			sprintf_s(fpsIntText, 4, "%d", instantaneousFPS);			
+
+			strcat_s(fpsText, 100, fpsIntText);						
+			
+			DrawText(hdcClientWindow, (LPCSTR)&fpsText, -1, &fpsRect, DT_CENTER);		
+	#endif
+
 			EndPaint(hwnd, &ps);
 	#endif
 			return 0L;
@@ -335,6 +532,8 @@ LRESULT CALLBACK WndProc(
 			DEBUG_MSG_L0(__func__, "WM_DESTROY");
 
 			PostQuitMessage(0);
+
+			ShowCursor(true);
 
 			return 0L;
 		}
@@ -360,9 +559,9 @@ LRESULT CALLBACK WndProc(
 			//RedrawWindow(hwnd, NULL, NULL, RDW_INTERNALPAINT);
 			RedrawWindow(hwnd, NULL, NULL, RDW_NOERASE);
 
-			std::lock_guard<std::mutex> lock(globalMouseCoordMutex);
-			globalMouseX = p.x;
-			globalMouseY = p.y;
+			std::lock_guard<std::mutex> lock(globalMouseXYInputMutex);
+			globalMouseCurrentX = p.x;
+			globalMouseCurrentY = p.y;
 
 			return 0L;
 		}
@@ -405,8 +604,35 @@ LRESULT CALLBACK WndProc(
 		case WM_USER: {
 			//DEBUG_MSG_L0(__func__, "WM_USER");
 
-			//global_newBitmap = (HBITMAP*)lParam;
+			//This code gets the current rectangle coords from the window space and then figures out where those points
+			//are relative to desktop coord space. This modified coord space gets passed onto the ClipCursor call to
+			//basically trap the cursor within the window. Not using raw input intentionally for now.
+			/*https://stackoverflow.com/questions/36779161/trap-cursor-in-window*/
+			RECT rect;
+			GetClientRect(hwnd, &rect);
 
+			POINT ul;
+			ul.x = rect.left;
+			ul.y = rect.top;
+
+			POINT lr;
+			lr.x = rect.right;
+			lr.y = rect.bottom;
+
+			MapWindowPoints(hwnd, nullptr, &ul, 1);
+			MapWindowPoints(hwnd, nullptr, &lr, 1);
+
+			rect.left = ul.x;
+			rect.top = ul.y;
+
+			rect.right = lr.x;
+			rect.bottom = lr.y;
+
+	#if CAPTURE_MOUSE == 1
+			ClipCursor(&rect);
+
+			SetCursorPos(rect.right - (rect.right - rect.left)/2, rect.top - (rect.top - rect.bottom)/2);
+	#endif
 			//drowan_20190916: Freeing the used memory seems to get around the CopyImage call failing. 
 			//Seems to be OK handling a null workingBitmap when first called.
 			DeleteObject(workingBitmap);

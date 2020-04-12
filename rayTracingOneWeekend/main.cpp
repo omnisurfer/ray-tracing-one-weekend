@@ -3,6 +3,8 @@
 
 #include "defines.h"
 #include "vec3.h"
+#include "mat3x3.h"
+#include "quaternion.h"
 #include "hitableList.h"
 #include "camera.h"
 #include "color.h"
@@ -65,6 +67,11 @@ Return to [Render scene]
 */
 
 int main() {
+
+	//move the console window somewhere out of the way
+	HWND consoleWindowHandle = GetConsoleWindow();
+
+	SetWindowPos(consoleWindowHandle, 0, 700, 200, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 	
 	std::unique_lock<std::mutex> coutLock(globalCoutGuard);
 	coutLock.unlock();
@@ -80,8 +87,15 @@ int main() {
 
 	randomNumberGenerator.seed(seedSequence);	
 	
-	uint32_t numOfRenderThreads = DEBUG_RUN_THREADS; // std::thread::hardware_concurrency();
+#if DEBUG_RUN_THREADS > 0
+	int numOfRenderThreads = DEBUG_RUN_THREADS;
+#else
+	int numOfRenderThreads = std::thread::hardware_concurrency();	//DEBUG_RUN_THREADS;
+#endif
+
 	DEBUG_MSG_L0("\t", "used hardware threads: " << numOfRenderThreads << "\n");
+
+	std::cout << "Threads: " << numOfRenderThreads << "\n";
 
 	WINDIBBitmap winDIBBmp;
 	RenderProperties renderProps;
@@ -90,32 +104,36 @@ int main() {
 
 	renderProps.bytesPerPixel = (winDIBBmp.getBitsPerPixel() / 8);
 	renderProps.finalImageBufferSizeInBytes = renderProps.resWidthInPixels * renderProps.resHeightInPixels * renderProps.bytesPerPixel;
+	
+	/* See camera for reference frame explanation*/
 
-	//Setup camera
+	//NED world reference frame	
 	vec3 lookFrom(0, 0, 0);
-	vec3 lookAt(0, 1, 0);
-	vec3 worldUp(0, 1, 0);
+	vec3 lookAt(1, 0, 0);
+	vec3 worldUp(0, 0, -1);
+
 	float distToFocus = 1000;//(lookFrom - lookAt).length(); //1000
 	float aperture = 2.0;
 	float aspectRatio = float(renderProps.resWidthInPixels) / float(renderProps.resHeightInPixels);
-	float vFoV = 60.0;
+	float vFoV = 60.0;	
+
+	//Need to account for look from displacement from origin to be able to rotate around any point not at origin.
+	//Some of the weird corner lookAt vector issues seem to be related to having the origin not exactly zero'd...
+	//When the camera is setup with LookFrom@0,0,0 and LookAt@0,0,1 it seems to work properly
+	//Maybe should consider moving the world/objects and keeping camera at 0,0,0?
 
 	Camera mainCamera(lookFrom, lookAt, worldUp, vFoV, aspectRatio, aperture, distToFocus, 0.0, 1.0);
 
 	// TODO: drowan(20190607) - should I make a way to select this programatically?
 #if OUTPUT_RANDOM_SCENE == 1
-	//random scene
-	mainCamera.setLookFrom(vec3(3, 3, -10));
-	mainCamera.setLookAt(vec3(0, 0, 0));
+	//random scene	
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
 	Hitable *world = randomScene();
 #else
-	//cornell box
-	mainCamera.setLookFrom(vec3(278, 278, -500));
-	mainCamera.setLookAt(vec3(278, 278, 0));
+	//cornell box		
 
-	Hitable *world = cornellBox();
+	Hitable *world = new Translate(cornellBox_NED(), vec3(300, 0, 0));
 #endif
 
 	// Each thread will have a handle to this shared buffer but will access the memory with a thread specific memory offset which will hopefully mitigate concurrent access issues.
@@ -144,7 +162,7 @@ int main() {
 	guiWorkerThread->handle = std::thread(guiWorkerProcedure, guiWorkerThread, renderProps.resWidthInPixels, renderProps.resHeightInPixels);
 #endif
 	//bitblit
-#if DEBUG_BITBLIT == 1
+#if ENABLE_BITBLIT == 1
 
 	std::shared_ptr<WorkerThread> bitBlitWorkerThread(new WorkerThread);
 
@@ -171,6 +189,7 @@ int main() {
 		workerThread->continueWork = false;
 		workerThread->exit = false;
 		workerThread->handle = std::thread(raytraceWorkerProcedure, workerThread, workerImageBufferStruct, renderProps, &mainCamera, world);
+		workerThread->configuredMaxThreads = numOfRenderThreads;
 
 		workerThreadVector.push_back(workerThread);
 	}
@@ -198,7 +217,7 @@ int main() {
 	}
 	
 	//bitblit
-#if DEBUG_BITBLIT == 1
+#if ENABLE_BITBLIT == 1
 	std::unique_lock<std::mutex> startBitBlitLock(bitBlitWorkerThread->startMutex);
 	bitBlitWorkerThread->start = true;
 	bitBlitWorkerThread->startConditionVar.notify_all();
@@ -207,30 +226,410 @@ int main() {
 
 #pragma endregion Start_Threads
 
-#pragma region Manage_Threads
-
+#pragma region Modify LookAt Debug
 	//temp holds the initial camera lookAt that is used as the 0,0 reference
-	//this is clunky but for now it works for testing.
-	vec3 initCameraLookAt = mainCamera.getLookAt();
+	//this is clunky but for now it works for testing.		
 
-	for (int i = 0; i < 80000; i++) {
+	float rollMovementFromXCartesianDisplacement = 0;
+	float pitchMovementFromYCartesianDisplacement = 0;
+	float yawMovementFromXCartesianDisplacement = 0;
+	float horizontalAngleDegreesToRotateBy = 0;
+	float verticleAngleDegreesToRotateBy = 0;
+
+	//simple loop for now to determine how many frames get rendered.
+	//START OF RENDER LOOP
+	std::cout << "lookFrom: " << mainCamera.getLookFromPoint() << " lookAt: " << mainCamera.getLookAt() << "\n";
+
+	double angleRadiansRotateAboutYawAxis = 0.0;
+	double angleRadiansRotateAboutRollAxis = 0.0;
+	double angleRadiansRotateAboutPitchAxis = 0.0;
+
+	for (int i = 0; i < 10000; i++) {
 
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
 			break;
+		}		
+
+#if defined ENABLE_KEYBOARD_CONTROLS && ENABLE_KEYBOARD_CONTROLS == 1
+		//check some keys
+		GUIControlInputs guiControlInputs;
+		getGUIControlInputs(guiControlInputs);
+
+		/*
+		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
+		*/
+		vec3 oldLookFrom = mainCamera.getLookFromPoint();
+		vec3 newLookFrom = oldLookFrom;
+
+		bool controlAsserted = false;
+
+		if (guiControlInputs.forwardAsserted) {
+			newLookFrom += vec3(50.0, 0.0, 0.0);
+			controlAsserted = true;
+		}
+		if (guiControlInputs.reverseAsserted) {
+			newLookFrom += vec3(-50.0, 0.0, 0.0);
+			controlAsserted = true;
+		}
+		if (guiControlInputs.leftAsserted) {
+			newLookFrom += vec3(0.0, -50.0, 0.0);
+			controlAsserted = true;
+		}
+		if (guiControlInputs.rightAsserted) {
+			newLookFrom += vec3(0.0, 50.0, 0.0);
+			controlAsserted = true;
 		}
 
+		if (guiControlInputs.spaceAsserted) {
+			newLookFrom += vec3(0.0, 0.0, -50.0);
+			controlAsserted = true;
+		}
+		else {
+			float diff = newLookFrom.z() + 50.0;
+
+			if (newLookFrom.z() == 0.0) {
+				//do nothing
+			}
+			else if (diff < 0) {
+				newLookFrom += vec3(0.0, 0.0, 10.0);
+				controlAsserted = true;
+			}
+			else {
+				newLookFrom = vec3(newLookFrom.x(), newLookFrom.y(), 0.0);
+				controlAsserted = true;
+			}
+		}
+
+		if (controlAsserted) {
+			mainCamera.setLookFromPoint(newLookFrom);
+		}
+#endif
+
+#if defined ENABLE_MOUSE_CONTROLS && ENABLE_MOUSE_CONTROLS == 1
+
 		//get the current mouse position
-		int x = 0, y = 0;
-		getMouseCoord(x, y);
-		//std::cout << "x,y " << x << "," << y << "\n";		
+		int xCartesian = 0, yCartesian = 0;
+		getMouseCoord(xCartesian, yCartesian);
+		//std::cout << "xCart,yCart (" << xCartesian << "," << yCartesian << ")\n";
 
-		x = initCameraLookAt.x() - x;
-		y = initCameraLookAt.y() - y;
+		//look into this:
+		//https://stackoverflow.com/questions/14607640/rotating-a-vector-in-3d-space
+		//Get the Pitch Vector
+		//map the amount of Y cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
+		pitchMovementFromYCartesianDisplacement = ((float)-1.0f * yCartesian / 250.0f) * 45.0f;
 
-		mainCamera.setLookAt(vec3(x, y, 0));
+		verticleAngleDegreesToRotateBy = (int)pitchMovementFromYCartesianDisplacement;
+		verticleAngleDegreesToRotateBy = (int)verticleAngleDegreesToRotateBy % 360;
 
+		//std::cout << "vertAngleDegPitch: " << verticleAngleDegreesToRotateBy << "\n";
+
+		//seems to be acting like pitch (OK?)
+		angleRadiansRotateAboutPitchAxis = verticleAngleDegreesToRotateBy * (3.14159 / 180.0f);
+
+		//std::cout << "vertAngleRadPitch: " << angleRadiansRotateAboutX << "\n";		
+
+		//drowan_20191020_TODO: remove hard coded window width of 250pixels
+		//map the amount of X cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
+		yawMovementFromXCartesianDisplacement = ((float)xCartesian / 250.0f) * 45.0f;
+
+		horizontalAngleDegreesToRotateBy = (int)yawMovementFromXCartesianDisplacement;
+		horizontalAngleDegreesToRotateBy = (int)horizontalAngleDegreesToRotateBy % 360;
+
+		//std::cout << "horzAngleDegYaw: " << horizontalAngleDegreesToRotateBy << "\n";
+
+		//seems to be acting like roll...		
+		if (!guiControlInputs.leftShiftAsserted) {
+			angleRadiansRotateAboutYawAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
+		}
+		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
+		else {
+			angleRadiansRotateAboutRollAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);;
+		}
+
+		//Euler angles lookAt manipulation
+#if 0
+		vec3 yawRotationAboutY[3] = {
+			{(float)cos(angleRadiansRotateAboutYawAxis),0.0f,(float)sin(angleRadiansRotateAboutYawAxis)},
+			{0.0f,1.0f,0.0f},
+			{(float)-sin(angleRadiansRotateAboutYawAxis),0.0f,(float)cos(angleRadiansRotateAboutYawAxis)}
+		};
+
+		vec3 pitchRotationAboutX[3] = {
+			{1.0f,0.0f,0.0f},
+			{0.0f,(float)cos(angleRadiansRotateAboutPitchAxis),(float)-sin(angleRadiansRotateAboutPitchAxis)},
+			{0.0f,(float)sin(angleRadiansRotateAboutPitchAxis),(float)cos(angleRadiansRotateAboutPitchAxis)}
+		};
+
+		vec3 pitchRotationAboutZ[3] = {
+			{(float)cos(angleRadiansRotateAboutPitchAxis),(float)-sin(angleRadiansRotateAboutPitchAxis),0.0f},
+			{(float)sin(angleRadiansRotateAboutPitchAxis),(float)cos(angleRadiansRotateAboutPitchAxis),0.0f},
+			{0.0f,0.0f,1.0f}
+		};
+
+		//some test matrices
+		vec3 matrixA[3] = {
+			{0.0f,0.0f,1.0f},
+			{0.0f,1.0f,0.0f},
+			{1.0f,0.0f,0.0f}
+		};
+
+		vec3 matrixB[3] = {
+			{3.0f,2.0f,1.0f},
+			{5.0f,4.0f,3.0f},
+			{9.0f,8.0f,7.0f}
+		};
+
+		vec3 v1 = { 2,3,4 };
+
+		mat3x3 mA(matrixA);
+		mat3x3 mB(matrixB);
+		mat3x3 yawRotationMatrix(yawRotationAboutY);
+		mat3x3 pitchRotationMatrixX(pitchRotationAboutX);
+		mat3x3 pitchRotationMatrixZ(pitchRotationAboutZ);
+
+		mat3x3 mC = mA * mB;
+
+		/*
+		std::cout << "mA: \n" << mA.m[0] << "\n" << mA.m[1] << "\n" << mA.m[2] << "\n\n";
+		std::cout << "mB: \n" << mB.m[0] << "\n" << mB.m[1] << "\n" << mB.m[2] << "\n\n";
+		std::cout << "mC: \n" << mC.m[0] << "\n" << mC.m[1] << "\n" << mC.m[2] << "\n\n";
+		/**/
+		v1 = mainCamera.getLookAt();
+
+		mat3x3 rotMat = yawRotationMatrix * pitchRotationMatrixX * pitchRotationMatrixZ;
+		vec3 newLookAtVector = v1 * rotMat;
+
+		//std::cout << "lookAt * yawRotationMatrix: " << newLookAtVector << "\n";
+		std::cout << "newLookAt: " << newLookAtVector << "\n";
+
+		mainCamera.setLookAt(newLookAtVector);
+#endif
+				
+	static float angleDegree = 0.0f;
+	float angleRadians = angleDegree * M_PI / 180.0f;
+
+	//Quaternion lookAt manipulation
+#if 0
+		quaternion qRotateAboutYawAxis, qRotateAboutRollAxis;		
+
+		vec3 lookAtVector = mainCamera.getLookAt();
+		vec3 lookFromVector = mainCamera.getLookFromPoint();
+		vec3 cameraUpVector = mainCamera.getUpDirection();
+
+		/* 
+		Seperating the rotations seems to create an FPS like camera. If I do the transform in one pass, it seems to act like
+		an "airplane" camera
+		*/
+		qRotateAboutYawAxis = quaternion::eulerAnglesToQuaternion(
+			angleRadiansRotateAboutYawAxis * mainCamera.getW().x() * 1.0, 
+			angleRadiansRotateAboutYawAxis * mainCamera.getW().y() * 1.0, 
+			angleRadiansRotateAboutYawAxis * mainCamera.getW().z() * 1.0
+		);
+		qRotateAboutRollAxis = quaternion::eulerAnglesToQuaternion(
+			angleRadiansRotateAboutPitchAxis * mainCamera.getU().x() * 1.0, 
+			angleRadiansRotateAboutPitchAxis * mainCamera.getU().y() * 1.0, 
+			angleRadiansRotateAboutPitchAxis * mainCamera.getU().z() * 1.0
+		);	
+
+		//move the vector back to origin...?
+		//lookAtVector = lookAtVector - lookFromVector;		
+
+		quaternion lookAtVersor = { 0, lookAtVector.x(), lookAtVector.y(), lookAtVector.z() };
+		quaternion lookFromVersor = { 0, lookFromVector.x(), lookFromVector.y(), lookFromVector.z() };
+		quaternion upVersor = { 0, cameraUpVector.x(), cameraUpVector.y(), cameraUpVector.z() };
+
+		quaternion outputLookAtVersor;
+		quaternion outputLookFromVersor;
+		quaternion outputUpVersor;
+
+		/*
+		X (Pitch) movement
+		*/
+		outputLookAtVersor = qRotateAboutRollAxis * lookAtVersor * qRotateAboutRollAxis.inverse();
+		outputLookFromVersor = qRotateAboutRollAxis * lookFromVersor * qRotateAboutRollAxis.inverse();
+		outputUpVersor = qRotateAboutRollAxis * upVersor * qRotateAboutRollAxis.inverse();			
+						
+		/* 
+		Now combine with the Z (Yaw) rotation
+		*/
+		outputLookAtVersor = qRotateAboutYawAxis * outputLookAtVersor * qRotateAboutYawAxis.inverse();
+		outputLookFromVersor = qRotateAboutYawAxis * lookFromVersor * qRotateAboutYawAxis.inverse();
+		outputUpVersor = qRotateAboutYawAxis * outputUpVersor * qRotateAboutYawAxis.inverse();		
+
+		/**/
+		std::cout << "angleAboutYaw: " << angleDegree << " inputLookAtVersor: " << lookAtVersor << " outputLookAtVersor = " << outputLookAtVersor << "\n";
+		std::cout << "outputUpVersor: " << outputUpVersor << "\n";
+		/**/
+		/*
+		drowan_notes_20191226: I think to replicate a "FPS" style camera, I need to allow pitch within the objects frame of reference and do yaw within the world
+		frame of reference? As I have the camera now, this seems to behave as an "airplane" style camera (or something with 3DOF).
+		*/
+		//add back the lookfrom to move the lookAt points back to where they came from
+		vec3 outputLookAtVector = vec3(outputLookAtVersor.x(), outputLookAtVersor.y(), outputLookAtVersor.z()) + lookFromVector;
+		vec3 outputLookFromVector = vec3(outputLookFromVersor.x(), outputLookFromVersor.y(), outputLookFromVersor.z());
+		vec3 outputUpVector = vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z());
+
+		mainCamera.setLookAt(outputLookAtVector);
+		//mainCamera.setLookFromPoint(outputLookFromVector);
+		//mainCamera.setUpDirection(outputUpVector);
+		/*
+		only set the upVersor if you want airplane like movement 
+		*/
+		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
+#endif
+
+	//quaternion matrix rotation manipulation
+#if 0
+		/*
+		Maybe this will solve my pitch to roll issue?
+		https://gamedev.stackexchange.com/questions/30644/how-to-keep-my-quaternion-using-fps-camera-from-tilting-and-messing-up
+		
+		GOOG: quaternion and basis vectors
+		https://www.gamedev.net/forums/topic/656126-extracting-basis-vectors-from-a-quaternion/
+		https://math.stackexchange.com/questions/3340396/how-do-i-express-three-desired-basis-vectors-as-a-quaternion
+		https://gamedev.stackexchange.com/questions/103502/how-can-i-implement-a-quaternion-camera
+		https://www.gamedev.net/tutorials/programming/math-and-physics/a-simple-quaternion-based-camera-r1997/
+
+		*/
+
+		/* drowan_20200411_NOTES: the pitch rotation turning to roll when yaw is +90 (facing East) makes sense if I think that I am not changing the camera's orientation but the whole worlds
+		orientation. The pitch is occuring in world space. Pitch turns into a roll relative to the camera's perspective because the whole world
+		is pitching about its axis? Not sure if yaw is doing something similar?
+		Maybe looking at this wrong. Maybe what I am calling qViewRollVersor should just be lookAt and a vector I can choose to rotate around..?
+		*/
+
+		quaternion qViewVersor, qEastVersor, qUpVersor;
+
+		/**/
+		//was roll versor
+		qViewVersor = { 0.0, mainCamera.getOrientationMatrix().m[0][0], mainCamera.getOrientationMatrix().m[0][1], mainCamera.getOrientationMatrix().m[0][2] };
+		//was pitch versor
+		qEastVersor = { 0.0, mainCamera.getOrientationMatrix().m[1][0], mainCamera.getOrientationMatrix().m[1][1], mainCamera.getOrientationMatrix().m[1][2] };
+		//was yaw versor
+		qUpVersor = { 0.0, mainCamera.getOrientationMatrix().m[2][0], mainCamera.getOrientationMatrix().m[2][1], mainCamera.getOrientationMatrix().m[2][2] };
+		/**/
+
+		quaternion qInputOrientationVersor, qInputPitchVersor, qInputRollVersor;
+
+		/* drowan_20200412_NOTES: 
+		This single quaternion represents the rotations in the respective axis with a sequence as follow:
+		yaw, pitch, and roll. So far this seems to be applied to the world frame???
+		*/ 
+		qInputOrientationVersor = quaternion::eulerAnglesToQuaternion(
+			angleRadiansRotateAboutYawAxis * 1.0,
+			angleRadiansRotateAboutPitchAxis * 1.0,
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+		
+		qUpVersor = qInputOrientationVersor * qUpVersor * qInputOrientationVersor.inverse();
+		qViewVersor = qInputOrientationVersor * qViewVersor * qInputOrientationVersor.inverse();
+		qEastVersor = qInputOrientationVersor * qEastVersor * qInputOrientationVersor.inverse();		
+
+		std::cout << "u: " << qUpVersor << "\nv: " << qViewVersor << "\ne: " << qEastVersor << "\n";
+		/**/
+
+		mat4x4 outputOrientationMatrix;
+		
+		outputOrientationMatrix.m[0] = { qViewVersor.x(), qViewVersor.y(), qViewVersor.z(), qViewVersor.w() };
+		outputOrientationMatrix.m[1] = { qEastVersor.x(), qEastVersor.y(), qEastVersor.z(), qEastVersor.w() };
+		outputOrientationMatrix.m[2] = { qUpVersor.x(), qUpVersor.y(), qUpVersor.z(), qUpVersor.w() };
+		outputOrientationMatrix.m[3] = { 0.0, 0.0, 0.0, 1.0 };
+
+		//drowan_NOTE_20200217: see 8.7.3 in 3D Math Primer for Graphics and Game Development, 2nd Ed. for Quaternion to Matrix conversion
+		mainCamera.setOrientationMatrix(outputOrientationMatrix);
+
+		//mainCamera.setLookAt(vec3(qViewYawVersor.x(), qViewYawVersor.y(), qViewYawVersor.z()));
+
+		std::cout << "oM: " << outputOrientationMatrix << "\n";
+
+#endif
+
+	// quaternion rotation about an arbritary axis
+#if 1
+		quaternion qViewRollVersor, qEastPitchVersor, qUpYawVersor,
+			qInputViewVersor, qInputEastVersor, qInputUpVersor,
+			qOutputViewVersor, qOutputEastVersor, qOutputUpVersor;
+
+		vec3 viewVector = {
+			mainCamera.getOrientationMatrix().m[0][0],
+			mainCamera.getOrientationMatrix().m[0][1],
+			mainCamera.getOrientationMatrix().m[0][2]
+		};
+
+		vec3 eastVector = {
+			mainCamera.getOrientationMatrix().m[1][0],
+			mainCamera.getOrientationMatrix().m[1][1],
+			mainCamera.getOrientationMatrix().m[1][2]
+		};
+
+		vec3 upVector = {
+			mainCamera.getOrientationMatrix().m[2][0],
+			mainCamera.getOrientationMatrix().m[2][1],
+			mainCamera.getOrientationMatrix().m[2][2]
+		};
+
+		qInputViewVersor = { 0, viewVector.x(), viewVector.y(), viewVector.z() };
+		qInputEastVersor = { 0, eastVector.x(), eastVector.y(), eastVector.z() };
+		qInputUpVersor = { 0, upVector.x(), upVector.y(), upVector.z() };
+
+		/**/		
+		qViewRollVersor = quaternion::rotatedAngleAroundVectorToQuaternion(
+			viewVector.x(), 
+			viewVector.y(), 
+			viewVector.z(), 
+			angleRadiansRotateAboutRollAxis * 1.0
+		);
+		
+		qEastPitchVersor = quaternion::rotatedAngleAroundVectorToQuaternion(
+			eastVector.x(),
+			eastVector.y(),
+			eastVector.z(),
+			angleRadiansRotateAboutPitchAxis * 1.0
+		);
+
+		qUpYawVersor = quaternion::rotatedAngleAroundVectorToQuaternion(
+			upVector.x(),
+			upVector.y(),
+			upVector.z(),
+			angleRadiansRotateAboutYawAxis * 1.0
+		);
+		/**/		
+
+		// order is from right to left in terms of the application of the rotations
+		// so yaw is first, then pitch, then roll
+		//see  line "If p and q are unit quaternions, then rotation..."
+		//https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation
+		qOutputUpVersor = qViewRollVersor * qEastPitchVersor * qUpYawVersor * qInputUpVersor * qViewRollVersor.inverse() * qEastPitchVersor.inverse() * qUpYawVersor.inverse();
+		qOutputViewVersor = qViewRollVersor * qEastPitchVersor * qUpYawVersor * qInputViewVersor * qViewRollVersor.inverse() * qEastPitchVersor.inverse() * qUpYawVersor.inverse();
+		qOutputEastVersor = qViewRollVersor * qEastPitchVersor * qUpYawVersor * qInputEastVersor * qViewRollVersor.inverse() * qEastPitchVersor.inverse() * qUpYawVersor.inverse();
+
+		std::cout << "u: " << qUpYawVersor << "\nv: " << qViewRollVersor << "\ne: " << qEastPitchVersor << "\n";
+		/**/
+
+		mat4x4 outputOrientationMatrix;
+
+		outputOrientationMatrix.m[0] = { qOutputViewVersor.x(), qOutputViewVersor.y(), qOutputViewVersor.z(), qOutputViewVersor.w() };
+		outputOrientationMatrix.m[1] = { qOutputEastVersor.x(), qOutputEastVersor.y(), qOutputEastVersor.z(), qOutputEastVersor.w() };
+		outputOrientationMatrix.m[2] = { qOutputUpVersor.x(), qOutputUpVersor.y(), qOutputUpVersor.z(), qOutputUpVersor.w() };
+		outputOrientationMatrix.m[3] = { 0.0, 0.0, 0.0, 1.0 };
+
+		//drowan_NOTE_20200217: see 8.7.3 in 3D Math Primer for Graphics and Game Development, 2nd Ed. for Quaternion to Matrix conversion
+		mainCamera.setOrientationMatrix(outputOrientationMatrix);
+
+		//mainCamera.setLookAt(vec3(qViewYawVersor.x(), qViewYawVersor.y(), qViewYawVersor.z()));
+
+		std::cout << "oM: " << outputOrientationMatrix << "\n";
+
+#endif
+#endif
+
+#pragma endregion Modify LookAt Debug
+
+#pragma region Manage_Threads
+	
 		//check if render is done
+		//TODO: Waiting for done here may effectively limit performance to the slowest thread...
 		for (std::shared_ptr<WorkerThread> &thread : workerThreadVector) {
 
 			std::unique_lock<std::mutex> doneLock(thread->workIsDoneMutex);			
@@ -243,7 +642,7 @@ int main() {
 		}
 
 		//bitblit
-#if DEBUG_BITBLIT == 1		
+#if ENABLE_BITBLIT == 1		
 		std::unique_lock<std::mutex> bitBlitContinueLock(bitBlitWorkerThread->continueWorkMutex);
 		bitBlitWorkerThread->continueWork = true;
 		bitBlitWorkerThread->continueWorkConditionVar.notify_all();
@@ -268,8 +667,8 @@ int main() {
 			continueLock.unlock();
 			//thread->continueWorkConditionVar.notify_all();
 		}
-	}	
-
+	}
+	//END OF RENDER LOOP
 
 #pragma endregion Manage_Threads
 
@@ -306,7 +705,7 @@ int main() {
 	}
 
 	//bitblit
-#if DEBUG_BITBLIT == 1
+#if ENABLE_BITBLIT == 1
 	//exit the bitblit thread
 	std::unique_lock<std::mutex> bitBlitContinueLock(bitBlitWorkerThread->continueWorkMutex);
 	bitBlitWorkerThread->continueWork = false;
@@ -485,8 +884,9 @@ void raytraceWorkerProcedure(
 
 	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
 		
-	int numOfThreads = DEBUG_RUN_THREADS; //std::thread::hardware_concurrency();	
-	
+
+	int numOfThreads = workerThreadStruct->configuredMaxThreads;
+
 	DEBUG_MSG_L0(__func__, 
 		"worker " << workerThreadStruct->id <<
 		"\n\tHwnd: " << raytraceMSWindowHandle <<
@@ -499,6 +899,8 @@ void raytraceWorkerProcedure(
 
 	uint32_t rowOffsetInPixels = 0;
 
+	clock_t endWorkerTime = 0, startWorkerTime = 0;
+
 #if RUN_RAY_TRACE == 1
 	while (true) {
 
@@ -507,7 +909,9 @@ void raytraceWorkerProcedure(
 		T2 (n+1 + t*i):		1, 5, 9
 		T3 (n+2 + t*i):		2, 6, 10
 		T4 (n+3 + t*i):		3, 7, 11
-	*/
+	*/		
+		startWorkerTime = clock();
+
 		for (int row = workerImageBufferStruct->resHeightInPixels - 1; row >= 0; row--) {
 			//for (int row = 0; row < workerImageBufferStruct->resHeightInPixels; row++) {
 			for (int i = 0; i < workerImageBufferStruct->resWidthInPixels; i++) {
@@ -554,7 +958,7 @@ void raytraceWorkerProcedure(
 #if DISPLAY_WINDOW == 1 && DEBUG_SET_PIXEL == 1
 				//SetPixel is really slow on my laptop. Maybe GPU bound as CPU only loads to ~40%. Without it, can reach 100%
 				//For WinAPI look into Lockbits
-				//SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
+				SetPixel(hdcRayTraceWindow, column, renderProps.resHeightInPixels - row, RGB(ir, ig, ib));				
 #endif
 
 #if 1			
@@ -574,25 +978,32 @@ void raytraceWorkerProcedure(
 			}
 		}
 
+		clock_t workerProcessTime = clock() - startWorkerTime;
+
+		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " proc time (sec): " << (float)workerProcessTime/CLOCKS_PER_SEC);
+
+		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " signaling done!");
 		//indicate that ray tracing is complete	
 		std::unique_lock<std::mutex> doneLock(workerThreadStruct->workIsDoneMutex);
 		workerThreadStruct->workIsDone = true;
 		workerThreadStruct->workIsDoneConditionVar.notify_all();
-		doneLock.unlock();
+		doneLock.unlock();		
 
 		//check if we need to continue rendering
-		continueLock.lock();
 		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " waiting for continue notice");
+		continueLock.lock();
 		workerThreadStruct->continueWorkConditionVar.wait(continueLock);
-		//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got continue notice...");
+		
 		if (workerThreadStruct->continueWork) {
 			//continue
 			continueLock.unlock();
+			//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got continue notice...");
 		}
 		else {
 			continueLock.unlock();
+			//DEBUG_MSG_L0(__func__, "worker " << workerThreadStruct->id << " got stop work notice...");
 			break;
-		}
+		}		
 	}
 #endif
 	

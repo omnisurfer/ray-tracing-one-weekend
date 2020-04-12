@@ -105,6 +105,6 @@ bool YZRectangle::hit(const ray &inputRay, float t0, float t1, HitRecord &hitRec
 	hitRecrod.pointAtParameterT = t;
 	hitRecrod.materialPointer = _material;
 	hitRecrod.point = inputRay.pointAtParameter(t);
-	hitRecrod.normal = vec3(0, 1, 0);
+	hitRecrod.normal = vec3(1, 0, 0);
 	return true;
 }
