@@ -108,7 +108,7 @@ int main() {
 	/* See camera for reference frame explanation*/
 
 	//NED world reference frame	
-	vec3 lookFrom(0, 0, 0);
+	vec3 lookFrom(-400, 0, 0);
 	vec3 lookAt(1, 0, 0);
 	vec3 worldUp(0, 0, -1);
 
@@ -347,7 +347,7 @@ int main() {
 			angleRadiansRotateAboutRollAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);;
 		}
 
-		//Euler angles lookAt manipulation
+		//Euler angles lookAt manipulation - COULD NOT GET TO WORK
 #if 0
 		vec3 yawRotationAboutY[3] = {
 			{(float)cos(angleRadiansRotateAboutYawAxis),0.0f,(float)sin(angleRadiansRotateAboutYawAxis)},
@@ -409,7 +409,7 @@ int main() {
 	static float angleDegree = 0.0f;
 	float angleRadians = angleDegree * M_PI / 180.0f;
 
-	//Quaternion lookAt manipulation
+	//Quaternion lookAt manipulation - COULD NOT GET TO WORK
 #if 0
 		quaternion qRotateAboutYawAxis, qRotateAboutRollAxis;		
 
@@ -479,7 +479,7 @@ int main() {
 		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
 #endif
 
-	//quaternion matrix rotation manipulation
+	//quaternion matrix rotation manipulation - COULD NOT GET TO WORK
 #if 0
 		/*
 		Maybe this will solve my pitch to roll issue?
