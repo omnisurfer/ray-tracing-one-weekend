@@ -300,10 +300,11 @@ int main() {
 				controlAsserted = true;
 			}
 		}
-
+		/*
 		if (controlAsserted) {
 			mainCamera.setLookFromPoint(newLookFrom);
 		}
+		*/
 #endif
 
 #if defined ENABLE_MOUSE_CONTROLS && ENABLE_MOUSE_CONTROLS == 1
@@ -406,8 +407,8 @@ int main() {
 		mainCamera.setLookAt(newLookAtVector);
 #endif
 				
-	static float angleDegree = 0.0f;
-	float angleRadians = angleDegree * M_PI / 180.0f;
+		static float angleDegree = 0.0f;
+		float angleRadians = angleDegree * M_PI / 180.0f;
 
 	//Quaternion lookAt manipulation - COULD NOT GET TO WORK
 #if 0
@@ -545,7 +546,7 @@ int main() {
 
 #endif
 
-	// quaternion rotation about an arbritary axis
+	// quaternion rotation about an arbritary axis - THIS SEEMS TO WORK!
 #if 1
 		quaternion qViewRollVersor, qEastPitchVersor, qUpYawVersor,
 			qInputViewVersor, qInputEastVersor, qInputUpVersor,
@@ -623,6 +624,10 @@ int main() {
 
 #endif
 #endif
+		//drowan_20200419_NOTES: maybe at this point adjust the newLookFrom using the view versor?
+		if (controlAsserted) {
+			mainCamera.setLookFromPoint(newLookFrom);
+		}
 
 #pragma endregion Modify LookAt Debug
 
