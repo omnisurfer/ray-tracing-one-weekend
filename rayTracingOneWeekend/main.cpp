@@ -108,7 +108,7 @@ int main() {
 	/* See camera for reference frame explanation*/
 
 	//NED world reference frame	
-	vec3 lookFrom(-400, 0, 0);
+	vec3 lookFrom(0, 0, 0);
 	vec3 lookAt(1, 0, 0);
 	vec3 worldUp(0, 0, -1);
 
@@ -129,11 +129,11 @@ int main() {
 	//random scene	
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
-	Hitable *world = randomScene();
+	Hitable *world = new Translate(randomScene_NED(), vec3(0, 0, 1000));
 #else
 	//cornell box		
 
-	Hitable *world = new Translate(cornellBox_NED(), vec3(300, 0, 0));
+	Hitable *world = new Translate(cornellBox_NED(), vec3(800, 0, 0));
 #endif
 
 	// Each thread will have a handle to this shared buffer but will access the memory with a thread specific memory offset which will hopefully mitigate concurrent access issues.
@@ -595,6 +595,8 @@ int main() {
 			displacementReferenceVector = unit_vector({ qOutputEastVersor.x(),  qOutputEastVersor.y(), qOutputEastVersor.z() });
 			controlAsserted = true;
 		}
+		/*drowan_TODO_20200503: Bypass "jumping" for now so I can focus on other issues*/
+		/*
 		else if (guiControlInputs.spaceAsserted) {
 			lookFromPointDisplacementMagnitudes = vec3(50.0, 50.0, 50.0);
 			displacementReferenceVector = unit_vector({ qOutputUpVersor.x(),  qOutputUpVersor.y(), qOutputUpVersor.z() });
@@ -602,7 +604,7 @@ int main() {
 		}
 		else {			
 
-			displacementReferenceVector = unit_vector({ qOutputUpVersor.x(),  qOutputUpVersor.y(), qOutputUpVersor.z() });
+			displacementReferenceVector = unit_vector({ qOutputUpVersor.x(),  qOutputUpVersor.y(), qOutputUpVersor.z() });			
 			
 			std::cout << oldLookFromPoint.z() << "\n";
 			//drowan_BUG_20200423: "gravity" oscillates and is all weird. Need to spend time thinking how to do "jumping/lift" correctly...
@@ -616,9 +618,10 @@ int main() {
 			}
 			else {
 				lookFromPointDisplacementMagnitudes = vec3(lookFromPointDisplacementMagnitudes.x(), lookFromPointDisplacementMagnitudes.y(), 0.0);
-				controlAsserted = true;				
+				controlAsserted = true;
 			}
 		}
+		*/
 
 		//seems to be acting like roll...		
 		if (!guiControlInputs.leftShiftAsserted) {

@@ -26,7 +26,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-
 Hitable *randomScene() {
 	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
 	int n = 100;
@@ -113,6 +112,104 @@ Hitable *randomScene() {
 	list[i++] = new Sphere(vec3(4, -1.0, 0), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));		
 	//basic "sun"?
 	list[i++] = new Sphere(vec3(0, -400, 10), 100.0, emitterMat);
+#endif
+
+	//std::cout << "n+1 = " << n << " i= " << i << "\n";
+	return new BvhNode(list, i, 0.0, 1.0);
+	//return new HitableList(list, i);
+}
+
+Hitable *randomScene_NED() {
+	//drowan 20190210: maybe use camera lookat to figure out the centerX and Y coords?
+	int n = 100;
+	Hitable **list = new Hitable*[n + 1];
+
+	Texture *checker = new CheckerTexture(
+		new ConstantTexture(vec3(0.2, 0.2, 0.8)),
+		new ConstantTexture(vec3(0.9, 0.9, 0.9))
+	);
+
+	Texture *perlin = new NoiseTexture(true, 8.0f);
+
+	Texture *constant = new ConstantTexture(vec3(0.0, 1.0, 0.0));
+
+	Material *emitterMat = new DiffuseLight(new ConstantTexture(vec3(20 * 1, 20 * 0, 20 * 0)));
+
+	//read in an image for texture mapping
+	int nx, ny, nn;
+	unsigned char *textureData = stbi_load("./input_images/1_earth_8k.jpg", &nx, &ny, &nn, 0);
+	//unsigned char *textureData = stbi_load("./input_images/earth1300x1300.jpg", &nx, &ny, &nn, 0);
+	//unsigned char *textureData = stbi_load("./input_images/red750x750.jpg", &nx, &ny, &nn, 0);
+
+	Material *imageMat = new Lambertian(new ImageTexture(textureData, nx, ny));
+
+	float worldSphereRadius = 1000.0;
+	float worldSphereRadiusOffset = -1 * worldSphereRadius;
+
+	list[0] = new Sphere(vec3(0, 0, 0), worldSphereRadius, new Lambertian(perlin));
+
+	int i = 1;
+
+	const int xMod = 10, yMod = 10;
+
+	int centerX = xMod, centerY = yMod;
+#if 1
+	// drowan(20190607) TODO: figure out what magic number 3 was supposed to be (I forgot...)
+	while (i < n - 3) {
+		float chooseMaterial = unifRand(randomNumberGenerator);
+
+		vec3 center(centerX * unifRand(randomNumberGenerator), centerY * unifRand(randomNumberGenerator), worldSphereRadiusOffset - 1);
+
+		if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
+			if (chooseMaterial < 0.8) { //diffuse
+				list[i++] = new MovingSphere(center,
+					center + vec3(0, 0.5*unifRand(randomNumberGenerator), 0),
+					0.0,
+					1.0,
+					0.2,
+					new Lambertian(checker)
+				);
+			}
+			else if (chooseMaterial < 0.95) { //metal
+				list[i++] = new Sphere(center, 
+					0.2,
+					new Metal(
+						vec3(0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator)), 0.5*(1 + unifRand(randomNumberGenerator))),
+						0.5*(1 + unifRand(randomNumberGenerator))
+					)
+				);
+			}
+			else { //glass
+				list[i++] = new Sphere(center, 0.5, new Dielectric(1.5));
+			}
+		}
+
+		if (centerX < xMod) {
+			centerX++;
+		}
+		else {
+			centerX = -xMod;
+			centerY++;
+		}
+
+		if (centerY > yMod) {
+			centerY = -yMod;
+		}
+
+		//std::cout << __func__ << "cX: " << centerX << " cY: " << centerY << "\n";
+	}
+#endif
+	if (textureData != NULL) {
+		list[i++] = new Sphere(vec3(20.0, 0.0, worldSphereRadiusOffset - 25.0), 10.0, imageMat);
+	}
+	else {
+		list[i++] = new Sphere(vec3(20.0, 0.0, worldSphereRadiusOffset - 25.0), 10.0, new Dielectric(1.5));
+	}
+#if 1
+	list[i++] = new Sphere(vec3(100, -70, worldSphereRadiusOffset), 50.0, new Lambertian(perlin));
+	list[i++] = new Sphere(vec3(100, 70, worldSphereRadiusOffset), 50.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
+	//basic "sun"?
+	list[i++] = new Sphere(vec3(0, 0, worldSphereRadiusOffset - 500), 100.0, emitterMat);
 #endif
 
 	//std::cout << "n+1 = " << n << " i= " << i << "\n";
@@ -270,7 +367,7 @@ Hitable *cornellBox_NED() {
 	Material *greenLight = new DiffuseLight(new ConstantTexture(vec3(0, 4, 0)));
 	Material *blueLight = new DiffuseLight(new ConstantTexture(vec3(0, 0, 4)));
 
-	int planeWidth = 500, planeHeight = 500;
+	int planeWidth = 1000, planeHeight = 1000;
 	
 	//light panel	
 	list[i++] = new Translate(
@@ -345,15 +442,21 @@ Hitable *cornellBox_NED() {
 	);
 
 	//add boxes
-#if 0
-	list[i++] = new Box(vec3(50, 100, 100), vec3(200, 200, 200), blue);
-	list[i++] = new Box(vec3(265, 0, 295), vec3(430, 330, 460), white);
-#else
+//#if 0
+	list[i++] = new Translate(
+		new Box(vec3(0, 0, 0), vec3(200, 200, 300), blue), 
+		vec3(0, -300, 0)
+	);
+	list[i++] = new Translate(
+		new Box(vec3(0, 0, 0), vec3(200, 200, 300), red), 
+		vec3(0, 150, 0)
+	);
+//#else
 
-	/*
+	/**/
 	list[i++] = new Translate(
 		new RotateY(new Box(vec3(0, 0, 0), vec3(160, 160, 160), blue), 18.0),
-		vec3(0, 80, 100)
+		vec3(0, 0, -200)
 	);
 	/*
 	// make a smoke box
@@ -375,6 +478,6 @@ Hitable *cornellBox_NED() {
 	list[i++] = innerSphere;
 	list[i++] = outerSphere;
 
-#endif
+//#endif
 	return new HitableList(list, i);
 }
