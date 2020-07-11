@@ -129,11 +129,11 @@ int main() {
 	//random scene	
 
 	//world bundles all the hitables and provides a generic way to call hit recursively in color (it's hit calls all the objects hits)
-	Hitable *world = randomScene();
+	Hitable *world = new Translate(randomScene_NED(), vec3(0, 0, 1000));
 #else
 	//cornell box		
 
-	Hitable *world = new Translate(cornellBox_NED(), vec3(300, 0, 0));
+	Hitable *world = new Translate(cornellBox_NED(), vec3(800, 0, 0));
 #endif
 
 	// Each thread will have a handle to this shared buffer but will access the memory with a thread specific memory offset which will hopefully mitigate concurrent access issues.
@@ -249,62 +249,7 @@ int main() {
 		//check if the gui is running
 		if (!checkIfGuiIsRunning()) {
 			break;
-		}		
-
-#if defined ENABLE_KEYBOARD_CONTROLS && ENABLE_KEYBOARD_CONTROLS == 1
-		//check some keys
-		GUIControlInputs guiControlInputs;
-		getGUIControlInputs(guiControlInputs);
-
-		/*
-		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
-		*/
-		vec3 oldLookFrom = mainCamera.getLookFromPoint();
-		vec3 newLookFrom = oldLookFrom;
-
-		bool controlAsserted = false;
-
-		if (guiControlInputs.forwardAsserted) {
-			newLookFrom += vec3(50.0, 0.0, 0.0);
-			controlAsserted = true;
 		}
-		if (guiControlInputs.reverseAsserted) {
-			newLookFrom += vec3(-50.0, 0.0, 0.0);
-			controlAsserted = true;
-		}
-		if (guiControlInputs.leftAsserted) {
-			newLookFrom += vec3(0.0, -50.0, 0.0);
-			controlAsserted = true;
-		}
-		if (guiControlInputs.rightAsserted) {
-			newLookFrom += vec3(0.0, 50.0, 0.0);
-			controlAsserted = true;
-		}
-
-		if (guiControlInputs.spaceAsserted) {
-			newLookFrom += vec3(0.0, 0.0, -50.0);
-			controlAsserted = true;
-		}
-		else {
-			float diff = newLookFrom.z() + 50.0;
-
-			if (newLookFrom.z() == 0.0) {
-				//do nothing
-			}
-			else if (diff < 0) {
-				newLookFrom += vec3(0.0, 0.0, 10.0);
-				controlAsserted = true;
-			}
-			else {
-				newLookFrom = vec3(newLookFrom.x(), newLookFrom.y(), 0.0);
-				controlAsserted = true;
-			}
-		}
-
-		if (controlAsserted) {
-			mainCamera.setLookFromPoint(newLookFrom);
-		}
-#endif
 
 #if defined ENABLE_MOUSE_CONTROLS && ENABLE_MOUSE_CONTROLS == 1
 
@@ -331,23 +276,14 @@ int main() {
 
 		//drowan_20191020_TODO: remove hard coded window width of 250pixels
 		//map the amount of X cartesian displacement from the center of the "grid" to the half the window width to a max angle of 45.0 degrees
-		yawMovementFromXCartesianDisplacement = ((float)xCartesian / 250.0f) * 45.0f;
+		yawMovementFromXCartesianDisplacement = ((float)-1.0f * xCartesian / 250.0f) * 45.0f;
 
 		horizontalAngleDegreesToRotateBy = (int)yawMovementFromXCartesianDisplacement;
 		horizontalAngleDegreesToRotateBy = (int)horizontalAngleDegreesToRotateBy % 360;
 
 		//std::cout << "horzAngleDegYaw: " << horizontalAngleDegreesToRotateBy << "\n";
 
-		//seems to be acting like roll...		
-		if (!guiControlInputs.leftShiftAsserted) {
-			angleRadiansRotateAboutYawAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
-		}
-		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
-		else {
-			angleRadiansRotateAboutRollAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);;
-		}
-
-		//Euler angles lookAt manipulation
+		//Euler angles lookAt manipulation - COULD NOT GET TO WORK
 #if 0
 		vec3 yawRotationAboutY[3] = {
 			{(float)cos(angleRadiansRotateAboutYawAxis),0.0f,(float)sin(angleRadiansRotateAboutYawAxis)},
@@ -406,10 +342,10 @@ int main() {
 		mainCamera.setLookAt(newLookAtVector);
 #endif
 				
-	static float angleDegree = 0.0f;
-	float angleRadians = angleDegree * M_PI / 180.0f;
+		static float angleDegree = 0.0f;
+		float angleRadians = angleDegree * M_PI / 180.0f;
 
-	//Quaternion lookAt manipulation
+	//Quaternion lookAt manipulation - COULD NOT GET TO WORK
 #if 0
 		quaternion qRotateAboutYawAxis, qRotateAboutRollAxis;		
 
@@ -479,7 +415,7 @@ int main() {
 		//mainCamera.setUpDirection(vec3(outputUpVersor.x(), outputUpVersor.y(), outputUpVersor.z()));		
 #endif
 
-	//quaternion matrix rotation manipulation
+	//quaternion matrix rotation manipulation - COULD NOT GET TO WORK
 #if 0
 		/*
 		Maybe this will solve my pitch to roll issue?
@@ -545,7 +481,7 @@ int main() {
 
 #endif
 
-	// quaternion rotation about an arbritary axis
+	// quaternion rotation about an arbritary axis - THIS SEEMS TO WORK!
 #if 1
 		quaternion qViewRollVersor, qEastPitchVersor, qUpYawVersor,
 			qInputViewVersor, qInputEastVersor, qInputUpVersor,
@@ -622,6 +558,87 @@ int main() {
 		std::cout << "oM: " << outputOrientationMatrix << "\n";
 
 #endif
+#endif
+
+#if defined ENABLE_KEYBOARD_CONTROLS && ENABLE_KEYBOARD_CONTROLS == 1
+		//check some keys
+		GUIControlInputs guiControlInputs;
+		getGUIControlInputs(guiControlInputs);
+
+		/*
+		drowan_DEBUG_20200102: very crude WASD control. Basically "flying no clip" like movement.
+		*/
+		vec3 oldLookFromPoint = mainCamera.getLookFromPoint();
+		vec3 lookFromPointDisplacementMagnitudes = vec3(0.0, 0.0, 0.0);
+		vec3 displacementReferenceVector = vec3(0.0, 0.0, 0.0);
+		vec3 newLookFromPoint = vec3(0.0, 0.0, 0.0);
+
+		bool controlAsserted = false;
+
+		if (guiControlInputs.forwardAsserted) {
+			lookFromPointDisplacementMagnitudes = vec3(-50.0, -50.0, -50.0);
+			displacementReferenceVector = unit_vector({ qOutputViewVersor.x(), qOutputViewVersor.y(), qOutputViewVersor.z() });
+			controlAsserted = true;
+		}
+		else if (guiControlInputs.reverseAsserted) {
+			lookFromPointDisplacementMagnitudes = vec3(50.0, 50.0, 50.0);
+			displacementReferenceVector = unit_vector({ qOutputViewVersor.x(), qOutputViewVersor.y(), qOutputViewVersor.z() });
+			controlAsserted = true;
+		}
+		else if (guiControlInputs.leftAsserted) {
+			lookFromPointDisplacementMagnitudes = vec3(-50.0, -50.0, -50.0);
+			displacementReferenceVector = unit_vector({ qOutputEastVersor.x(),  qOutputEastVersor.y(), qOutputEastVersor.z() });
+			controlAsserted = true;
+		}
+		else if (guiControlInputs.rightAsserted) {
+			lookFromPointDisplacementMagnitudes = vec3(50.0, 50.0, 50.0);
+			displacementReferenceVector = unit_vector({ qOutputEastVersor.x(),  qOutputEastVersor.y(), qOutputEastVersor.z() });
+			controlAsserted = true;
+		}
+		/*drowan_TODO_20200503: Bypass "jumping" for now so I can focus on other issues*/
+		/*
+		else if (guiControlInputs.spaceAsserted) {
+			lookFromPointDisplacementMagnitudes = vec3(50.0, 50.0, 50.0);
+			displacementReferenceVector = unit_vector({ qOutputUpVersor.x(),  qOutputUpVersor.y(), qOutputUpVersor.z() });
+			controlAsserted = true;
+		}
+		else {			
+
+			displacementReferenceVector = unit_vector({ qOutputUpVersor.x(),  qOutputUpVersor.y(), qOutputUpVersor.z() });			
+			
+			std::cout << oldLookFromPoint.z() << "\n";
+			//drowan_BUG_20200423: "gravity" oscillates and is all weird. Need to spend time thinking how to do "jumping/lift" correctly...
+			if (oldLookFromPoint.z() < -50) {
+				lookFromPointDisplacementMagnitudes += vec3(0.0, 0.0, -50.0);
+				controlAsserted = true;
+			}
+			else if (oldLookFromPoint.z() > 50) {
+				lookFromPointDisplacementMagnitudes += vec3(0.0, 0.0, -50.0);
+				controlAsserted = true;
+			}
+			else {
+				lookFromPointDisplacementMagnitudes = vec3(lookFromPointDisplacementMagnitudes.x(), lookFromPointDisplacementMagnitudes.y(), 0.0);
+				controlAsserted = true;
+			}
+		}
+		*/
+
+		//seems to be acting like roll...		
+		if (!guiControlInputs.leftShiftAsserted) {
+			angleRadiansRotateAboutYawAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);
+		}
+		//std::cout << "horzAngleRadYaw: " << angleRadiansRotateAboutY << "\n";		
+		else {
+			angleRadiansRotateAboutRollAxis = horizontalAngleDegreesToRotateBy * (3.14159 / 180.0f);;
+		}
+
+		//drowan_20200419_NOTES: maybe at this point adjust the newLookFrom using the view versor?
+		if (controlAsserted) {
+			
+			newLookFromPoint = oldLookFromPoint + (displacementReferenceVector * lookFromPointDisplacementMagnitudes);
+
+			mainCamera.setLookFromPoint(newLookFromPoint);
+		}
 #endif
 
 #pragma endregion Modify LookAt Debug
@@ -758,7 +775,7 @@ int main() {
 
 #endif	
 
-	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels)
+	// drowan(20190607) BUG: For some reason if the rendered scene is small (10x10 pixels) it crashes?
 	std::cout << "Hit any key to exit...";
 	//std::cout.flush();
 	//std::cin.ignore(INT_MAX, '\n');

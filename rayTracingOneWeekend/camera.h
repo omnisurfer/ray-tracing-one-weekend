@@ -311,7 +311,7 @@ protected:
 		_vertical = 2 * half_height * _focusDistance * _u;
 #endif
 	}
-
+	
 	void setCamera_QuaternionMatrix() {
 
 		_lensRadius = _aperture / 2;

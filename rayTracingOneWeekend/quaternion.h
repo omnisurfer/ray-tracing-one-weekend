@@ -129,6 +129,7 @@ public:
 		yawAngleRadians_Z = std::atan2(sinyCosp, cosyCosp);
 	}
 
+	//https://stackoverflow.com/questions/4436764/rotating-a-quaternion-on-1-axis
 	static inline quaternion rotatedAngleAroundVectorToQuaternion(const float x, const float y, const float z, const float angleRadians) {
 		quaternion result;
 
@@ -139,7 +140,7 @@ public:
 		result.components.y = y * factor;
 		result.components.z = z * factor;
 
-		return result;
+		return result.normalizeVersor();
 	}
 
 	inline quaternion conjugate() {
