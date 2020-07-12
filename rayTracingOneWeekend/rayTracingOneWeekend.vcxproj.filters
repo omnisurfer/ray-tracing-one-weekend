@@ -40,6 +40,9 @@
     <Filter Include="Header Files\gui">
       <UniqueIdentifier>{2c17c85b-424c-4a60-affe-756dc5ace876}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\RenderEngine">
+      <UniqueIdentifier>{86e9f94a-2e81-4aeb-b252-d55891e28094}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -47,6 +50,9 @@
     </ClCompile>
     <ClCompile Include="winDIBbitmap.cpp">
       <Filter>Header Files\imageOutput</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderEngine.cpp">
+      <Filter>Source Files\RenderEngine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -138,6 +144,9 @@
     </ClInclude>
     <ClInclude Include="mat4x4.h">
       <Filter>Header Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderEngine.h">
+      <Filter>Source Files\RenderEngine</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

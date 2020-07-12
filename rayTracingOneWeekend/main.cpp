@@ -20,6 +20,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#include "RenderEngine.h"
+
 /* 
 	Look into:
 	- drowan 20190601: https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/
@@ -85,7 +87,15 @@ int main() {
 			uint32_t(timeSeed >> 32)
 	};
 
-	randomNumberGenerator.seed(seedSequence);	
+	randomNumberGenerator.seed(seedSequence);
+
+#pragma region DEBUG_CODE_FOR_RENDER_ENGINE
+	RenderEngine myRenderEngine = RenderEngine();
+
+	//myRenderEngine.ConfigureRenderProperties();
+	myRenderEngine.DisplayRenderProperties();
+
+#pragma endregion
 	
 #if DEBUG_RUN_THREADS > 0
 	int numOfRenderThreads = DEBUG_RUN_THREADS;
@@ -681,8 +691,7 @@ int main() {
 			std::unique_lock<std::mutex> continueLock(thread->continueWorkMutex);
 			thread->continueWork = true;
 			thread->continueWorkConditionVar.notify_all();
-			continueLock.unlock();
-			//thread->continueWorkConditionVar.notify_all();
+			continueLock.unlock();			
 		}
 	}
 	//END OF RENDER LOOP
@@ -901,7 +910,6 @@ void raytraceWorkerProcedure(
 
 	hdcRayTraceWindow = GetDC(raytraceMSWindowHandle);
 		
-
 	int numOfThreads = workerThreadStruct->configuredMaxThreads;
 
 	DEBUG_MSG_L0(__func__, 

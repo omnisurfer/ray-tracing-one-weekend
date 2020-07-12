@@ -117,6 +117,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="RenderEngine.cpp" />
     <ClCompile Include="winDIBbitmap.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
@@ -142,6 +143,7 @@
     <ClInclude Include="noise.h" />
     <ClInclude Include="quaternion.h" />
     <ClInclude Include="ray.h" />
+    <ClInclude Include="RenderEngine.h" />
     <ClInclude Include="rngs.h" />
     <ClInclude Include="scenes.h" />
     <ClInclude Include="sphere.h" />
